@@ -1,0 +1,19 @@
+Date & time of file creation	5/7/2021 12:58 PM																																																																
+Data file path	C:\Users\user\Documents\Oysters larvael 2021\april 30 2021\may 7 2021 low temo 10-12 ans 13-15 high sal.txt																																																																
+Raw data file path	C:\Users\user\Documents\Oysters larvael 2021\april 30 2021\may 7 2021 low temo 10-12 ans 13-15 high sal_raw.txt																																																																
+																																																																	
+																																																																	
+Parameter/Chamber	Wet weight [g]	Resp. volume [mL]	Fish length [cm]	Fractional error [%]	Chamber notes																																																												
+Chamber 1	100	-97.9	10		10																																																												
+Chamber 2	100	-97.9			11																																																												
+Chamber 3	100	-97.9			12																																																												
+Chamber 4	100	-97.9			blank																																																												
+Chamber 5	100	-97.9	10		13																																																												
+Chamber 6	100	-97.9			14																																																												
+Chamber 7	100	-97.9			15																																																												
+Chamber 8	100	-97.9			blank																																																												
+																																																																	
+																																																																	
+Date &Time [DD-MM-YYYY/HH:MM:SS]	Time [sec]	Loop	Phase time [s]	CH 1 MO2 [mgO2/kg/hr]	CH 1 slope [%air sat./hr]	CH 1 R^2	CH 1 max O2 [%air sat.]	CH 1 min O2 [%air sat.]	CH 1 avg O2 [%air sat.]	CH 1 avg temp [°C]	CH 2 MO2 [mgO2/kg/hr]	CH 2 slope [%air sat./hr]	CH 2 R^2	CH 2 max O2 [%air sat.]	CH 2 min O2 [%air sat.]	CH 2 avg O2 [%air sat.]	CH 2 avg temp [°C]	CH 3 MO2 [mgO2/kg/hr]	CH 3 slope [%air sat./hr]	CH 3 R^2	CH 3 max O2 [%air sat.]	CH 3 min O2 [%air sat.]	CH 3 avg O2 [%air sat.]	CH 3 avg temp [°C]	CH 4 MO2 [mgO2/kg/hr]	CH 4 slope [%air sat./hr]	CH 4 R^2	CH 4 max O2 [%air sat.]	CH 4 min O2 [%air sat.]	CH 4 avg O2 [%air sat.]	CH 4 avg temp [°C]	CH 5 MO2 [mgO2/kg/hr]	CH 5 slope [%air sat./hr]	CH 5 R^2	CH 5 max O2 [%air sat.]	CH 5 min O2 [%air sat.]	CH 5 avg O2 [%air sat.]	CH 5 avg temp [°C]	CH 6 MO2 [mgO2/kg/hr]	CH 6 slope [%air sat./hr]	CH 6 R^2	CH 6 max O2 [%air sat.]	CH 6 min O2 [%air sat.]	CH 6 avg O2 [%air sat.]	CH 6 avg temp [°C]	CH 7 MO2 [mgO2/kg/hr]	CH 7 slope [%air sat./hr]	CH 7 R^2	CH 7 max O2 [%air sat.]	CH 7 min O2 [%air sat.]	CH 7 avg O2 [%air sat.]	CH 7 avg temp [°C]	CH 8 MO2 [mgO2/kg/hr]	CH 8 slope [%air sat./hr]	CH 8 R^2	CH 8 max O2 [%air sat.]	CH 8 min O2 [%air sat.]	CH 8 avg O2 [%air sat.]	CH 8 avg temp [°C]	AMB temp N°1 avg temp [°C]	AMB temp N°1 setpoint [°C]	AMB temp N°1 hysteresis [°C]	AMB temp N°2 avg temp [°C]	AMB temp N°2 setpoint [°C]	AMB temp N°2 hysteresis [°C]
+5/7/2021/1:08:08 PM	603	1	M600	-0.5	-7.787	0.395	101.32	98.79	99.96	23.33	1.3	17.412	0.501	102.17	97.87	100.14	23.33	1.4	18.209	0.494	102.36	97.66	100.00	23.33	-1.0	-15.410	0.900	99.90	96.96	98.53	23.33	-0.1	-2.483	0.258	100.43	99.45	99.93	23.39	1.0	13.355	0.613	101.68	98.73	100.00	23.39	-0.2	-4.232	0.613	99.97	98.81	99.41	23.39	-0.1	-1.597	0.124	100.11	99.43	99.73	23.39	23.33	20.00	0.10	23.39	20.00	0.10
+5/7/2021/1:18:08 PM	1203	2	M600	1.2	15.347	0.595	102.70	98.79	101.25	23.26	0.3	3.598	0.059	100.84	97.38	98.79	23.26	-0.0	-1.465	0.002	101.56	97.86	99.83	23.26	-0.5	-7.676	0.707	97.62	95.47	96.45	23.26	-0.1	-1.948	0.152	99.97	99.10	99.55	23.32	0.2	2.042	0.141	101.90	100.28	101.08	23.32	-0.2	-4.106	0.619	99.22	98.01	98.65	23.32	-0.0	-1.323	0.066	99.83	99.17	99.49	23.32	23.26	20.00	0.10	23.32	20.00	0.10

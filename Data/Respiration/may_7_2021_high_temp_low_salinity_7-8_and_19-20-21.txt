@@ -1,0 +1,20 @@
+Date & time of file creation	5/7/2021 2:51 PM																																																									
+Data file path	C:\Users\user\Documents\Oysters larvael 2021\april 30 2021\may 7 2021 high temp low salinity 7-8 and 19-20-21.txt																																																									
+Raw data file path	C:\Users\user\Documents\Oysters larvael 2021\april 30 2021\may 7 2021 high temp low salinity 7-8 and 19-20-21_raw.txt																																																									
+																																																										
+																																																										
+Parameter/Chamber	Wet weight [g]	Resp. volume [mL]	Fish length [cm]	Fractional error [%]	Chamber notes																																																					
+Chamber 1	100	-97.9	10		7																																																					
+Chamber 2	100	-97.9			8																																																					
+Chamber 4	100	-97.9			blank																																																					
+Chamber 5	100	-97.9	10		19																																																					
+Chamber 6	100	-97.9			20																																																					
+Chamber 7	100	-97.9			21																																																					
+Chamber 8	100	-97.9			blank																																																					
+																																																										
+																																																										
+Date &Time [DD-MM-YYYY/HH:MM:SS]	Time [sec]	Loop	Phase time [s]	CH 1 MO2 [mgO2/kg/hr]	CH 1 slope [%air sat./hr]	CH 1 R^2	CH 1 max O2 [%air sat.]	CH 1 min O2 [%air sat.]	CH 1 avg O2 [%air sat.]	CH 1 avg temp [°C]	CH 2 MO2 [mgO2/kg/hr]	CH 2 slope [%air sat./hr]	CH 2 R^2	CH 2 max O2 [%air sat.]	CH 2 min O2 [%air sat.]	CH 2 avg O2 [%air sat.]	CH 2 avg temp [°C]	CH 4 MO2 [mgO2/kg/hr]	CH 4 slope [%air sat./hr]	CH 4 R^2	CH 4 max O2 [%air sat.]	CH 4 min O2 [%air sat.]	CH 4 avg O2 [%air sat.]	CH 4 avg temp [°C]	CH 5 MO2 [mgO2/kg/hr]	CH 5 slope [%air sat./hr]	CH 5 R^2	CH 5 max O2 [%air sat.]	CH 5 min O2 [%air sat.]	CH 5 avg O2 [%air sat.]	CH 5 avg temp [°C]	CH 6 MO2 [mgO2/kg/hr]	CH 6 slope [%air sat./hr]	CH 6 R^2	CH 6 max O2 [%air sat.]	CH 6 min O2 [%air sat.]	CH 6 avg O2 [%air sat.]	CH 6 avg temp [°C]	CH 7 MO2 [mgO2/kg/hr]	CH 7 slope [%air sat./hr]	CH 7 R^2	CH 7 max O2 [%air sat.]	CH 7 min O2 [%air sat.]	CH 7 avg O2 [%air sat.]	CH 7 avg temp [°C]	CH 8 MO2 [mgO2/kg/hr]	CH 8 slope [%air sat./hr]	CH 8 R^2	CH 8 max O2 [%air sat.]	CH 8 min O2 [%air sat.]	CH 8 avg O2 [%air sat.]	CH 8 avg temp [°C]	AMB temp N°1 avg temp [°C]	AMB temp N°1 setpoint [°C]	AMB temp N°1 hysteresis [°C]	AMB temp N°2 avg temp [°C]	AMB temp N°2 setpoint [°C]	AMB temp N°2 hysteresis [°C]
+5/7/2021/3:01:45 PM	604	1	M600	-0.7	-9.523	0.423	101.35	96.57	99.37	27.88	-0.2	-1.838	0.551	99.72	98.91	99.32	27.88	-0.1	0.018	0.110	100.66	99.97	100.30	27.88	0.7	11.045	0.931	103.41	101.22	102.26	27.98	NaN	NaN	0.000	103.05	101.68	NaN	27.98	NaN	NaN	0.000	106.91	100.04	NaN	27.98	NaN	NaN	0.000	105.72	100.23	NaN	27.98	27.88	20.00	0.10	27.98	20.00	0.10
+5/7/2021/3:11:45 PM	1204	2	M600	-2.1	-29.217	0.562	99.58	93.97	96.42	28.00	-0.2	-2.884	0.667	99.39	98.55	98.95	28.00	-0.0	0.079	0.033	100.66	99.92	100.28	28.00	NaN	NaN	0.000	104.73	102.98	NaN	28.10	0.0	1.338	0.025	103.51	102.65	103.07	28.10	-0.6	-8.299	0.868	100.78	98.96	99.91	28.10	-0.1	-1.095	0.332	101.15	100.21	100.65	28.10	28.00	20.00	0.10	28.10	20.00	0.10
+5/7/2021/3:21:45 PM	1804	3	M600	-0.5	-5.647	0.365	97.12	95.04	96.00	28.09	-0.2	-2.439	0.703	98.95	98.06	98.46	28.09	-0.1	-0.075	0.141	100.61	99.87	100.26	28.09	NaN	NaN	0.000	106.25	104.24	NaN	28.17	NaN	NaN	0.000	104.28	102.82	NaN	28.17	-0.1	-0.950	0.146	99.31	98.25	98.69	28.17	0.0	1.036	0.023	100.96	100.17	100.59	28.17	28.09	20.00	0.10	28.17	20.00	0.10
+5/7/2021/3:31:45 PM	2404	4	M600	-2.2	-31.409	0.923	97.03	91.53	94.56	28.15	-0.2	-2.246	0.630	98.59	97.65	98.06	28.15	-0.0	-0.022	0.051	100.69	99.92	100.29	28.15	0.3	4.281	0.611	107.23	104.99	105.51	28.22	0.4	6.704	0.860	105.25	103.69	104.45	28.22	0.1	1.925	0.190	99.41	98.44	98.91	28.22	0.3	5.522	0.426	101.90	100.32	100.87	28.22	28.15	20.00	0.10	28.22	20.00	0.10
