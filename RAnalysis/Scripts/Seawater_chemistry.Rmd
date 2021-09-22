@@ -1,0 +1,100 @@
+---
+title: "Cvirginica experiment: Seawater Chemistry"
+author: "Samuel Gurr"
+date: "9/22/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+# Purpose: Oyster project 2021 - Respiration rate data 
+# analysis of respiration rate data
+# Written by: Sam J Gurr (last edit 9/14/2021)
+
+# LOAD PACKAGES :::::::::::::::::::::::::::::::::::::::::::::::::::::::
+library(dplyr)
+library(ggplot2)
+library(reshape2)
+library(qwraps2)
+library(knitr)
+library(kableExtra)
+# SET WORKING DIRECTORY :::::::::::::::::::::::::::::::::::::::::::::::
+setwd("C:/Users/samjg/Documents/Github_repositories/Cvriginica_multistressor/RAnalysis") # personal computer
+# setwd("C:/Users/samuel.gurr/Documents/Github_repositories/Cvriginica_multistressor/RAnalysis") # Work computer
+
+# LOAD DATA :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+chem <- read.csv(file="Data/Water_chem/Chem_logsheet_raw.csv", header=TRUE) # load the chem data
+names(chem)<-gsub("\\..","_",names(chem)) # insert underscore sin the column names to ease reading the columns 
+```
+
+
+```{r use dplyr to build chemistry table, include=FALSE}
+chem_sub <- chem %>% 
+  dplyr::filter(Date %in% c('4/29/2021', '5/3/2021', '5/7/2021', '5/10/2021', '5/14/2021', '5/17/2021', '5/21/2021')) %>% 
+  dplyr::select(c('Date', 'Chamber_', 'Temp','OA_CO2', 'Salinity', 't_C_treatment', 'Salinity_','TA_mmol_gSW.', 'pH_ut', 'pCO2_ut_matm.', 'WCa_ut', 'WAr_ut')) %>% 
+  dplyr::mutate(Temp_OA_Sal = paste(Temp, OA_CO2, Salinity, sep = "_")) %>% 
+# dplyr::group_by(Date, Temp_OA_Sal) %>%  
+  dplyr::group_by(Temp_OA_Sal) %>%  
+  na.omit() %>% 
+  dplyr::summarise(
+    meanTemperature     = mean((as.numeric(t_C_treatment))),
+    sdTemperature       = sd(t_C_treatment),
+
+    meanSalinity        = mean(Salinity_),
+    sdSalinity          = sd(Salinity_),
+
+    meanpH              = mean(pH_ut),
+    sdpH                = sd(pH_ut),
+
+    meanpCO2            = mean(pCO2_ut_matm.),
+    sdpCO2              = sd(pCO2_ut_matm.),
+
+    meanTotalAlkalinity = mean(TA_mmol_gSW.),
+    sdTotalAlkalinity   = sd(TA_mmol_gSW.),
+
+    meanCalcite         = mean(WCa_ut),
+    sdCalcite           = sd(WCa_ut),
+
+    meanAragonite       = mean(WAr_ut),
+    sdAragonite         = sd(WAr_ut),
+
+    meanTemp            = mean(TA_mmol_gSW.),
+    sdTemp              = sd(TA_mmol_gSW.),
+    n = n())
+
+# add treatments
+chem_sub$Temperature <- c('High','High','High','High','Low','Low','Low','Low')
+chem_sub$pCO2 <- c('High','High','Low','Low','High','High','Low','Low')
+chem_sub$Salinity <- c('High','Low','High','Low','High','Low','High','Low')
+
+# final table
+FINAL_TABLE                <- data.frame(matrix(nrow = nrow(chem_sub), ncol = 1))
+FINAL_TABLE$temp           <- chem_sub$Temperature
+FINAL_TABLE$OA             <- chem_sub$pCO2
+FINAL_TABLE$sal            <- chem_sub$Salinity
+FINAL_TABLE$N              <- chem_sub$n
+FINAL_TABLE$Temperature    <- paste( (signif(chem_sub$meanTemperature, digits=3)), (signif(chem_sub$sdTemperature, digits=3)), sep=" ± ")
+FINAL_TABLE$pH             <- paste( (signif(chem_sub$meanpH, digits=3)), (signif(chem_sub$sdpH, digits=3)), sep=" ± ")
+FINAL_TABLE$Salinity       <- paste( (signif(chem_sub$meanSalinity, digits=3)), (signif(chem_sub$sdSalinity, digits=3)), sep=" ± ")
+FINAL_TABLE$pCO2           <- paste( (signif(chem_sub$meanpCO2, digits=3)), (signif(chem_sub$sdpCO2, digits=3)), sep=" ± ")
+FINAL_TABLE$TA             <- paste( (signif(chem_sub$meanTotalAlkalinity, digits=3)), (signif(chem_sub$sdTotalAlkalinity, digits=3)), sep=" ± ")
+FINAL_TABLE$Aragonite.Sat  <- paste( (signif(chem_sub$meanAragonite, digits=3)), (signif(chem_sub$sdTotalAlkalinity, digits=3)), sep=" ± ")
+FINAL_TABLE$Calcite.Sat    <- paste( (signif(chem_sub$meanCalcite, digits=3)), (signif(chem_sub$sdCalcite, digits=3)), sep=" ± ")
+FINAL_TABLE                <- FINAL_TABLE[,-1] # view table
+```
+
+
+## knitR to print the table 
+```{r lable output, echo=TRUE}
+FINAL_TABLE %>%
+  kbl(caption = "Table 1. Seawater chemistry") %>%
+  kable_classic(full_width = T, html_font = "Cambria")
+```
+
+
+#### save data
+```{r save tables, echo=TRUE}
+# save output table
+write.table(chem_sub,"C:/Users/samjg/Documents/Github_repositories/Cvriginica_multistressor/RAnalysis/Output/Chem.Table_sep.csv",sep=",", row.names=FALSE)  # write table to 
+write.table(FINAL_TABLE,"C:/Users/samjg/Documents/Github_repositories/Cvriginica_multistressor/RAnalysis/Output/Chem.Table.csv",sep=",", row.names=FALSE)  # write table to 
+
+```
