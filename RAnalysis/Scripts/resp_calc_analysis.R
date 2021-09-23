@@ -1,6 +1,5 @@
 # Purpose: Oyster project 2021 - Respiration rate data 
 # analysis of respiration rate data
-
 # Written by: Sam J Gurr (last edit 9/14/2021)
 
 # LOAD PACKAGES :::::::::::::::::::::::::::::::::::::::::::::::::::::::
