@@ -196,7 +196,7 @@ Resp_APRIL %>%
                             "HHL", "HLL", "LHL", 'LLL')) %>%
   ggplot(aes(meanAragonite, resp_ng_L_indiv_hr , group =full.treatment, fill = factor(Temp))) +
   geom_point(shape = 21, size = 2, position = position_jitterdodge(jitter.width = 0.05))+
-  geom_boxplot(size=.2, alpha=0.1, width =0.2) +
+  #geom_boxplot(size=.2, alpha=0.1, width =0.2) +
   scale_fill_manual(values=c("#D55E00","#56B4E9", "#D55E00","#56B4E9", 
                              "#D55E00","#56B4E9", "#D55E00","#56B4E9")) +
   labs(title = "Respiration rates; C virginica day 1", 
@@ -254,7 +254,7 @@ Resp_MAY %>%
                             "HHL", "LHL", 'LLL')) %>%
   ggplot(aes(meanAragonite, resp_ng_L_indiv_hr , group =full.treatment, fill = factor(Temp))) +
   geom_point(shape = 21, size = 2, position = position_jitterdodge(jitter.width = 0.05))+
-  geom_boxplot(size=.2, alpha=0.1, width =0.2) +
+  #geom_boxplot(size=.2, alpha=0.1, width =0.2) +
   scale_fill_manual(values=c("#D55E00","#56B4E9", "#D55E00","#56B4E9", 
                              "#D55E00","#56B4E9", "#D55E00","#56B4E9")) +
   labs(title = "Respiration rates; C virginica day 8", 
