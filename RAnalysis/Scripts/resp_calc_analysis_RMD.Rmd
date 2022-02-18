@@ -168,7 +168,7 @@ leveneTest(LMmod.APRIL) # good
 # MEmod.APRIL    <- lmer(resp_ng_L_indiv_hr~Temp*pCO2*Salinity + (1|Chamber_tank),REML=F, data=Resp_APRIL)
 # summary(MEmod.APRIL)
 # check_model(MEmod.APRIL)
-# shapiro.test(residuals(MEmod.APRIL)) # non normal
+# shapiro.test(residuals(MEmod.APRIL)) # non normal 0.0107
 # leveneTest(MEmod.APRIL) # good
 
 # POst-hoc tests and exploration of sig effects
@@ -206,6 +206,33 @@ Resp_APRIL %>%
   annotate("rect", xmin = 0, xmax = 0.62, ymin = 0, ymax = 0.25, alpha = .1) +
   geom_smooth(method = "lm", level = 0.95, alpha = .15, aes(group=Temp,colour = factor(Temp))) +
   theme_classic() 
+
+
+pd <- position_dodge(0.1) # adjust the jitter for the different treatments   
+Resp_APRIL %>% 
+  dplyr::mutate(full.treatment = (paste(Temp, pCO2, Salinity,sep=''))) %>%
+  dplyr::mutate(full.treatment = fct_relevel(full.treatment,
+                            "HHH", "HLH", "LHH",'LLH',
+                            "HHL", "HLL", "LHL", 'LLL')) %>%
+  summarySE(measurevar="resp_ng_L_indiv_hr", groupvars=c("full.treatment", "meanAragonite", "Temp")) %>% 
+  ggplot(aes(meanAragonite, resp_ng_L_indiv_hr , group =full.treatment, fill = factor(Temp))) +     
+    geom_point(shape = 21, size = 2, position = position_jitterdodge(jitter.width = 0.05))+
+    geom_errorbar(aes(ymin=resp_ng_L_indiv_hr-se, ymax=resp_ng_L_indiv_hr+se), colour="black", width=.1, position=pd) +
+    geom_line(position=pd) +
+    scale_fill_manual(values=c("#D55E00","#56B4E9", "#D55E00","#56B4E9", 
+                               "#D55E00","#56B4E9", "#D55E00","#56B4E9")) +
+    labs(title = "Respiration rates; C virginica day 1", 
+         y = expression(Respiration~rate~"("~ng~L^{-1}~O[2]%.%indiv^{-1}%.% hr^{-1}~")"), 
+         x = "Aragonite saturation") +
+    annotate("text", x=0.3, y=0.24, label = "Low Salinity") +
+    annotate("text", x=1.25, y=0.24, label = "High Salinity") +
+    annotate("text", x=1.58, y=0.14, label = "a") +
+    annotate("text", x=1.65, y=0.018, label = "b") +
+    annotate("rect", xmin = 0, xmax = 0.62, ymin = 0, ymax = 0.25, alpha = .05) +
+    # geom_smooth(method = "lm", level = 0.95, alpha = .15, aes(group=Temp,colour = factor(Temp))) +
+    theme_classic() 
+
+
 
 ```
 
