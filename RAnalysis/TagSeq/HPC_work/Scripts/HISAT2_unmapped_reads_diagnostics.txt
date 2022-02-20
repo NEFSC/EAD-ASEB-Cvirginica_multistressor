@@ -1,0 +1,18 @@
+# Diagnostics of unmapped reads 
+# note: the mapping efficiently of our TagSeq data was only 30% 
+
+# The following commands were run under interactive mode in HISAT2 directory
+# (1) 
+# for loop calling all unmapped reads (-f 4) in each .bam file and moving this filtered .bam file to 
+# the directory unmapped_diagnostics with the new name 'basenameUNMAPPED.bam'
+
+for file in *.bam; do samtools view -b -f 4 $file > unmapped_diagnostics/${file/.bam/UNMAPPED.bam}; done 
+
+# (2) 
+# convert each binary bam to a sam file 
+
+# (3) 
+# build a master fasta file with all unmapped reads (~100 bp) 
+
+# (4) 
+# run blastn diamond 
