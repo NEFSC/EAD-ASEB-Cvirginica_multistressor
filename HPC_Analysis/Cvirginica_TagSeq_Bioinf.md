@@ -1,4 +1,4 @@
-# Geoduck TagSeq Bioinformatics
+# Eastern oyster (*C. virginica*) TagSeq Bioinformatics
 
 ## <span style="color:blue">**Table of Contents**</span>
   - [Upon upload to HPC...](#Initial-diagnostics-upon-sequence-upload-to-HPC)
@@ -70,41 +70,103 @@ sbatch transfer_checks.sh
 - compare md5sum of our output URI.md5 file to the UT Library Information pdf; okay the upload - move forward
 
 
+
+
+
+
 # Quality check of raw reads
 -------------------------------------------
 
-**NOTE:** H.Putnam ran fastqc_raw.sh and output into the 20201217_Geoduck_TagSeq/ folder
 
 
-# shell script: <span style="color:green">**fastqc_raw.sh**<span>
+
+
+## fastqc
+
+**About:** A quality control tool for high throughput sequence data. [website here](https://www.bioinformatics.babraham.ac.uk/projects/fastqc/)
+
+outputs html report for quality check
+
+
+## MultiQC
+
+**About:** MutliQC aggregates the output html from fastqc into a cumulative interface to easily quality check/diagnose your sequence data pre/post trim! [website here](https://multiqc.info/)
+
+Note! **multiQC is installed to sedna using python**, see calls  below for how to start a python virtual environment, install packages, and navigate to them  within slurm jobs
+
+## Python virtual environment
+
+start your personnel python python_venv
+```
+python3 -m venv /<your desired path to venv>/
+```
+after complete, activate the virtual environment with the following..
+```
+source <venv>/bin/activate
+```
+you can now download packages/modules that are otherwise unavailable such as multiQC.
+use 'pip install' to download
+```
+pip install multiQC
+```
+you now have mutliqc installed in the <venv>/ bin folder
+**to call python modules in slurm jobs** simply enter the virtual environment using 'source' <venv>/bin/activate and all modules can then be called. *you do not need to manually load modules installed to the python venv*
+
+to leave the virtual envrionment...
+```
+deactivate
+```
+
+
+# shell script: <span style="color:green">**raw_multiQC,sh**<span>
 ```
 #!/bin/bash
-#SBATCH -t 120:00:00
-#SBATCH --nodes=1 --ntasks-per-node=10
-#SBATCH --mem=500GB
-#SBATCH --account=putnamlab
-#SBATCH --export=NONE
-#SBATCH -D /data/putnamlab/KITT/hputnam/20201217_Geoduck_TagSeq/
-#SBATCH -p putnamlab
-#SBATCH --cpus-per-task=3
+#SBATCH --job-name="multiQC_raw_reads"
+#SBATCH -t 002:00:00
+#SBATCH --mem=32GB
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=samuel.gurr@noaa.gov
+#SBATCH --output="%x_out.%j"
+#SBATCH --error="%x_err.%j"
 
 # load modules needed
-module load all/FastQC/0.11.9-Java-11
-module load MultiQC/1.9-intel-2020a-Python-3.8.2
+module load bio/fastp/0.23.2
+module load bio/fastqc/0.11.9
 
-for file in /data/putnamlab/KITT/hputnam/20201217_Geoduck_TagSeq/*gz
-do
-fastqc $file
+# run sbatch from the sgurr home directory..
+
+cd Cvirginica_multistressor_TagSeq/output/fastp_multiQC # run from the sgurr directory, navigate to the fast_multiQDC folder
+mkdir raw # make directory for trimmed fastq files and multiqc report
+
+# symbolically link clean reads to fastp_multiQC dir
+# ln -s ../../../../../share/nefsc/mcfarland_sequecenes/TagSeq_oysters_2021/SA21200*/*.fastq.gz  ./ # call backward from the directory to the share folder, input symbolic link to folder
+# hashed out if the symbolic links are already present
+
+# Make an array of sequences to trim
+array1=($(ls *.fastq.gz))  # call the folder will all symbolically linked .fastq.gz files (without the SA* folder included)
+
+# fastqc loop of raw reads - output fastqc files to raw folder
+for i in ${array1[@]}; do
+        fastqc ${i} --outdir ./raw
 done
 
-multiqc /data/putnamlab/KITT/hputnam/20201217_Geoduck_TagSeq/
+echo "QC of raw reads complete." $(date)
+
+# Quality Assessment of Raw reads
+
+source ../../../python_venv/bin/activate # from the current directory, activates the bin of installed python packages, including multiqc
+
+multiqc ./raw #Compile MultiQC report from FastQC files - output .html in current directory ( multiQC html report)
+
+echo "Raw MultiQC report generated." $(date)
+
 
 ```
 
 **Run the sbatch**
 
 ```
-sbatch fastqc_raw.sh
+sbatch raw_multiQC
 ```
 
 **Export multiqc report**
@@ -128,12 +190,30 @@ scp samuel_gurr@bluewaves.uri.edu:/data/putnamlab/sgurr/Geoduck_TagSeq/output/fa
   - **Adapter Content**: high adapters present, 1-6% of sequences; **To do:** *trim adapter sequence*
 
 
+
+
+
+
 # Trimming and post-trim quality check of 'clean' reads
 -------------------------------------------
 
+
+
+
+
+
+
+
+
+
+
+## fastp
+
+**About:** preprocessing for FastQ files - open source code and info found on github [here](https://github.com/OpenGene/fastp)
+
+
 ### Trimming-polyA-tail
-- Remember that TagSeq involves priming from the polyA tail of mRNA sequences! Thus, we will need to
-trim mononnucleotide sequence of As using fastp (in addition to threshold quality score and adapter(s)!)
+- Remember that TagSeq involves priming from the polyA tail of mRNA sequences! Thus, we will need to trim mononnucleotide sequence of As using fastp in addition to threshold quality score and adapters trimming. Furthermore, the default low complexity filter is 30% - given the prevalence of mononucleitide bases (i.e. polyA tail) it can be beneficial to increase this threshold to 50%
 
 
 ### What this script will do...
@@ -147,54 +227,167 @@ trim mononnucleotide sequence of As using fastp (in addition to threshold qualit
 - ```multiqc ./``` = outputs mutliqc report of the 'clean' reads in the current directory
 
 
-# shell script: <span style="color:green">**fastp_mutliqc.sh**<span>
+### <span style="color:red">*sanity check!*
+
+before we trim, trim, trim away, <span style="color:red">important to use stepwise diagnostics...
+
+(1) first trim ONLY adapters and read the multiQC report
+
+*if further processing is needed...*
+
+(2) trim adapters + other parameters to optimize quality
+
+
+# 'Adapter only' trim
+
+# shell script: <span style="color:green">**fastp_multiQC_adapters_only**<span>
+
 ```
 #!/bin/bash
-#SBATCH -t 120:00:00
-#SBATCH --nodes=1 --ntasks-per-node=20
-#SBATCH --mem=500GB
-#SBATCH --account=putnamlab
-#SBATCH --export=NONE
-#SBATCH --mail-type=BEGIN,END,FAIL
-#SBATCH --mail-user=samuel_gurr@uri.edu
-#SBATCH --output=../../../sgurr/Geoduck_TagSeq/output/clean/"%x_out.%j"
-#SBATCH --error=../../../sgurr/Geoduck_TagSeq/output/clean/"%x_err.%j"
-#SBATCH -D /data/putnamlab/KITT/hputnam/20201217_Geoduck_TagSeq/
+#SBATCH --job-name="fastp_multiQC_adapters_only"
+#SBATCH -t 002:00:00
+#SBATCH --mem=100GB
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=samuel.gurr@noaa.gov
+#SBATCH --output=./Cvirginica_multistressor_TagSeq/output/fastp_multiQC/adapter_trim/"%x_out.%j"
+#SBATCH --error=./Cvirginica_multistressor_TagSeq/output/fastp_multiQC/adapter_trim/"%x_err.%j"
+
+# before running..
+# make directory named adapter_trim in the folder output/fastp_multiQC/
+# run sbatch from the host home directory
 
 # load modules needed
-module load fastp/0.19.7-foss-2018b
-module load FastQC/0.11.8-Java-1.8
-module load MultiQC/1.7-foss-2018b-Python-2.7.15
+module load bio/fastp/0.23.2
+module load bio/fastqc/0.11.9
+
+cd Cvirginica_multistressor_TagSeq/output/fastp_multiQC # run from the sgurr directory, navigate to the fast_multiQDC folder
+
+# symbolically link clean reads to fastp_multiQC dir
+# ln -s ../../../../../share/nefsc/mcfarland_sequecenes/TagSeq_oysters_2021/SA21200*/*.fastq.gz  ./ # call backward from the directory to the share folder, input symbolic link to folder
+# commented out if the symbolic links are already created
 
 # Make an array of sequences to trim
-array1=($(ls *.fastq.gz))
+array1=($(ls *.fastq.gz))  # call the folder will all symbolically linked .fastq.gz files (without the SA* folder included)
 
-# fastp loop; trim the Read 1 TruSeq adapter sequence
+# fastp loop; trim the Read 1 TruSeq adapter sequence; trim poly x default 10 (to trim polyA)
 for i in ${array1[@]}; do
-	fastp --in1 ${i} --out1 ../../../sgurr/Geoduck_TagSeq/output/clean/clean.${i} --adapter_sequence=AGATCGGAAGAGCACACGTCTGAACTCCAGTCA
-        fastqc ../../../sgurr/Geoduck_TagSeq/output/clean/clean.${i}
+	fastp --in1 ${i} --out1 ./adapter_trim/adapter_trim.${i} --adapter_sequence=AGATCGGAAGAGCACACGTCTGAACTCCAGTCA # --trim_poly_x 6 -q 30 -y -Y 50  # check JUST adapters trimmed without the polyA tail and 50% complexity filter (-Y, defaults 30%)
+        fastqc  ./adapter_trim/adapter_trim.${i} --outdir ./adapter_trim # call the output files from fastp in previous line and output fastqc in the same folder with adapter_trim filename head
 done
 
 echo "Read trimming of adapters complete." $(date)
 
 # Quality Assessment of Trimmed Reads
 
-cd ../../../sgurr/Geoduck_TagSeq/output/clean #The following command will be run in the /clean directory
+source ../../../python_venv/bin/activate # from the current directory, activates the bin of installed python packages, including multiqc
 
-multiqc ./ #Compile MultiQC report from FastQC files
+multiqc ./adapter_trim  -o ./adapter_trim #Compile MultiQC report from FastQC files - output .html in adpater_trim directory ( fast_muiltiQC folder)
 
 echo "Cleaned MultiQC report generated." $(date)
+
+```
+
+#### EXPORT MUTLIQC REPORT
+
+*exit sedna and run from terminal*
+
+- save to gitrepo  and rename as multiqc_report_adapter_trim_only.html
+
+```
+scp samuel_gurr@bluewaves.uri.edu:/data/putnamlab/sgurr/Geoduck_TagSeq/output/clean/multiqc_report.html  C:/Users/samjg/Documents/My_Projects/Pgenerosa_TagSeq_Metabolomics
+
+```
+
+
+### <span style="color:red">*report indicated further processing WAS needed...*
+
+
+
+# 'Clean' trim (adapters + others)
+# shell script: <span style="color:green">**fastp_multiQC_adapters_only**<span>
+
+```
+#!/bin/bash
+#SBATCH --job-name="fastp_multiQC_clean"
+#SBATCH -t 002:00:00
+#SBATCH --mem=32GB
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=samuel.gurr@noaa.gov
+#SBATCH --output=./Cvirginica_multistressor_TagSeq/output/fastp_multiQC/clean/"%x_out.%j"
+#SBATCH --error=./Cvirginica_multistressor_TagSeq/output/fastp_multiQC/clean/"%x_err.%j"
+
+# before running..
+# make directory named clean in the folder output/fastp_multiQC/
+# run sbatch from the host home directory
+
+# load modules needed
+module load bio/fastp/0.23.2
+module load bio/fastqc/0.11.9
+
+cd Cvirginica_multistressor_TagSeq/output/fastp_multiQC # run from the sgurr directory, navigate to the fast_multiQDC folder
+
+# symbolically link clean reads to fastp_multiQC dir
+# commented out if the symbolic links are already created
+# ln -s ../../../../../share/nefsc/mcfarland_sequecenes/TagSeq_oysters_2021/SA21200*/*.fastq.gz  ./ # call backward from the directory to the share folder, input symbolic link to folder
+
+# Make an array of sequences to trim
+array1=($(ls *.fastq.gz))  # call the folder will all symbolically linked .fastq.gz files (without the SA* folder included)
+
+# fastp loop; trim the Read 1 TruSeq adapter sequence; trim poly x default 10 (to trim polyA)
+for i in ${array1[@]}; do
+	fastp --in1 ${i} --out1 ./clean/clean.${i} --adapter_sequence=AGATCGGAAGAGCACACGTCTGAACTCCAGTCA --trim_poly_x 6 -q 30 -y -Y 50
+        fastqc  ./clean/clean.${i} --outdir ./clean # calls the  files output by fastp in previous line and output into the same folder
+done
+
+echo "Read trimming of adapters complete." $(date)
+
+# Quality Assessment of Trimmed Reads
+
+source ../../../python_venv/bin/activate # from the current directory, activates the bin of installed python packages, including multiqc
+
+multiqc ./clean -o ./clean #Compile MultiQC report from FastQC files - output .html in current directory ( fast_muiltiQC folder)
+
+echo "Cleaned MultiQC report generated." $(date)
+
 ```
 
 ### EXPORT MUTLIQC REPORT
-*exit bluewaves and run from terminal*
-- save to gitrepo as multiqc_clean.html
+
+*exit sedna and run from terminal*
+
+- save to gitrepo and rename as multiqc_report_clean.html
+
 ```
 scp samuel_gurr@bluewaves.uri.edu:/data/putnamlab/sgurr/Geoduck_TagSeq/output/clean/multiqc_report.html  C:/Users/samjg/Documents/My_Projects/Pgenerosa_TagSeq_Metabolomics
+
 ```
+
+
+## we now have **'clean' fastq files** after processing with fastp! Use these in the following...
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # Alignment of cleaned reads to reference
 -------------------------------------------
+
+
+
+
+
 
 ## Reference genome upload to HPC
 
@@ -202,30 +395,37 @@ scp samuel_gurr@bluewaves.uri.edu:/data/putnamlab/sgurr/Geoduck_TagSeq/output/cl
 
 -	move refs Crassostrea virginica to the HPC, references include the following (downloaded from https://www.ncbi.nlm.nih.gov/genome/?term=txid6565[Organism:noexp]):
 
-* genome (genomic.fna) 
+* genome (genomic.fna)
 * transcript reference (rna.fna)
 * anotation (.gff)   
-* below is the scp calling each based on common GCF filename header
+
+### import species refs to the HPC
+
+Below is the scp calling each reference .gz file based on common GCF filename header - import to the HPC
 
 ```
 scp C:/Users/samuel.gurr/Documents/Genomes/Crassostrea_virginica/GCF* sgurr@sedna.nwfsc2.noaa.gov:refs/
 ```
 
-## gunzip wihtin the HPC 
+### gunzip within the HPC
 
 *ssh back into the HPC and navigate to the folder with uplaoded refs*
 
 ```
-gunzip GCF* 
+gunzip GCF*
 ```
 
-now 'ls' and see that .gz is gone, all files are unzipped and ready for next steps! 
+now 'ls' and see that .gz is gone, all files are unzipped and ready for next steps!
 
+
+### citations for *C. virginica* references
 
 -  file name: GCF_002022765.2_C_virginica-3.0_genomic.fna
 	- Gómez-Chiarri M et al., "Developing tools for the study of molluscan immunity: The sequencing of the genome of the eastern oyster, Crassostrea virginica.", Fish Shellfish Immunol, 2015 Sep;46(1):2-4
 	- Milbury CA et al., "Complete mitochondrial DNA sequence of the eastern oyster Crassostrea virginica.", Mar Biotechnol (NY), 2005 Nov-Dec;7(6):697-712
 -  reference genome file size: total length (Mb) 684.741
+
+### **now we are ready!!**
 
 
 ## HISAT2 alignment
@@ -321,18 +521,18 @@ alias python=/python_env/bin/python3
 ## HPC Job: HISAT2 Index Reference and Alignment
 -----------------------------------------------------------------
 
-- create directory output\hisat2
-
-``` mkdir HISAT2 ```
-
 - index reference and alignment
 
+- create directory output\hisat2
+
+``` mkdir hisat2 ```
+
 **input**
-- Panopea-generosa-genes.fna *= reference genome*
-- clean/*.fastq.gz *= all clean TagSeq reads*
+- GCF_002022765.2_C_virginica-3.0_genomic.fna *= reference genome*
+- clean/*.fastq.gz *= all clean TagSeq reads from fastp*
 
 **ouput**
-- Pgenerosa_ref *= indexed reference by hisat2-build; stored in the output/hisat2 folder as 1.hy2, 2.ht2... 8.ht2*
+- Cvirginica_ref *= indexed reference by hisat2-build; stored in the output/hisat2 folder as 1.hy2, 2.ht2... 8.ht2*
 - <clean.fasta>.sam *=hisat2 output, readable text file; removed at the end of the script*
 - <clean.fasta>.bam *=converted binary file complementary to the hisat sam files*
 
@@ -340,43 +540,59 @@ alias python=/python_env/bin/python3
 
 ```
 #!/bin/bash
-#SBATCH -t 120:00:00
-#SBATCH --nodes=1 --ntasks-per-node=10
-#SBATCH --mem=500GB
-#SBATCH --account=putnamlab
-#SBATCH --export=NONE
-#SBATCH --mail-type=BEGIN,END,FAIL
-#SBATCH --mail-user=samuel_gurr@uri.edu
+#SBATCH --job-name="hisat2_align"
+#SBATCH -t 048:00:00
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=samuel.gurr@noaa.gov
 #SBATCH --output="%x_out.%j"
 #SBATCH --error="%x_err.%j"
-#SBATCH -D /data/putnamlab/sgurr/Geoduck_TagSeq/output/hisat2
 
-#load packages
-module load HISAT2/2.1.0-foss-2018b #Alignment to reference genome: HISAT2
-module load SAMtools/1.9-foss-2018b #Preparation of alignment for assembly: SAMtools
+# before running..
+# make directory named hisat2 as output/hisat2/
 
-# symbolically link 'clean' reads to hisat2 dir
-ln -s ../clean/*.fastq.gz ./
+cd #nav back to home directory (allows job to be run from anywhere)
+
+# load modules, requires hisat2 and samtools
+module load bio/hisat2/2.2.1
+module load bio/samtools/1.11
+
+cd Cvirginica_multistressor_TagSeq/output/hisat2 # nav to hisat2 - symbolic directory works well when output to the current dir as ./
+
+# symbolically link clean reads to hisat2 dir
+ln -s ../fastp_multiQC/clean/*.fastq.gz ./ # call the .fastq.gz output from fastp trim - make symb link to output/hisat2
+
+# activate python fro hisat2-build
+source ../../../python_venv/bin/activate  # activate python virtual envrionment to call python and run hisat2-build
 
 # index the reference genome for Panopea generosa output index to working directory
-hisat2-build -f ../../../refs/Panopea-generosa-v1.0.fa ./Pgenerosa_ref
-echo "Referece genome indexed. Starting alingment" $(date)
+hisat2-build -f ../../../refs/GCF_002022765.2_C_virginica-3.0_genomic.fna ./Cvirginica_ref
+echo "Reference genome indexed. Starting alignment" $(date)
+
+# exit python virtual envrionment
+deactivate
 
 # This script exports alignments as bam files
 # sorts the bam file because Stringtie takes a sorted file for input (--dta)
 # removes the sam file because it is no longer needed
 array=($(ls *.fastq.gz)) # call the symbolically linked sequences - make an array to align
 for i in ${array[@]}; do
-        hisat2 -p 8 --dta -x Pgenerosa_ref -U ${i} -S ${i}.sam
+        hisat2 -p 8 --dta -x Cvirginica_ref -U ${i} -S ${i}.sam
         samtools sort -@ 8 -o ${i}.bam ${i}.sam
                 echo "${i} bam-ified!"
         rm ${i}.sam
 done
+
 ```
-- HISAT2 complete with format prepared for StringTie assembler!
+### HISAT2 complete with format **prepared for StringTie assembler!**
 
 
 ### <span style="color:red">IMPORTANT:<span> merge lanes here (.bam stage)
+
+NOTE: you may see in the seq filenames something  like L001 and L002 indicating that the same sample was sequenced on two lanes. You can proceed here to combine the bam files together using samtools - this does not interfere with the gene count matrix (I have tested both merging and without merging)
+
+Why merge? - the count matrix will have column for each filename, the merge simply reduces a single step in R to sum together columns with same sample ID on multiple lanes.
+
+If you want to proceed with the merge....
 
 - enter interactive mode
 
