@@ -373,16 +373,10 @@ scp samuel_gurr@bluewaves.uri.edu:/data/putnamlab/sgurr/Geoduck_TagSeq/output/cl
 
 
 
-
-
-
-
-
-
-
-
 # Alignment of cleaned reads to reference
 -------------------------------------------
+
+
 
 
 
@@ -536,7 +530,7 @@ alias python=/python_env/bin/python3
 - <clean.fasta>.sam *=hisat2 output, readable text file; removed at the end of the script*
 - <clean.fasta>.bam *=converted binary file complementary to the hisat sam files*
 
-# shell script: <span style="color:green">**HISAT2.sh**<span>
+# shell script: <span style="color:green">**hisat2.sh**<span>
 
 ```
 #!/bin/bash
@@ -562,11 +556,11 @@ cd Cvirginica_multistressor_TagSeq/output/hisat2 # nav to hisat2 - symbolic dire
 ln -s ../fastp_multiQC/clean/*.fastq.gz ./ # call the .fastq.gz output from fastp trim - make symb link to output/hisat2
 
 # activate python fro hisat2-build
-source ../../../python_venv/bin/activate  # activate python virtual envrionment to call python and run hisat2-build
+source ../../../python_venv/bin/activate  # activate python cirtual envriomment to call python and run hisat2-build
 
 # index the reference genome for Panopea generosa output index to working directory
 hisat2-build -f ../../../refs/GCF_002022765.2_C_virginica-3.0_genomic.fna ./Cvirginica_ref
-echo "Reference genome indexed. Starting alignment" $(date)
+echo "Referece genome indexed. Starting alingment" $(date)
 
 # exit python virtual envrionment
 deactivate
@@ -581,6 +575,7 @@ for i in ${array[@]}; do
                 echo "${i} bam-ified!"
         rm ${i}.sam
 done
+
 
 ```
 ### HISAT2 complete with format **prepared for StringTie assembler!**
@@ -723,6 +718,11 @@ GTF file on each line (default '.' meaning the working directory is the subdirec
 Alternatively call a **listGTF.txt** file... this file has two columns with the sample ID and the <Path to sample> for the .gtf files
 run the following:
 
+* move prepDE.py (downloaded onlne) to the ssh 
+
+```
+scp C:/Users/samuel.gurr/Documents/Github_repositories/Cvriginica_multistressor/HPC_Analysis/Scripts/ prepDE.py sgurr@sedna.nwfsc2.noaa.gov:Cvirginica_multistressor_TagSeq/scripts/
+```
 -----------------------------
 
 **gtf_list.txt** run...
@@ -742,29 +742,38 @@ run the following:
 # shell script: <span style="color:green">**stringtie2.sh**<span>
 ```
 #!/bin/bash
-#SBATCH -t 120:00:00
-#SBATCH --nodes=1 --ntasks-per-node=10
-#SBATCH --mem=200GB
-#SBATCH --account=putnamlab
-#SBATCH --export=NONE
-#SBATCH --mail-type=BEGIN,END,FAIL
-#SBATCH --mail-user=samuel_gurr@uri.edu
+#SBATCH --job-name="stringtie2"
+#SBATCH -t 048:00:00
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=samuel.gurr@noaa.gov
 #SBATCH --output="%x_out.%j"
 #SBATCH --error="%x_err.%j"
-#SBATCH -D /data/putnamlab/sgurr/Geoduck_TagSeq/output/stringtie
 
-#load packages
-module load StringTie/2.1.1-GCCcore-7.3.0 #Transcript assembly: StringTie
+# load modules, requires stringtie2
+module load bio/stringtie/2.2.0
 
-array=($(ls ../hisat2/*.bam)) #Make an array of sequences to assemble
+# before running..
+# make directory named stringtie2 as output/stringtie2/
 
+cd #nav back to home directory (allows job to be run from anywhere)
+cd Cvirginica_multistressor_TagSeq/output/stringtie2 #nav back to target directory stringtie2
+
+array=($(ls ../hisat2/merged/*.bam)) #Make an array of sequences to assemble
+
+# awk example: file name clean.C9-larva-22_S77.bam - use awk to get sample name w/o .bam using . as delimiter 
+# run strnigtie on the array and output to the stringtie2 directory
 for i in ${array[@]}; do #Running with the -e option to compare output to exclude novel genes. Also output a file with the gene abundances
-        sample_name=`echo $i| awk -F [_] '{print $1"_"$2"_"$3}'`
-	stringtie -p 8 -e -B -G ../../../refs/Panopea-generosa-v1.0.a4.mRNA_SJG.gff3 -A ./${sample_name}.gene_abund.tab -o ./${sample_name}.gtf ${i}
+        sample_name=`echo $i| awk -F [.] '{print $1"_"$2}'`
+	stringtie -p 8 -e -B -G ../../refs/GCF_002022765.2_C_virginica-3.0_genomic.gff -A ../../stringtie2/${sample_name}.gene_abund.tab -o ../../stringtie2/${sample_name}.gtf ${i}
         echo "StringTie assembly for seq file ${i}" $(date)
 done
 echo "StringTie assembly COMPLETE, starting assembly analysis" $(date)
+
 ```
+
+
+
+
 
 # HPC job: Merge and Build Read Count Matrix for DEG analysis
 -----------------------------------------------------------------
