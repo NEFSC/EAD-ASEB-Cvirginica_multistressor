@@ -15,6 +15,7 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, cache = TRU
 ```{r  Load libs}
 library(dplyr)
 library(edgeR)
+BiocManager::install('edgeR')
 library(cowplot)
 library(ggplot2)
 ```
@@ -23,14 +24,25 @@ library(ggplot2)
 ```{r  setup, include=TRUE}
 print(getwd())  # working directory is the scipts folder 
 # path for output ting all .csv filtered count files
-path = 'C:/Users/samjg/Documents/Github_repositories/Pgenerosa_TagSeq_Metabolomics/TagSeq/Analysis/Data/Filtered_Counts' # run this for all count matrix outputs!!!
+
+#path = 'C:/Users/samjg/Documents/Github_repositories/Cvriginica_multistressor/RAnalysis/Data/TagSeq/Filtered_Counts' # personnal computer
+path = 'C:/Users/samuel.gurr/Documents/Github_repositories/Cvriginica_multistressor/RAnalysis/Data/TagSeq/Filtered_Counts' # work computer
 
 ```
 
 # LOAD DATA:
 ```{r  load_data}
 print(getwd())  # working directory is the scipts folder 
-raw_counts <- read.csv("../../HPC_work/Output/20210227_transcript_count_matrix__apt_polyx_lowcomplex.csv", sep=',', header=TRUE) # read the output count matrix - NOTE: TRIMMED at 30 phred threshold!
+
+
+raw_counts_mtx <- read.csv("../../../../HPC_Analysis/Output/Cvirginica_transcript_count_matrix.csv", sep=',', header=TRUE) # read the output count matrix from sedna
+head(raw_counts_mtx) # notice that there are some instances of NAs - prepDE.py3 appeared to skips instances when 
+ncol(raw_counts_mtx) -1 # 70 total columns without the transcript ID; 35 total samples (duplicated for sequencing lanes 1 and 2)
+
+
+
+
+
 UT_seq_map <- read.csv(file="../../Seq_details/20201020_Gurr_TagSeq_UTAustin.csv", sep=',', header=TRUE)
 smpl_ref <- read.csv(file="../../Seq_details/Sample_reference.csv", sep=',', header=TRUE)
 treatment_ref <- read.csv(file="../../Seq_details/Extraction_checklist.csv", sep=',', header=TRUE)
