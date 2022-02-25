@@ -12,12 +12,13 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, cache = TRU
 ```
 
 ### Load libraries
-```{r  Load libs}
+```{r  Load libs, include=FALSE}
+
 library(dplyr)
 library(edgeR)
-BiocManager::install('edgeR')
 library(cowplot)
 library(ggplot2)
+
 ```
 
 ### Set working directory
