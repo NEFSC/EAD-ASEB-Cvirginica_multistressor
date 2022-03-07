@@ -20,7 +20,7 @@ library(cowplot)
 library(ggplot2)
 library(reshape2)
 library(stringr)
-
+library(tidyr)
 ```
 
 ### Set working directory
@@ -63,6 +63,9 @@ raw_counts_melt <- raw_counts_mtx %>%  # convert the matrix from wide to long fo
                                         variable.name = "sample_id", 
                                         value.name = "transcript_count")
 raw_counts_melt$sample_id <- gsub("_L00.*","",raw_counts_melt$sample_id) # omit the lane identifier from sample_id
+
+
+
 sum_raw_counts <- raw_counts_melt %>% # call the long form data
                           mutate(sample_id = as.factor(sub('.[^.]*$', '',raw_counts_melt$sample_id)) ) %>% # grab all of the sample name before the last occurance of a period (i.e. now A1.spat, a2.spat, etc...)
                           mutate(transcript_sample_IDs = paste(transcript_id, sample_id, sep='~')) %>%  # merge the transcript ID and sample Id with unique deliminator '~' 
@@ -76,26 +79,60 @@ sum_raw_counts_matrix <- sum_raw_counts %>%
                           dcast(transcript_id  ~ sample_id, value.var = "sum_count")
 
 # Write new raw read file
-write.csv(sum_raw_counts_matrix,paste(path,"Sum_raw_count_matrix.csv"))
+write.csv(sum_raw_counts_matrix,paste(path,"Sum_raw_count_matrix.csv", sep =''))
 
 
 ```
 
 
 ```{r load annotation and experiment metadata}
-raw_counts_mtx <- read.csv("../../../../HPC_Analysis/Output/Cvirginica_transcript_count_matrix.csv", sep=',', header=TRUE) # read the output count matrix from sedna
-head(raw_counts_mtx) # notice that there are some instances of NAs - prepDE.py3 appeared to skips instances when 
-ncol(raw_counts_mtx) -1 # 70 total columns without the transcript ID; 35 total samples (duplicated for sequencing lanes 1 and 2)
+# MAtris; formatted count matrix in previous cluster
+raw_counts_mtx.ALL        <- read.csv("../Data/TagSeq/Filtered_counts/Sum_raw_count_matrix.csv", sep=',', header=TRUE) # read the output count matrix from sedna
+nrow(raw_counts_mtx.ALL) # 67334 total unique transcript IDs
+View(raw_counts_mtx.ALL[2]) # tRNA == 'rna-NC_....'  'rna-Trna..'    pseudogenes == 'gene-LOC111.....'  mitochondrion  == 'gene-'      tRNA == 'rna-Trna'
+# Note omission of these may be questionable... 
+# pseuodogenes share common evolutionary history to the to functional genes with a high similarity - may regulate genes through generation of lncRNAs (long non coding RNAs)
+tRNA_pseudogenes          <- c("gene-", "rna-NC_", "rna-Trna")
+raw_counts_mtx.mRNA       <- raw_counts_mtx.ALL %>% 
+                              dplyr::filter( !grepl(paste(tRNA_pseudogenes, collapse="|"), transcript_id)) %>%  # omit all rows with IDs pertaining to tRNA, pseudogenes, and mitchondrion
+                              dplyr::select(!X) %>%  # omit the X row number column
+                              dplyr::mutate(transcript_id = sub(".*-", "", transcript_id)) # omit 'rna-" from the start of each transcript ID 
+nrow(raw_counts_mtx.mRNA) #  66071 total trascripts                        
+View(raw_counts_mtx.mRNA)
+# load seq_id.txt - contains all transcript IDs and putative functoinal annotation 
+SeqIDs <- as.data.frame(read.delim2(file = "../Data/TagSeq/Seq_details/seq_id.txt",header=F)) %>% 
+                  dplyr::mutate(fullID = sub(".*>", "", V1)) %>% 
+                  dplyr::mutate(TranscriptID = sub("PREDICTED.*", "",fullID) ) %>% 
+                  dplyr::mutate(Function = sub(".*PREDICTED: Crassostrea virginica", "", fullID)) %>% 
+                  dplyr::select(!V1)
+# column 'GeneIDs' as the LOC... string between parenthesis () in each line 'fullID'
+for (i in 1:nrow(SeqIDs)) {  # this takes an obnoxious few minutes to run (not efficient code?) or the objective of just calling another unique identifier for downstream gene calls
+  parenthesis.strings           <- as.data.frame(list(regmatches(SeqIDs$fullID[i], gregexpr("\\(.*?\\)", SeqIDs$fullID[i])))) %>% # for each row.. create 1 column data frame parsing strings between parenthesis
+                                    dplyr::rename("string"=1) %>% # rename the column for clarity
+                                    dplyr::filter(grepl('LOC1', string)) %>%  # call only the row containing LOC1 (LOC1... is the gene name) - several occurances of () with other functional annotation
+                                    dplyr::mutate(string =  gsub("[\\(\\)]", "",string)) # remove the parenthesis from the now isolated (LOC1...) string
+  SeqIDs$GeneID[i]              <- parenthesis.strings[[1]] # print to row i 
+}
+View(SeqIDs) # view the final master data
+length(unique(SeqIDs$GeneID)) # 38264 unique gene IDs
+
+# Reference; sample IDs and corresponding treatments 
+smpl_treatment_ref  <- read.csv(file="../Data/TagSeq/Seq_details/Sample_Key.csv", sep=',', header=TRUE) # reference to
 
 
 
+ncol(raw_counts_mtx) -1 # 36 total columns without the transcript ID
 
+# how many genes are here?
+length(unique(raw_counts_mtx$transcript_id)) == nrow(raw_counts_mtx) # each row is a unique gene call 67334 total genes called!
+
+View(raw_counts_mtx[2])
 
 UT_seq_map <- read.csv(file="../../Seq_details/20201020_Gurr_TagSeq_UTAustin.csv", sep=',', header=TRUE)
-smpl_ref <- read.csv(file="../../Seq_details/Sample_reference.csv", sep=',', header=TRUE)
-treatment_ref <- read.csv(file="../../Seq_details/Extraction_checklist.csv", sep=',', header=TRUE)
-Geoduck_annotation <- read.delim2(file="C:/Users/samjg/Documents/Github_repositories/Pgenerosa_TagSeq_Metabolomics/TagSeq/Seq_details/Panopea-generosa-genes-annotations.txt", header=F)
 
+treatment_ref <- read.csv(file="../../Seq_details/Extraction_checklist.csv", sep=',', header=TRUE)
+Cvirginica_v3.0_rna.fna <- read.delim2(file="../../../../../Documents/Bioinformatics/refs/Cvirginica/GCF_002022765.2_C_virginica-3.0_rna.fna", header=F)
+head(Cvirginica_v3.0_rna.fna) %>%  dplyr::filter(grepl(">"), )
 
 nrow(Geoduck_annotation)
 head(Geoduck_annotation)
