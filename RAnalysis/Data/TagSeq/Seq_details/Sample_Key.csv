@@ -10,7 +10,7 @@ A8_Ospat_8,A8.spat,High.Temp_High.OA_Low.Salinity,High,High,Low,B,8,18
 A9_Ospat_19,A9.spat,High.Temp_Low.OA_Low.Salinity,High,Low,Low,A,19,18
 A10_Ospat_20,A10.spat,High.Temp_Low.OA_Low.Salinity,High,Low,Low,B,20,18
 A11_Ospat_21,A11.spat,High.Temp_Low.OA_Low.Salinity,High,Low,Low,C,21,18
-A12_Olarva_1,A12.spat,High.Temp_Low.OA_High.Salinity,High,Low,High,A,1,2
+A12_Ospat_1,A12.spat,High.Temp_Low.OA_High.Salinity,High,Low,High,A,1,2
 B1_Olarva_2,B1.larva,High.Temp_Low.OA_High.Salinity,High,Low,High,B,2,2
 B2_Olarva_3,B2.larva,High.Temp_Low.OA_High.Salinity,High,Low,High,C,3,2
 B3_Olarva_4,B3.larva,High.Temp_High.OA_High.Salinity,High,High,High,A,4,2

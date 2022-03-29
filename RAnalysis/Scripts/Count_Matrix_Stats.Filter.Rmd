@@ -29,8 +29,8 @@ library(tidyr)
 print(getwd())  # working directory is the scipts folder 
 # path for output ting all .csv filtered count files
 
-path = 'C:/Users/samjg/Documents/Github_repositories/Cvriginica_multistressor/RAnalysis/Data/TagSeq/Filtered_Counts/' # personnal computer
-# path = 'C:/Users/samuel.gurr/Documents/Github_repositories/Cvriginica_multistressor/RAnalysis/Data/TagSeq/Filtered_Counts' # work computer
+# path = 'C:/Users/samjg/Documents/Github_repositories/Cvriginica_multistressor/RAnalysis/Data/TagSeq/Filtered_Counts/' # personnal computer
+ path = 'C:/Users/samuel.gurr/Documents/Github_repositories/Cvriginica_multistressor/RAnalysis/Data/TagSeq/Filtered_Counts' # work computer
 
 
 
@@ -114,7 +114,11 @@ for (i in 1:nrow(SeqIDs)) {  # this takes an obnoxious few minutes to run (not e
   SeqIDs$GeneID[i]              <- parenthesis.strings[[1]] # print to row i 
 }
 View(SeqIDs) # view the final master data
-length(unique(SeqIDs$GeneID)) # 38264 unique gene IDs
+length(unique(SeqIDs$GeneID)) # 22262 unique gene IDs (LOC....)
+length(unique(SeqIDs$TranscriptID)) # 66625 unique transcript IDs (X...)
+write.csv(SeqIDs,"C:/Users/samuel.gurr/Documents/Github_repositories/Cvriginica_multistressor/RAnalysis/Data/TagSeq/Seq_details/seq_id_master.csv") # Write new raw read file
+
+
 
 # Reference; sample IDs and corresponding treatments 
 smpl_treatment_ref  <- read.csv(file="../Data/TagSeq/Seq_details/Sample_Key.csv", sep=',', header=TRUE) # reference to
@@ -124,15 +128,8 @@ smpl_treatment_ref  <- read.csv(file="../Data/TagSeq/Seq_details/Sample_Key.csv"
 ncol(raw_counts_mtx) -1 # 36 total columns without the transcript ID
 
 # how many genes are here?
-length(unique(raw_counts_mtx$transcript_id)) == nrow(raw_counts_mtx) # each row is a unique gene call 67334 total genes called!
-
-View(raw_counts_mtx[2])
-
-UT_seq_map <- read.csv(file="../../Seq_details/20201020_Gurr_TagSeq_UTAustin.csv", sep=',', header=TRUE)
-
-treatment_ref <- read.csv(file="../../Seq_details/Extraction_checklist.csv", sep=',', header=TRUE)
-Cvirginica_v3.0_rna.fna <- read.delim2(file="../../../../../Documents/Bioinformatics/refs/Cvirginica/GCF_002022765.2_C_virginica-3.0_rna.fna", header=F)
-head(Cvirginica_v3.0_rna.fna) %>%  dplyr::filter(grepl(">"), )
+Cvirginica_v3.0_rna.fna <- read.delim2(file="C:/Users/samuel.gurr/Documents/Genomes/Crassostrea_virginica/GCF_002022765.2_C_virginica-3.0_rna.fna", header=F)
+head(Cvirginica_v3.0_rna.fna) %>% dplyr::filter(grepl(">"), )
 
 nrow(Geoduck_annotation)
 head(Geoduck_annotation)
@@ -144,7 +141,7 @@ Geoduck_annotationOM <- na.omit(Geoduck_annotation) # genes with annotation - om
 
 ```{r  }
 
-# MASTER REFERENCE DATA.FRAME
+# MASTER REFERENCE DATA.FRAME``
 # format and merge to buld master reference dataframe
 smpl_ref$Seq_Pos <- paste(smpl_ref$ï..TagSeq_Plate, smpl_ref$TagSeq_Well, sep="_")
 smpl_ref <- smpl_ref[,-c(1:2)]
