@@ -21,6 +21,7 @@ library(ggplot2)
 library(reshape2)
 library(stringr)
 library(tidyr)
+library(edgeR)
 ```
 
 ### Set working directory
@@ -29,8 +30,8 @@ library(tidyr)
 print(getwd())  # working directory is the scipts folder 
 # path for output ting all .csv filtered count files
 
-# path = 'C:/Users/samjg/Documents/Github_repositories/Cvriginica_multistressor/RAnalysis/Data/TagSeq/Filtered_Counts/' # personnal computer
- path = 'C:/Users/samuel.gurr/Documents/Github_repositories/Cvriginica_multistressor/RAnalysis/Data/TagSeq/Filtered_Counts' # work computer
+path = 'C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Data/TagSeq/Filtered_Counts/' # personnal computer
+# path = 'C:/Users/samuel.gurr/Documents/Github_repositories/Cvriginica_multistressor/RAnalysis/Data/TagSeq/Filtered_Counts' # work computer
 
 
 
@@ -39,14 +40,14 @@ print(getwd())  # working directory is the scipts folder
 # LOAD DATA:
 ```{r  load_data}
 
-raw_counts_mtx <- read.csv("C:/Users/samjg/Documents/Github_repositories/Cvriginica_multistressor/HPC_Analysis/Output/Cvirginica_transcript_count_matrix.csv", sep=',', header=TRUE) # read the output count matrix from sedna
+raw_counts_mtx <- read.csv("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/HPC_Analysis/Output/Cvirginica_transcript_count_matrix.csv", sep=',', header=TRUE) # read the output count matrix from sedna
 head(raw_counts_mtx) # notice that there are some instances of NAs - prepDE.py3 appeared to skips instances when 
 ncol(raw_counts_mtx) -1 # 70 total columns without the transcript ID; 35 total samples (duplicated for sequencing lanes 1 and 2)
 # View(raw_counts_mtx)
 
 ```
 
-# FORMT AND EXPORT READ COUNT MATRIX (sum lanes of common sample ID):
+# FORMAT AND EXPORT READ COUNT MATRIX (sum lanes of common sample ID):
 ```{r  format_export_readcount}
 # Edit raw count matrix ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 # two major alterations before starting read filtering...
@@ -65,94 +66,90 @@ raw_counts_melt <- raw_counts_mtx %>%  # convert the matrix from wide to long fo
 raw_counts_melt$sample_id <- gsub("_L00.*","",raw_counts_melt$sample_id) # omit the lane identifier from sample_id
 
 
-
-sum_raw_counts <- raw_counts_melt %>% # call the long form data
+# 'merged' seq lanes - meaning the sum of reads counts within gene and sample ID (no longer L001 and L002 for each sample ID)
+merged_raw_counts <- raw_counts_melt %>% # call the long form data
                           mutate(sample_id = as.factor(sub('.[^.]*$', '',raw_counts_melt$sample_id)) ) %>% # grab all of the sample name before the last occurance of a period (i.e. now A1.spat, a2.spat, etc...)
                           mutate(transcript_sample_IDs = paste(transcript_id, sample_id, sep='~')) %>%  # merge the transcript ID and sample Id with unique deliminator '~' 
                           dplyr::group_by(transcript_sample_IDs) %>%  # group by the merged IDs 
                           dplyr::summarise(sum_count = sum(transcript_count)) %>% # sum together the transcript counts by this grouped variable 
                           dplyr::mutate(transcript_id = as.factor(gsub("~.*","",transcript_sample_IDs)) ) %>%  # mutate transcript ID (back from the pasted merge character to group_by)
                           dplyr::mutate(sample_id = as.factor(gsub(".*~","",transcript_sample_IDs)) ) # mutate sample ID (back from the pasted merge character to group_by)
-sum_raw_counts <- subset(sum_raw_counts, select = -c(transcript_sample_IDs) ) # omit the merged column 
+merged_raw_counts <- subset(merged_raw_counts, select = -c(transcript_sample_IDs) ) # omit the merged column 
 # dcast back to the wide format
-sum_raw_counts_matrix <- sum_raw_counts %>%
+merged_raw_counts_matrix <- merged_raw_counts %>%
                           dcast(transcript_id  ~ sample_id, value.var = "sum_count")
 
 # Write new raw read file
-write.csv(sum_raw_counts_matrix,paste(path,"Sum_raw_count_matrix.csv", sep =''))
+write.csv(merged_raw_counts_matrix,paste(path,"merged_raw_count_matrix.csv", sep =''))
 
 
 ```
 
 
+# LOAD THE merged_raw_count_matrix (from previous cluster) - edit for mRNA transcripts +  SEQ REFERENCE KEY -FORMAT IT 
+# OUTPUT FILES FROM THIS CLUSTER: 'merged_raw_counts_matrix.mRNA' and 'seqIDs_master'
+
+
 ```{r load annotation and experiment metadata}
-# MAtris; formatted count matrix in previous cluster
-raw_counts_mtx.ALL        <- read.csv("../Data/TagSeq/Filtered_counts/Sum_raw_count_matrix.csv", sep=',', header=TRUE) # read the output count matrix from sedna
-nrow(raw_counts_mtx.ALL) # 67334 total unique transcript IDs
-View(raw_counts_mtx.ALL[2]) # tRNA == 'rna-NC_....'  'rna-Trna..'    pseudogenes == 'gene-LOC111.....'  mitochondrion  == 'gene-'      tRNA == 'rna-Trna'
+# merged_raw_counts_matrix.mRNA :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+merged_raw_counts_matrix        <- read.csv("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Data/TagSeq/Filtered_counts/merged_raw_count_matrix.csv", sep=',', header=TRUE) # read the output count matrix formatted in the previous cluster..
+nrow(merged_raw_counts_matrix) # 67334 total unique transcript IDs
+# View(merged_raw_counts_matrix[2]) # tRNA == 'rna-NC_....'  'rna-Trna..'    pseudogenes == 'gene-LOC111.....'  mitochondrion  == 'gene-'      tRNA == 'rna-Trna'
+
+
 # Note omission of these may be questionable... 
 # pseuodogenes share common evolutionary history to the to functional genes with a high similarity - may regulate genes through generation of lncRNAs (long non coding RNAs)
-tRNA_pseudogenes          <- c("gene-", "rna-NC_", "rna-Trna")
-raw_counts_mtx.mRNA       <- raw_counts_mtx.ALL %>% 
-                              dplyr::filter( !grepl(paste(tRNA_pseudogenes, collapse="|"), transcript_id)) %>%  # omit all rows with IDs pertaining to tRNA, pseudogenes, and mitchondrion
-                              dplyr::select(!X) %>%  # omit the X row number column
-                              dplyr::mutate(transcript_id = sub(".*-", "", transcript_id)) # omit 'rna-" from the start of each transcript ID 
-nrow(raw_counts_mtx.mRNA) #  66071 total trascripts                        
-View(raw_counts_mtx.mRNA)
+tRNA_pseudogenes               <- c("gene-", "rna-NC_", "rna-Trna")
+merged_raw_counts_matrix.mRNA  <- merged_raw_counts_matrix %>% 
+                                dplyr::filter( !grepl(paste(tRNA_pseudogenes, collapse="|"), transcript_id)) %>%  # omit all rows with IDs pertaining to tRNA, pseudogenes, and mitchondrion
+                                dplyr::select(!X) %>%  # omit the X row number column
+                                dplyr::mutate(transcript_id = sub(".*-", "", transcript_id)) # omit 'rna-" from the start of each transcript ID 
+nrow(merged_raw_counts_matrix.mRNA) #  66071 total transcripts - without pseuodogenes, tRNAs and mitchondrion
+# View(merged_raw_counts_matrix.mRNA)
+# Write new raw read file
+write.csv(merged_raw_counts_matrix.mRNA,paste(path,"merged_raw_count_matrix_mRNAs.csv", sep =''))
+
+
+
+
+
+# seqIDs_master :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
 # load seq_id.txt - contains all transcript IDs and putative functoinal annotation 
-SeqIDs <- as.data.frame(read.delim2(file = "../Data/TagSeq/Seq_details/seq_id.txt",header=F)) %>% 
+SeqIDs <- as.data.frame(read.delim2(file = "C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Data/TagSeq/Seq_details/seq_id.txt",header=F)) %>% 
                   dplyr::mutate(fullID = sub(".*>", "", V1)) %>% 
-                  dplyr::mutate(TranscriptID = sub("PREDICTED.*", "",fullID) ) %>% 
+                  dplyr::mutate(TranscriptID = sub("PREDICTED.*","",fullID)) %>% 
                   dplyr::mutate(Function = sub(".*PREDICTED: Crassostrea virginica", "", fullID)) %>% 
                   dplyr::select(!V1)
 # column 'GeneIDs' as the LOC... string between parenthesis () in each line 'fullID'
 for (i in 1:nrow(SeqIDs)) {  # this takes an obnoxious few minutes to run (not efficient code?) or the objective of just calling another unique identifier for downstream gene calls
-  parenthesis.strings           <- as.data.frame(list(regmatches(SeqIDs$fullID[i], gregexpr("\\(.*?\\)", SeqIDs$fullID[i])))) %>% # for each row.. create 1 column data frame parsing strings between parenthesis
+parenthesis.strings           <- as.data.frame(list(regmatches(SeqIDs$fullID[i], gregexpr("\\(.*?\\)", SeqIDs$fullID[i])))) %>% # for each row.. create 1 column data frame parsing strings between parenthesis
                                     dplyr::rename("string"=1) %>% # rename the column for clarity
                                     dplyr::filter(grepl('LOC1', string)) %>%  # call only the row containing LOC1 (LOC1... is the gene name) - several occurances of () with other functional annotation
                                     dplyr::mutate(string =  gsub("[\\(\\)]", "",string)) # remove the parenthesis from the now isolated (LOC1...) string
+                                    
   SeqIDs$GeneID[i]              <- parenthesis.strings[[1]] # print to row i 
 }
-View(SeqIDs) # view the final master data
-length(unique(SeqIDs$GeneID)) # 22262 unique gene IDs (LOC....)
-length(unique(SeqIDs$TranscriptID)) # 66625 unique transcript IDs (X...)
-write.csv(SeqIDs,"C:/Users/samuel.gurr/Documents/Github_repositories/Cvriginica_multistressor/RAnalysis/Data/TagSeq/Seq_details/seq_id_master.csv") # Write new raw read file
+# View(SeqIDs) # view the final master data
+length(unique(SeqIDs$GeneID)) # 38264 unique gene IDs
+# Write new raw read file
+write.csv(SeqIDs,paste(path,"../Seq_details/seq_id_master.csv", sep = ''))
 
-
-
-# Reference; sample IDs and corresponding treatments 
-smpl_treatment_ref  <- read.csv(file="../Data/TagSeq/Seq_details/Sample_Key.csv", sep=',', header=TRUE) # reference to
-
-
-
-ncol(raw_counts_mtx) -1 # 36 total columns without the transcript ID
-
-# how many genes are here?
-Cvirginica_v3.0_rna.fna <- read.delim2(file="C:/Users/samuel.gurr/Documents/Genomes/Crassostrea_virginica/GCF_002022765.2_C_virginica-3.0_rna.fna", header=F)
-head(Cvirginica_v3.0_rna.fna) %>% dplyr::filter(grepl(">"), )
-
-nrow(Geoduck_annotation)
-head(Geoduck_annotation)
-Geoduck_annotationOM <- na.omit(Geoduck_annotation) # genes with annotation - ommit NAs that are putative genes that did NOT map to an existing protein (Augustus, NCBI, UNUPROT, etc. - Sam White's work)
-( (nrow(Geoduck_annotationOM)) / (nrow(Geoduck_annotation)) ) * 100 # 14671 / 34947 * 100 == 41.98071
-# 41.98071 % of the annotated genome has putative gene IDs
 ```
 
 
-```{r  }
+# Checkpoint to load all necessary data
+  * skip to this cluster if the above has already been run 
+  
+```{r load all data}
 
-# MASTER REFERENCE DATA.FRAME``
-# format and merge to buld master reference dataframe
-smpl_ref$Seq_Pos <- paste(smpl_ref$ï..TagSeq_Plate, smpl_ref$TagSeq_Well, sep="_")
-smpl_ref <- smpl_ref[,-c(1:2)]
-UT_seq_map$Seq_Pos  <- paste(UT_seq_map$ï..Plate, UT_seq_map$Well, sep="_")
-UT_seq_map <- UT_seq_map[-c(1:2)]
-Seq.Ref <- merge(smpl_ref, UT_seq_map, by = "Seq_Pos")
-Mstr.Ref <- merge(Seq.Ref, treatment_ref, by = "Geoduck_ID") %>% dplyr::select(c(1,3,8:14))
-# View(Mstr.Ref)
-# write .csv
-path.out = 'C:/Users/samjg/Documents/Github_repositories/Pgenerosa_TagSeq_Metabolomics/TagSeq/Analysis/Data/'
-write.csv(Mstr.Ref,paste(path.out,"Master_Exp.Treatment_Metadata.csv"))
+SeqIDs             <- read.csv(file="C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Data/TagSeq/Seq_details/seq_id_master.csv", sep=',', header=TRUE) # 
+
+raw.countDataframe <- read.csv(file="C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Data/TagSeq/Filtered_counts/merged_raw_count_matrix_mRNAs.csv", sep=',', header=TRUE) %>% dplyr::select(-X) # 
+
+# Reference; sample IDs and corresponding treatments 
+Metadata           <- read.csv(file="C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Data/TagSeq/Seq_details/sample_Key.csv", sep=',', header=TRUE) # reference 
+
 ```
 
 
@@ -160,124 +157,79 @@ write.csv(Mstr.Ref,paste(path.out,"Master_Exp.Treatment_Metadata.csv"))
 #================= #
 # ALL TIMEPOINTS:
 # call all experiment design treatments as 'exp.data'
-exp.data <- Mstr.Ref[,c("Sample.Name","All_Treatment", "Primary_Treatment", "Second_Treament", "Third_Treatment", "Time")]
-nrow(exp.data) # 142 total samples all
-write.csv(exp.data,paste(path,"all.exp.data.csv"))
+exp.data <- Metadata %>% dplyr::select(!c("SampleName","Treatment", "ID")) # we already have treatments as separate columns
+colnames(exp.data) # SapleName_readmatrix" "Temperature"  "OA" "Salinity" "Replicate" "Age.days"
+write.csv(exp.data,paste(path,"../all.exp.metadata.csv", sep = ''))
 #================= #
-# DAY 0 
-exp.data.d0 <- exp.data %>% dplyr::filter(Time %in% 'Day0') # all data on day 0
-nrow(exp.data.d0) # 8 total samples on Day 0
-write.csv(exp.data.d0,paste(path,"day0.exp.data.csv"))
+# DAY 2 
+exp.data.d2 <- Metadata %>% dplyr::select(!c("SampleName","Treatment", "ID")) %>% dplyr::filter(Age.days %in% 2) # all data on day 2
+nrow(exp.data.d2) # 24 total samples on Day 2
+write.csv(exp.data.d2,paste(path,"../day2.exp.data.csv", sep =''))
 #================= #
-# DAY 7 
-exp.data.d7 <- exp.data %>% dplyr::filter(Time %in% 'Day7') # all data on day 7
-nrow(exp.data.d7) # 36 total samples on Day 7
-write.csv(exp.data.d7,paste(path,"day7.exp.data.csv"))
-#================= #
-# DAY 14 
-UT_seq_map %>% dplyr::filter(Sample.Name == "SG92") # there was no sample in SG92 for TagSeq; 35 total is correct!
-
-exp.data.d14 <- exp.data %>% dplyr::filter(Time %in% 'DAY14') # all data on day 14
-exp.data.d14 <- exp.data.d14 %>% dplyr::filter(!(Sample.Name %in% 'SG92')) # RUN THIS! now 35 rows (samples) ommmits SG92 (NOT sent to for TagSeq!)
-nrow(exp.data.d14) #  35 total samples on Day 14
-write.csv(exp.data.d14,paste(path," day14.exp.data.csv"))
-#================= #
-# DAY 21 
-exp.data.d21 <- exp.data %>% dplyr::filter(Time %in% 'DAY21') # all data on day 21
-nrow(exp.data.d21) # 62 total sampels on day 21
-write.csv(exp.data.d21,paste(path," day21.exp.data.csv"))
+# DAY 18 
+exp.data.d18 <- Metadata %>% dplyr::select(!c("SampleName","Treatment", "ID")) %>% dplyr::filter(Age.days %in% 18) # all data on day 2
+nrow(exp.data.d18) # 11 total samples on Day 18
+write.csv(exp.data.d18,paste(path,"../day18.exp.data.csv", sep =''))
 
 ```
 
 
-```{r  raw counts}
-ncol(raw_counts) # 282 samples (not counting gene ID column) - should be 141 samples, need to sum columns by unique ID
-raw_counts.merged <- data.frame(raw_counts[,-1], row.names=raw_counts[,1]) # call new dataframe with first column now as row names, now all row values are numeric
-names(raw_counts.merged) <- sapply(strsplit(names(raw_counts.merged), "_"), '[', 1) # split the column names by "_" delimiter  and call the first field SG##
-raw_counts.merged <- t(rowsum(t(raw_counts.merged), group = colnames(raw_counts.merged), na.rm = TRUE)) # merge all unique columns and sum counts 
-ncol(raw_counts.merged) # now 141 samples
+# INITALL ASSESSMENT OF THE RAW COUNT MATRIX 
+  
+  * colsums
+  * 
 
-raw_counts.matrix <-as.matrix(raw_counts.merged, row.names="transcript_id") # call dataframe as matrix
-ncol(raw_counts.matrix) # 141 samples
-nrow(raw_counts.matrix) # 34947 total genes
+```{r assess teh raw count matrix}
+nrow(raw.countDataframe) # 66071 total transcripts
+ncol(raw.countDataframe)-1 # 35 samples (not counting gene ID column) 
+ncol(raw.countDataframe)-1 == nrow(exp.data) # MUST be true
 
-raw_counts.merged.as.table <- data.frame(transcript_id = row.names(raw_counts.merged), raw_counts.merged) # add back the rownames 'transcript_ID'
-rownames(raw_counts.merged.as.table) <- NULL # ommit the rownames
-ncol(raw_counts.merged.as.table) # 142 counting the transcript.ID that we want to keep! 
+raw.countMatrix           <- as.matrix(raw.countDataframe[-1])
+rownames(raw.countMatrix) <- raw.countDataframe$transcript_id
 
 # READ COUNTS 
-dim(raw_counts.matrix) # 34947 total genes 141 samples
-sum(raw_counts.matrix) # 113637063 total read counts 
+dim(raw.countMatrix) # 66071 total genes 35 samples
+sum(raw.countMatrix) # 52002750 total read counts 
 
-gene_sums <- data.frame(rowSums(raw_counts.matrix))  # all gene.IDs and the sum of unique reads
+gene_sums <- data.frame(rowSums(raw.countMatrix))  # all gene.IDs and the sum of unique reads
 
-transcript_sums <- colSums(raw_counts.matrix) # sum of reads for each sample
-mean(transcript_sums) # 805936.6 == average raw read counts for each sample
-sd(transcript_sums) # 165380.6 == standard deviation of raw read counts per sample
+transcript_sums <- colSums(raw.countMatrix) # sum of reads for each sample
+mean(transcript_sums) # 1485793 == average raw read counts for each sample
+sd(transcript_sums) # 377305.7 == standard deviation of raw read counts per sample
 
-gene_sums_gtr0 <- rowSums(raw_counts.matrix) > 0 # all gene.IDs with at least one unique read
-sum(gene_sums_gtr0 == TRUE) # 29318 total genes with unique transcript reads 
-( sum(gene_sums_gtr0 == TRUE) / (dim(raw_counts.matrix)[1]) ) *100 # 83.89275 % of genes have a unique mapped read
+gene_sums_gtr0 <- rowSums(raw.countMatrix) > 0 # all gene.IDs with at least one unique read
+sum(gene_sums_gtr0 == TRUE) # 10862 total genes with unique transcript reads 
+( sum(gene_sums_gtr0 == TRUE) / dim(raw.countMatrix)[1] ) *100 # 16.43989 % of genes have a unique mapped read
 ```
 
 
 ```{r  raw_reads_by_Day}
-raw.cts.all <- raw_counts.matrix
+raw.cts.all <- raw.countMatrix
 
 # ========================================================== 
-# DAY 0  raw counts
+# DAY 2  raw counts
 # ========================================================== 
 # About: run dyplr 'antijoin' to call cts columns that match 'Sample.Name' in the data frame 'exp.data.d0'
-raw.cts.d0 <- raw_counts.merged.as.table[,c(1,na.omit(match(exp.data.d0$Sample.Name, colnames(raw_counts.merged.as.table))))]
-raw.cts.d0 <- data.frame(raw.cts.d0[,-1], row.names=raw.cts.d0[,1])
-raw.cts.d0  <-as.matrix(raw.cts.d0, row.names="transcript_id")
-ncol(raw.cts.d0) # 8  samples from just Day 0
-nrow(raw.cts.d0) # 34947 total genes
-paste( (mean(colSums(raw.cts.d0))) , (sd(colSums(raw.cts.d0))), sep ='?')  # mean SD read count per sample
-colnames(raw.cts.d0) == exp.data.d0$Sample.Name # check if TRUE, means the same as the exp/design dataframe exp.data.d0
+raw.cts.d2 <- raw.countDataframe[,c(1,na.omit(match(exp.data.d2$SapleName_readmatrix, colnames(raw.countDataframe))))] # call the read count matrix JUST for day2 (omit col mathces to IDs in exp data Day 18)
+raw.cts.d2 <- data.frame(raw.cts.d2[,-1], row.names=raw.cts.d2[,1])
+raw.cts.d2 <- as.matrix(raw.cts.d2, row.names="transcript_id")
+dim(raw.cts.d2) # 66071 transcripts and  24 total samples
+paste( (mean(colSums(raw.cts.d2))) , (sd(colSums(raw.cts.d2))), sep ='+/-')  # 1,470,603 +/- 376,821 mean SD read count per sample
+sort(colnames(raw.cts.d2)) == sort(exp.data.d2$SapleName_readmatrix) # check if TRUE, means the same as the exp/design dataframe exp.data.d2
 
 # ========================================================== 
-# DAY 7  raw counts
+# DAY 18  raw counts
 # ========================================================== 
-# About: run dyplr 'antijoin' to call cts columns that match 'Sample.Name' in the data frame 'exp.data.d0'
-raw.cts.d7 <- raw_counts.merged.as.table[,c(1,na.omit(match(exp.data.d7$Sample.Name, colnames(raw_counts.merged.as.table))))]
-raw.cts.d7 <- data.frame(raw.cts.d7[,-1], row.names=raw.cts.d7[,1])
-raw.cts.d7  <-as.matrix(raw.cts.d7, row.names="transcript_id")
-ncol(raw.cts.d7) # 36  samples from just Day 7
-nrow(raw.cts.d7) # 34947 total genes
-paste( (mean(colSums(raw.cts.d7))) , (sd(colSums(raw.cts.d7))), sep ='?')  # mean SD read count per sample
-colnames(raw.cts.d7) == exp.data.d7$Sample.Name # check if TRUE, means the same as the exp/design dataframe exp.data.d0
-
-# ========================================================== 
-# DAY 14 raw counts
-# ========================================================== 
-# About: run dyplr 'antijoin' to call cts columns that match 'Sample.Name' in the data frame 'exp.data.d0'
-raw.cts.d14 <- raw_counts.merged.as.table[,c(1,na.omit(match(exp.data.d14$Sample.Name, colnames(raw_counts.merged.as.table))))]
-raw.cts.d14 <- data.frame(raw.cts.d14[,-1], row.names=raw.cts.d14[,1])
-raw.cts.d14  <-as.matrix(raw.cts.d14, row.names="transcript_id")
-ncol(raw.cts.d14) # 35  samples from just Day 14
-nrow(raw.cts.d14) # 34947 total genes
-paste( (mean(colSums(raw.cts.d14))) , (sd(colSums(raw.cts.d14))), sep ='?')  # mean SD read count per sample
-colnames(raw.cts.d14) == exp.data.d14$Sample.Name # check if TRUE, means the same as the exp/design dataframe exp.data.d0
-
-# ========================================================== 
-# DAY 21  raw counts
-# ========================================================== 
-# About: run dyplr 'antijoin' to call cts columns that match 'Sample.Name' in the data frame 'exp.data.d0'
-raw.cts.d21 <- raw_counts.merged.as.table[,c(1,na.omit(match(exp.data.d21$Sample.Name, colnames(raw_counts.merged.as.table))))]
-raw.cts.d21 <- data.frame(raw.cts.d21[,-1], row.names=raw.cts.d21[,1])
-raw.cts.d21  <-as.matrix(raw.cts.d21, row.names="transcript_id")
-ncol(raw.cts.d21) # 8  samples from just Day 21
-nrow(raw.cts.d21) # 34947 total genes
-paste( (mean(colSums(raw.cts.d21))) , (sd(colSums(raw.cts.d21))), sep ='?')  # mean SD read count per sample
-colnames(raw.cts.d21) == exp.data.d21$Sample.Name # check if TRUE, means the same as the exp/design dataframe exp.data.d0
-
+raw.cts.d18 <- raw.countDataframe[,c(1,na.omit(match(exp.data.d18$SapleName_readmatrix, colnames(raw.countDataframe))))] # call the read count matrix JUST for day18 (omit col mathces to IDs in exp data Day 18)
+raw.cts.d18 <- data.frame(raw.cts.d18[,-1], row.names=raw.cts.d18[,1])
+raw.cts.d18  <-as.matrix(raw.cts.d18, row.names="transcript_id")
+dim(raw.cts.d18) # 66071 transcripts and  11 total samples
+paste( (mean(colSums(raw.cts.d18))) , (sd(colSums(raw.cts.d18))), sep ='+/-')  # 1,540,836 +/- 401,511 mean SD read count per sample
+sort(colnames(raw.cts.d18)) == sort(exp.data.d18$SapleName_readmatrix) # check if TRUE, means the same as the exp/design dataframe exp.data.d18
 
 # write csv
-write.csv(raw.cts.d0,"../Data/Filtered_Counts/raw/raw.day0.counts.csv") # 'path' called in previous # write .csv section
-write.csv(raw.cts.d7,"../Data/Filtered_Counts/raw/raw.day7.counts.csv") # 'path' called in previous # write .csv section
-write.csv(raw.cts.d14,"../Data/Filtered_Counts/raw/raw.day14.counts.csv") # 'path' called in previous # write .csv section
-write.csv(raw.cts.d21,"../Data/Filtered_Counts/raw/raw.day21.counts.csv") # 'path' called in previous # write .csv section
+write.csv(raw.cts.d2,"C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Data/TagSeq/Filtered_Counts/raw.day2.counts.csv") # 'path' called in previous # write .csv section
+write.csv(raw.cts.d18,"C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Data/TagSeq/Filtered_Counts/raw.day18.counts.csv") # 'path' called in previous # write .csv section
 
 ```
 
@@ -296,11 +248,19 @@ Resulting umber of genes summarized in knitr table and output to TagSeq\Analysis
 ### For loop in 1 CPM increments to optimize the filtering threshold 
 Output is a grid filture for  days 0, 7, 14, 21 
 ```{r CPM LOOP - Rarefaction-like appraoch to read filtering threshold}
+
+# Load data from previous ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::;;; #
+
+# Reference; sample IDs and corresponding treatments 
+raw.cts.d2  <- read.csv(file="C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Data/TagSeq/Filtered_Counts/raw.day2.counts.csv", sep=',', header=TRUE) # day 2
+
+raw.cts.d18  <- read.csv(file="C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Data/TagSeq/Filtered_Counts/raw.day18.counts.csv", sep=',', header=TRUE) # day 18
+
 # For loop ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::;;; #
 df_total <- data.frame() # start dataframe 
-loop.table <- data.frame(matrix(nrow = 4, ncol = 4)) # create dataframe to save cumunalitively during for loop
+loop.table <- data.frame(matrix(nrow = 2, ncol = 4)) # create dataframe, columns for the number of sampling days
 colnames(loop.table)<-c('CPM_threshold', 'Day', 'total_genes', 'mean_reads_per_gene') # names for comuns in the for loop
-CPM_loop <- c(0:50)
+CPM_loop <- c(0:50) # run the loop for CPM from 1 - 10 (counts per million) 
 CPM_loop <- data.frame(CPM_loop)
 
 for (i in 1:nrow(CPM_loop)) {
@@ -310,130 +270,78 @@ for (i in 1:nrow(CPM_loop)) {
   
   # ========================================================== 
   #
-  # DAY 0 
+  # DAY 2 
   # ========================================================== 
-  cts.merged.d0 <- raw_counts.merged.as.table[,c(1,na.omit(match(exp.data.d0$Sample.Name, colnames(raw_counts.merged.as.table))))]
-  cts.merged.d0 <- data.frame(cts.merged.d0[,-1], row.names=cts.merged.d0[,1])
-  cts.matrix.d0  <-as.matrix(cts.merged.d0, row.names="transcript_id")
-  CPM.d0 <- cpm(cts.matrix.d0) # Obtain CPMs (counts oer million) using egdeR
-  thresh.d0 <- CPM.d0 > var # Which values in myCPM are greater than 3?
-  keep.d0 <- rowSums(thresh.d0) >= (ncol(thresh.d0)/2) # we would like to keep genes that have at least 50% TRUES in each row of thresh
-  rowSums(head(thresh.d0)) # Summary of how many TRUEs there are in each row
-  table(rowSums(thresh.d0)) # 6880 genes with TRUE in all 36 samples 
-  cts.matrix.d0.LOOPED <- cts.matrix.d0[keep.d0,]
+  cts.d2        <- data.frame(raw.cts.d2[,-1], row.names=raw.cts.d2[,1])
+  cts.d2.matrix <- as.matrix(cts.d2, row.names="transcript_id")
+  CPM.d2        <- cpm(cts.d2.matrix) # Obtain CPMs (counts oer million) using egdeR
+  thresh.d2     <- CPM.d2 > var # Which values in myCPM are greater than 3?
+  keep.d2       <- rowSums(thresh.d2) >= (ncol(thresh.d2)/2) # we would like to keep genes that have at least 50% TRUES in each row of thresh
+  rowSums(head(thresh.d2)) # Summary of how many TRUEs there are in each row
+  table(rowSums(thresh.d2)) # 6880 genes with TRUE in all 36 samples 
+  cts.matrix.d2.LOOPED     <- cts.d2.matrix[keep.d2,]
   
-  d0_total_genes           <- nrow(cts.matrix.d0.LOOPED)
-  d0_mean_reads_per_gene   <- mean( (rowSums(cts.matrix.d0.LOOPED) / ncol(cts.matrix.d0.LOOPED) ) ) 
+  d2_total_genes           <- nrow(cts.matrix.d2.LOOPED)
+  d2_mean_reads_per_gene   <- mean( (rowSums(cts.matrix.d2.LOOPED) / ncol(cts.matrix.d2.LOOPED) ) ) 
   
   # ========================================================== 
   #
-  # DAY 7 
+  # DAY 18 
   # ========================================================== 
-  cts.merged.d7 <- raw_counts.merged.as.table[,c(1,na.omit(match(exp.data.d7$Sample.Name, colnames(raw_counts.merged.as.table))))]
-  cts.merged.d7 <- data.frame(cts.merged.d7[,-1], row.names=cts.merged.d7[,1])
-  cts.matrix.d7  <-as.matrix(cts.merged.d7, row.names="transcript_id")
-  CPM.d7 <- cpm(cts.matrix.d7) # Obtain CPMs (counts oer million) using egdeR
-  thresh.d7 <- CPM.d7 > var # Which values in myCPM are greater than 3?
-  keep.d7 <- rowSums(thresh.d7) >= (ncol(thresh.d7)/2) # we would like to keep genes that have at least 50% TRUES in each row of thresh
-  rowSums(head(thresh.d7)) # Summary of how many TRUEs there are in each row
-  table(rowSums(thresh.d7)) # 6880 genes with TRUE in all 36 samples 
-  cts.matrix.d7.LOOPED <- cts.matrix.d7[keep.d7,]
+  cts.d18        <- data.frame(raw.cts.d18[,-1], row.names=raw.cts.d18[,1])
+  cts.d18.matrix <- as.matrix(cts.d18, row.names="transcript_id")
+  CPM.d18        <- cpm(cts.d18.matrix) # Obtain CPMs (counts oer million) using egdeR
+  thresh.d18     <- CPM.d18 > var # Which values in myCPM are greater than 3?
+  keep.d18       <- rowSums(thresh.d18) >= (ncol(thresh.d18)/2) # we would like to keep genes that have at least 50% TRUES in each row of thresh
+  rowSums(head(thresh.d18)) # Summary of how many TRUEs there are in each row
+  table(rowSums(thresh.d18)) # 6880 genes with TRUE in all 36 samples 
+  cts.matrix.d18.LOOPED     <- cts.d18.matrix[keep.d18,]
   
-  d7_total_genes           <- nrow(cts.matrix.d7.LOOPED)
-  d7_mean_reads_per_gene   <- mean( (rowSums(cts.matrix.d7.LOOPED) / ncol(cts.matrix.d7.LOOPED) ) ) 
+  d18_total_genes           <- nrow(cts.matrix.d18.LOOPED)
+  d18_mean_reads_per_gene   <- mean( (rowSums(cts.matrix.d18.LOOPED) / ncol(cts.matrix.d18.LOOPED) ) ) 
 
-  # ========================================================== 
-  #
-  # DAY 14
-  # ========================================================== 
-  cts.merged.d14 <- raw_counts.merged.as.table[,c(1,na.omit(match(exp.data.d14$Sample.Name, colnames(raw_counts.merged.as.table))))]
-  cts.merged.d14 <- data.frame(cts.merged.d14[,-1], row.names=cts.merged.d14[,1])
-  cts.matrix.d14  <-as.matrix(cts.merged.d14, row.names="transcript_id")
-  CPM.d14 <- cpm(cts.matrix.d14) # Obtain CPMs (counts oer million) using egdeR
-  thresh.d14 <- CPM.d14 > var # Which values in myCPM are greater than 3?
-  keep.d14 <- rowSums(thresh.d14) >= (ncol(thresh.d14)/2) # we would like to keep genes that have at least 50% TRUES in each row of thresh
-  cts.matrix.d14.LOOPED <- cts.matrix.d14[keep.d14,]
-  
-  d14_total_genes           <- nrow(cts.matrix.d14.LOOPED)
-  d14_mean_reads_per_gene   <- mean( ( rowSums(cts.matrix.d14.LOOPED) / ncol(cts.matrix.d14.LOOPED) ) ) 
-
-  
-  # ========================================================== 
-  #
-  # DAY 21 
-  # ========================================================== 
-  cts.merged.d21 <- raw_counts.merged.as.table[,c(1,na.omit(match(exp.data.d21$Sample.Name, colnames(raw_counts.merged.as.table))))]
-  cts.merged.d21 <- data.frame(cts.merged.d21[,-1], row.names=cts.merged.d21[,1])
-  cts.matrix.d21  <-as.matrix(cts.merged.d21, row.names="transcript_id")
-  CPM.d21 <- cpm(cts.matrix.d21) # Obtain CPMs (counts oer million) using egdeR
-  thresh.d21 <- CPM.d21 > var # Which values in myCPM are greater than 3?
-  keep.d21 <- rowSums(thresh.d21) >= (ncol(thresh.d21)/2) # we would like to keep genes that have at least 50% TRUES in each row of thresh
-  cts.matrix.d21.LOOPED <- cts.matrix.d21[keep.d21,]
-  
-  d21_total_genes           <- nrow(cts.matrix.d21.LOOPED)
-  d21_mean_reads_per_gene   <- mean( (rowSums(cts.matrix.d21.LOOPED) / ncol(cts.matrix.d21.LOOPED) ) ) 
-    
-  loop.table$CPM_threshold           <- c(var, var, var, var)
-  loop.table$Day                     <- c(0, 7, 14, 21)
-  loop.table$total_genes             <- c(d0_total_genes, d7_total_genes, d14_total_genes, d21_total_genes)
-  loop.table$mean_reads_per_gene   <- c(d0_mean_reads_per_gene, d7_mean_reads_per_gene, d14_mean_reads_per_gene, d21_mean_reads_per_gene)
+  # table  
+  loop.table$CPM_threshold           <- c(var, var)
+  loop.table$Day                     <- c(2, 18)
+  loop.table$total_genes             <- c(d2_total_genes, d18_total_genes)
+  loop.table$mean_reads_per_gene   <- c(d2_mean_reads_per_gene, d18_mean_reads_per_gene)
     
   df <- data.frame(loop.table) # name dataframe for this singl e row
   df_total <- rbind(df_total,df) #bind to a cumulative list dataframe
   #print(df_total) # print to monitor progress
 }
 
-DAY0_filterfig <- df_total %>% 
-  dplyr::filter(Day %in% 0) %>% 
+```
+
+```{r}
+DAY2_filterfig <- df_total %>% 
+  dplyr::filter(Day %in% 2) %>% 
   tidyr::gather(key = "variable", value = "measurement",
        total_genes, mean_reads_per_gene, -Day) %>% 
   # Start with a usual ggplot2 call:
   ggplot(aes(x = CPM_threshold)) +
   geom_line(aes(y = measurement)) +
-  ggtitle("Day 0") +
+  ggtitle("Day 2") +
   geom_vline(xintercept = c(3,5,10), color = 'red') +
   facet_wrap(. ~ variable, scales="free")
-# DAY0_filterfig
+# DAY2_filterfig
 
-DAY7_filterfig <- df_total %>% 
-  dplyr::filter(Day %in% 7) %>% 
+DAY18_filterfig <- df_total %>% 
+  dplyr::filter(Day %in% 18) %>% 
   tidyr::gather(key = "variable", value = "measurement",
        total_genes, mean_reads_per_gene, -Day) %>% 
-  # Start with a usual ggplot2 call:
+  # Start with a usual ggplot18 call:
   ggplot(aes(x = CPM_threshold)) +
   geom_line(aes(y = measurement)) +
-  ggtitle("Day 7") +
+  ggtitle("Day 18") +
   geom_vline(xintercept = c(3,5,10), color = 'red') +
   facet_wrap(. ~ variable, scales="free")
-# DAY7_filterfig
-
-DAY14_filterfig <- df_total %>% 
-  dplyr::filter(Day %in% 14) %>% 
-  tidyr::gather(key = "variable", value = "measurement",
-       total_genes, mean_reads_per_gene, -Day) %>% 
-  # Start with a usual ggplot2 call:
-  ggplot(aes(x = CPM_threshold)) +
-  geom_line(aes(y = measurement)) +
-  ggtitle("Day 14") +
-  geom_vline(xintercept = c(3,5,10), color = 'red') +
-  facet_wrap(. ~ variable, scales="free")
-# DAY14_filterfig
-
-DAY21_filterfig <- df_total %>% 
-  dplyr::filter(Day %in% 21) %>% 
-  tidyr::gather(key = "variable", value = "measurement",
-       total_genes, mean_reads_per_gene, -Day) %>% 
-  # Start with a usual ggplot2 call:
-  ggplot(aes(x = CPM_threshold)) +
-  geom_line(aes(y = measurement)) +
-  ggtitle("Day 21") +
-  geom_vline(xintercept = c(3,5,10), color = 'red') +
-  facet_wrap(. ~ variable, scales="free")
-# DAY21_filterfig
+# DAY18_filterfig
 
 
-png("../Data/Filtered_Counts/CPM_Read_Filter_Curve.png", 2000, 1000, pointsize=20)
-plot_grid(DAY0_filterfig, DAY7_filterfig, DAY14_filterfig, DAY21_filterfig)
+
+png("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Data/TagSeq/Filtered_Counts/CPM_Read_Filter_Curve.png", 2000, 1000, pointsize=20)
+plot_grid(DAY2_filterfig, DAY18_filterfig)
 dev.off()
 
 ```
@@ -447,557 +355,85 @@ a) close to the asymmptote when low reads were filtered out
 b) all genes have >50 mean read count sample-1
 c) 13k-15k genes selected across matrices - ~40% decrease in the total reference genome
 ### LENIENT CUT-OFF [ 3 CPM IN 50% SAMPLES ]
-```{r  3 CPM 50% SAMPLES}
-# ========================================================== 
-#
-# ALL TIMEPOINTS (3 CPM in 50% samples using edgeR)
-# ========================================================== 
-
-# pre-filtering; genes ommitted if < 3 counts per million reads in 50% of samples
-cts.matrix.all <- raw_counts.matrix
-hist_1_all <- hist(colSums(cts.matrix.all)) # view the colSums of our all samples  - notice the read sums are around 1 million
-CPM.all <- cpm(cts.matrix.all) # Obtain CPMs (counts oer million) using egdeR
-head(CPM.all) # Have a look at the output
-thresh.all <- CPM.all > 3 # Which values in myCPM are greater than 3?
-head(thresh.all) # This produces a logical matrix with TRUEs and FALSES
-rowSums(head(thresh.all)) # Summary of how many TRUEs there are in each row
-table(rowSums(thresh.all)) # 2618 genes with TRUE in all 141 samples 
-keep.all <- rowSums(thresh.all) >= (ncol(thresh.all)/2) # we would like to keep genes that have at least 50% TRUES in each row of thresh
-summary(keep.all) # FALSE 23057 & TRUE  11890 -- half of the genes did not pass
-cts.matrix.all.filtered <- cts.matrix.all[keep.all,] # Subset the rows of countdata to keep the more highly expressed genes
-
-hist_1_all<-qplot((colSums(cts.matrix.all.filtered)) , geom="histogram")
-all_1_numgenes <- dim(cts.matrix.all.filtered)[1]
-all_1_samp <- dim(cts.matrix.all.filtered)[2]
-
-# % Genes with annotation == (filtered genes with annotation / filtered genes) * 100 
-All_PercAnnot_3cpm <- paste( ( (nrow(Geoduck_annotationOM %>% dplyr::filter(V1  %in% (rownames(cts.matrix.all.filtered))))) / nrow(cts.matrix.all.filtered) * 100), " %", sep = '')
-
-# ========================================================== 
-#
-# DAY 0  (5 CPM in 50% samples using edgeR)
-# ========================================================== 
-# About: run dyplr 'antijoin' to call cts columns that match 'Sample.Name' in the data frame 'exp.data.d0'
-cts.merged.d0 <- raw_counts.merged.as.table[,c(1,na.omit(match(exp.data.d0$Sample.Name, colnames(raw_counts.merged.as.table))))]
-cts.merged.d0 <- data.frame(cts.merged.d0[,-1], row.names=cts.merged.d0[,1])
-cts.matrix.d0  <-as.matrix(cts.merged.d0, row.names="transcript_id")
-ncol(cts.matrix.d0) # 8  samples from just Day 0
-nrow(cts.matrix.d0) # 34947 total genes
-colnames(cts.matrix.d0) == exp.data.d0$Sample.Name # check if TRUE, means the same as the exp/design dataframe exp.data.d0
-# pre-filtering; genes ommitted if < 3 counts per million reads in 50% of samples
- # view the colSums of our Day0 samples  - notice the read sums are around 1 million
-CPM.d0 <- cpm(cts.matrix.d0) # Obtain CPMs (counts oer million) using egdeR
-head(CPM.d0) # Have a look at the output
-thresh.d0 <- CPM.d0 > 3 # Which values in myCPM are greater than 3?
-head(thresh.d0) # This produces a logical matrix with TRUEs and FALSES
-rowSums(head(thresh.d0)) # Summary of how many TRUEs there are in each row
-table(rowSums(thresh.d0)) # 9631 genes with TRUE in all 8 samples 
-keep.d0 <- rowSums(thresh.d0) >= (ncol(thresh.d0)/2) # we would like to keep genes that have at least 50% TRUES in each row of thresh
-summary(keep.d0) # FALSE 22283 & TRUE 12664 -- half of the genes did not pass
-cts.matrix.d0.filtered <- cts.matrix.d0[keep.d0,] # Subset the rows of countdata to keep the more highly expressed genes
-dim(cts.matrix.d0.filtered) # 12664 genes & 8 samples
-
-hist_1_d0<-qplot((colSums(cts.matrix.d0.filtered)) , geom="histogram")
-d0_1_numgenes <- dim(cts.matrix.d0.filtered)[1]
-d0_1_samp <- dim(cts.matrix.d0.filtered)[2]
-
-# % Genes with annotation == (filtered genes with annotation / filtered genes) * 100 
-Day0_PercAnnot_3cpm <- paste( ( (nrow(Geoduck_annotationOM %>% dplyr::filter(V1  %in% (rownames(cts.matrix.d0.filtered))))) / nrow(cts.matrix.d0.filtered) * 100), " %", sep = '')
-
-# ========================================================== 
-#
-# DAY 7 (5 CPM in 50% samples using edgeR)
-# ========================================================== 
-cts.merged.d7 <- raw_counts.merged.as.table[,c(1,na.omit(match(exp.data.d7$Sample.Name, colnames(raw_counts.merged.as.table))))]
-cts.merged.d7 <- data.frame(cts.merged.d7[,-1], row.names=cts.merged.d7[,1])
-cts.matrix.d7  <-as.matrix(cts.merged.d7, row.names="transcript_id")
-ncol(cts.matrix.d7) # 36 samples from just Day 7
-colnames(cts.matrix.d7) == exp.data.d7$Sample.Name # check if TRUE, means the same as the exp/design dataframe exp.data.d7
-# pre-filtering; genes ommitted if < 3 counts per million reads in 50% of samples
- # view the colSums of our Day7 samples 
-CPM.d7 <- cpm(cts.matrix.d7) # Obtain CPMs (counts oer million) using egdeR
-head(CPM.d7) # Have a look at the output
-thresh.d7 <- CPM.d7 > 3 # Which values in myCPM are greater than 3?
-head(thresh.d7) # This produces a logical matrix with TRUEs and FALSES
-rowSums(head(thresh.d7)) # Summary of how many TRUEs there are in each row
-table(rowSums(thresh.d7)) # 6880 genes with TRUE in all 36 samples 
-keep.d7 <- rowSums(thresh.d7) >= (ncol(thresh.d7)/2) # we would like to keep genes that have at least 50% TRUES in each row of thresh
-summary(keep.d7) # FALSE 22934 & TRUE 12013 -- more than half of the genes did not pass
-cts.matrix.d7.filtered <- cts.matrix.d7[keep.d7,] # Subset the rows of countdata to keep the more highly expressed genes
-dim(cts.matrix.d7.filtered) # 12013 genes & 36 samples
-
-hist_1_d7<-qplot((colSums(cts.matrix.d7.filtered)) , geom="histogram")
-d7_1_numgenes <- dim(cts.matrix.d7.filtered)[1]
-d7_1_samp <- dim(cts.matrix.d7.filtered)[2]
-
-# % Genes with annotation == (filtered genes with annotation / filtered genes) * 100 
-Day7_PercAnnot_3cpm <- paste( ( (nrow(Geoduck_annotationOM %>% dplyr::filter(V1  %in% (rownames(cts.matrix.d7.filtered))))) / nrow(cts.matrix.d7.filtered) * 100), " %", sep = '')
-
-# ========================================================== 
-#
-# DAY 14 (5 CPM in 50% samples using edgeR)
-# ========================================================== 
-cts.merged.d14 <- raw_counts.merged.as.table[,c(1,na.omit(match(exp.data.d14$Sample.Name, colnames(raw_counts.merged.as.table))))]
-cts.merged.d14 <- data.frame(cts.merged.d14[,-1], row.names=cts.merged.d14[,1])
-cts.matrix.d14  <-as.matrix(cts.merged.d14, row.names="transcript_id")
-ncol(cts.matrix.d14) # 35 samples from just Day 14
-colnames(cts.matrix.d14) == exp.data.d14$Sample.Name # chec if all TRUE; NOTE: SG92 was ommitted earlier to make sure this reads TRUE
-UT_seq_map %>% dplyr::filter(Sample.Name == "SG92") # there was no sample in SG92 for TagSeq; 35 total is correct!
-# pre-filtering; genes ommitted if < 3 counts per million reads in 50% of samples
-CPM.d14 <- cpm(cts.matrix.d14) # Obtain CPMs (counts oer million) using egdeR
-head(CPM.d14) # Have a look at the output
-thresh.d14 <- CPM.d14 > 3 # Which values in myCPM are greater than 3?
-head(thresh.d14) # This produces a logical matrix with TRUEs and FALSES
-rowSums(head(thresh.d14)) # Summary of how many TRUEs there are in each row
-table(rowSums(thresh.d14)) # 6473 genes with TRUE in all 35 samples 
-keep.d14 <- rowSums(thresh.d14) >= (ncol(thresh.d14)/2) # we would like to keep genes that have at least 50% TRUES in each row of thresh
-summary(keep.d14) # FALSE 22812 & TRUE 12135 -- more than half of the genes did not pass
-cts.matrix.d14.filtered <- cts.matrix.d14[keep.d14,] # Subset the rows of countdata to keep the more highly expressed genes
-dim(cts.matrix.d14.filtered) # 12135 genes & 35 samples
-
-hist_1_d14<-qplot((colSums(cts.matrix.d14.filtered)) , geom="histogram")
-d14_1_numgenes <- dim(cts.matrix.d14.filtered)[1]
-d14_1_samp <- dim(cts.matrix.d14.filtered)[2]
-
-# % Genes with annotation == (filtered genes with annotation / filtered genes) * 100 
-Day14_PercAnnot_3cpm <- paste( ( (nrow(Geoduck_annotationOM %>% dplyr::filter(V1  %in% (rownames(cts.matrix.d14.filtered))))) / nrow(cts.matrix.d14.filtered) * 100), " %", sep = '')
-
-# ========================================================== 
-#
-# DAY 21  (5 CPM in 50% samples using edgeR)
-# ========================================================== 
-cts.merged.d21 <- raw_counts.merged.as.table[,c(1,na.omit(match(exp.data.d21$Sample.Name, colnames(raw_counts.merged.as.table))))]
-cts.merged.d21 <- data.frame(cts.merged.d21[,-1], row.names=cts.merged.d21[,1])
-cts.matrix.d21  <-as.matrix(cts.merged.d21, row.names="transcript_id")
-ncol(cts.matrix.d21) # # 62 total sampels on day 21
-colnames(cts.matrix.d21) == exp.data.d21$Sample.Name # check if TRUE, means the same as the exp/design dataframe exp.data.d21
-# pre-filtering; genes ommitted if < 3 counts per million reads in 50% of samples
-CPM.d21 <- cpm(cts.matrix.d21) # Obtain CPMs (counts oer million) using egdeR
-head(CPM.d21) # Have a look at the output
-thresh.d21 <- CPM.d21 > 3 # filter CPM by threshold
-head(thresh.d21) # This produces a logical matrix with TRUEs and FALSES
-rowSums(head(thresh.d21)) # Summary of how many TRUEs there are in each row
-table(rowSums(thresh.d21)) # 5219 genes with TRUE in all 62 samples 
-keep.d21 <- rowSums(thresh.d21) >= (ncol(thresh.d21)/2) # we would like to keep genes that have at least 50% TRUES in each row of thresh
-summary(keep.d21) # FALSE 23147 & TRUE 11800 -- more than three quarters of the genes did not pass
-cts.matrix.d21.filtered <- cts.matrix.d21[keep.d21,] # Subset the rows of countdata to keep the more highly expressed genes
-dim(cts.matrix.d21.filtered) # 11800 genes &  62 samples
-
-hist_1_d21<-qplot((colSums(cts.matrix.d21.filtered)) , geom="histogram")
-d21_1_numgenes <- dim(cts.matrix.d21.filtered)[1]
-d21_1_samp <- dim(cts.matrix.d21.filtered)[2]
-
-# % Genes with annotation == (filtered genes with annotation / filtered genes) * 100 
-Day21_PercAnnot_3cpm <- paste( ( (nrow(Geoduck_annotationOM %>% dplyr::filter(V1  %in% (rownames(cts.matrix.d21.filtered))))) / nrow(cts.matrix.d21.filtered) * 100), " %", sep = '')
-
-png("../Data/Filtered_Counts/3cpm_50perc/Histograms_3cpm_50perc.png", 1000, 1000, pointsize=20)
-plot_grid(hist_1_all, hist_1_d0, hist_1_d7, hist_1_d14, hist_1_d21)
-dev.off()
-
-
-# write csv
-write.csv(cts.matrix.all.filtered,"../Data/Filtered_Counts/3cpm_50perc/all.counts.filtered_3cpm50perc.csv") # 'path' called in previous # write .csv section
-write.csv(cts.matrix.d0.filtered,"../Data/Filtered_Counts/3cpm_50perc/day0.counts.filtered_3cpm50perc.csv") # 'path' called in previous # write .csv section
-write.csv(cts.matrix.d7.filtered,"../Data/Filtered_Counts/3cpm_50perc/day7.counts.filtered_3cpm50perc.csv") # 'path' called in previous # write .csv section
-write.csv(cts.matrix.d14.filtered,"../Data/Filtered_Counts/3cpm_50perc/day14.counts.filtered_3cpm50perc.csv") # 'path' called in previous # write .csv section
-write.csv(cts.matrix.d21.filtered,"../Data/Filtered_Counts/3cpm_50perc/day21.counts.filtered_3cpm50perc.csv") # 'path' called in previous # write .csv section
-
-```
-### LENIENT CUT-OFF [ 5 CPM IN 50% SAMPLES ]
 ```{r  5 CPM 50% SAMPLES}
-# ========================================================== 
-#
-# ALL TIMEPOINTS (3 CPM in 50% samples using edgeR)
-# ========================================================== 
-
-# pre-filtering; genes ommitted if < 3 counts per million reads in 50% of samples
-cts.matrix.all <- raw_counts.matrix
-hist_1_all <- hist(colSums(cts.matrix.all)) # view the colSums of our all samples  - notice the read sums are around 1 million
-CPM.all <- cpm(cts.matrix.all) # Obtain CPMs (counts oer million) using egdeR
-head(CPM.all) # Have a look at the output
-thresh.all <- CPM.all > 5 # Which values in myCPM are greater than 3?
-head(thresh.all) # This produces a logical matrix with TRUEs and FALSES
-rowSums(head(thresh.all)) # Summary of how many TRUEs there are in each row
-table(rowSums(thresh.all)) # 2618 genes with TRUE in all 141 samples 
-keep.all <- rowSums(thresh.all) >= (ncol(thresh.all)/2) # we would like to keep genes that have at least 50% TRUES in each row of thresh
-summary(keep.all) # FALSE 23057 & TRUE  11890 -- half of the genes did not pass
-cts.matrix.all.filtered <- cts.matrix.all[keep.all,] # Subset the rows of countdata to keep the more highly expressed genes
-
-hist_1_all<-qplot((colSums(cts.matrix.all.filtered)) , geom="histogram")
-all_1_numgenes <- dim(cts.matrix.all.filtered)[1]
-all_1_samp <- dim(cts.matrix.all.filtered)[2]
-
-# % Genes with annotation == (filtered genes with annotation / filtered genes) * 100 
-All_PercAnnot_5cpm <- paste( ( (nrow(Geoduck_annotationOM %>% dplyr::filter(V1  %in% (rownames(cts.matrix.all.filtered))))) / nrow(cts.matrix.all.filtered) * 100), " %", sep = '')
 
 # ========================================================== 
 #
-# DAY 0  (5 CPM in 50% samples using edgeR)
+# DAY 2  (5 CPM in 50% samples using edgeR)
 # ========================================================== 
-# About: run dyplr 'antijoin' to call cts columns that match 'Sample.Name' in the data frame 'exp.data.d0'
-cts.merged.d0 <- raw_counts.merged.as.table[,c(1,na.omit(match(exp.data.d0$Sample.Name, colnames(raw_counts.merged.as.table))))]
-cts.merged.d0 <- data.frame(cts.merged.d0[,-1], row.names=cts.merged.d0[,1])
-cts.matrix.d0  <-as.matrix(cts.merged.d0, row.names="transcript_id")
-ncol(cts.matrix.d0) # 8  samples from just Day 0
-nrow(cts.matrix.d0) # 34947 total genes
-colnames(cts.matrix.d0) == exp.data.d0$Sample.Name # check if TRUE, means the same as the exp/design dataframe exp.data.d0
-# pre-filtering; genes ommitted if < 3 counts per million reads in 50% of samples
+raw.cts.d2          <- data.frame(raw.cts.d2[,-1], row.names=raw.cts.d2[,1])
+raw.countMatrix.d2  <- as.matrix(raw.cts.d2, row.names="transcript_id")
+ncol(raw.countMatrix.d2) # 24  samples from just Day 0
+nrow(raw.countMatrix.d2) # 66071 total genes
+# pre-filtering; genes ommitted if < 5 counts per million reads in 50% of samples
  # view the colSums of our Day0 samples  - notice the read sums are around 1 million
-CPM.d0 <- cpm(cts.matrix.d0) # Obtain CPMs (counts oer million) using egdeR
-head(CPM.d0) # Have a look at the output
-thresh.d0 <- CPM.d0 > 5 # Which values in myCPM are greater than 3?
-head(thresh.d0) # This produces a logical matrix with TRUEs and FALSES
-rowSums(head(thresh.d0)) # Summary of how many TRUEs there are in each row
-table(rowSums(thresh.d0)) # 9631 genes with TRUE in all 8 samples 
-keep.d0 <- rowSums(thresh.d0) >= (ncol(thresh.d0)/2) # we would like to keep genes that have at least 50% TRUES in each row of thresh
-summary(keep.d0) # FALSE 22283 & TRUE 12664 -- half of the genes did not pass
-cts.matrix.d0.filtered <- cts.matrix.d0[keep.d0,] # Subset the rows of countdata to keep the more highly expressed genes
-dim(cts.matrix.d0.filtered) # 12664 genes & 8 samples
+CPM.d2 <- cpm(raw.countMatrix.d2) # Obtain CPMs (counts oer million) using egdeR
+head(CPM.d2) # Have a look at the output
+thresh.d2 <- CPM.d2 > 5 # Which values in myCPM are greater than 5?
+head(thresh.d2) # This produces a logical matrix with TRUEs and FALSES
+rowSums(head(thresh.d2)) # Summary of how many TRUEs there are in each row
+table(rowSums(thresh.d2)) # 2452 genes with TRUE in all 24 samples; 57498 genes with false in all 24 samples
+#     0     1     2     3     4     5     6     7     8     9    10    11    12    13    14    15    16    17    18    19    20    21    22    23    24 
+# 57485  1076   571   396   318   274   238   205   179   179   167   163   159   158   153   146   155   156   142   184   191   212   279   445  2440
+keep.d2 <- rowSums(thresh.d2) >= floor(ncol(thresh.d2)/2) # we would like to keep genes that have at least 50% TRUES in each row of thresh
+summary(keep.d2) # only 8% of genes passed
+#    Mode   FALSE    TRUE 
+# logical   61251    4820 
+countMatrix.d2.filtered <- raw.countMatrix.d2[keep.d2,] # Subset the rows of countdata to keep the more highly expressed genes
+dim(countMatrix.d2.filtered) # 4820 seq  24 samples
 
-hist_1_d0<-qplot((colSums(cts.matrix.d0.filtered)) , geom="histogram")
-d0_1_numgenes <- dim(cts.matrix.d0.filtered)[1]
-d0_1_samp <- dim(cts.matrix.d0.filtered)[2]
+hist_1_d2     <- qplot((colSums(countMatrix.d2.filtered)) , geom="histogram")
+d2_1_numgenes <- dim(countMatrix.d2.filtered)[1]
+d2_1_samp     <- dim(countMatrix.d2.filtered)[2]
 
 # % Genes with annotation == (filtered genes with annotation / filtered genes) * 100 
-Day0_PercAnnot_5cpm <- paste( ( (nrow(Geoduck_annotationOM %>% dplyr::filter(V1  %in% (rownames(cts.matrix.d0.filtered))))) / nrow(cts.matrix.d0.filtered) * 100), " %", sep = '')
+SeqIDs$TranscriptID <- sub(" ,*","",SeqIDs$TranscriptID) #omits te space so we can match the rownames in countMatrix.d2.filtered
+Day2_PercAnnot_5cpm <- paste( ( (nrow(SeqIDs %>% dplyr::filter(TranscriptID  %in% (rownames(countMatrix.d2.filtered))))) / nrow(SeqIDs) * 100), " %", sep = '') # "7.39362101313321 %"
 
 # ========================================================== 
 #
-# DAY 7 (5 CPM in 50% samples using edgeR)
+# DAY 18 (5 CPM in 50% samples using edgeR)
 # ========================================================== 
-cts.merged.d7 <- raw_counts.merged.as.table[,c(1,na.omit(match(exp.data.d7$Sample.Name, colnames(raw_counts.merged.as.table))))]
-cts.merged.d7 <- data.frame(cts.merged.d7[,-1], row.names=cts.merged.d7[,1])
-cts.matrix.d7  <-as.matrix(cts.merged.d7, row.names="transcript_id")
-ncol(cts.matrix.d7) # 36 samples from just Day 7
-colnames(cts.matrix.d7) == exp.data.d7$Sample.Name # check if TRUE, means the same as the exp/design dataframe exp.data.d7
-# pre-filtering; genes ommitted if < 3 counts per million reads in 50% of samples
- # view the colSums of our Day7 samples 
-CPM.d7 <- cpm(cts.matrix.d7) # Obtain CPMs (counts oer million) using egdeR
-head(CPM.d7) # Have a look at the output
-thresh.d7 <- CPM.d7 > 5 # Which values in myCPM are greater than 3?
-head(thresh.d7) # This produces a logical matrix with TRUEs and FALSES
-rowSums(head(thresh.d7)) # Summary of how many TRUEs there are in each row
-table(rowSums(thresh.d7)) # 6880 genes with TRUE in all 36 samples 
-keep.d7 <- rowSums(thresh.d7) >= (ncol(thresh.d7)/2) # we would like to keep genes that have at least 50% TRUES in each row of thresh
-summary(keep.d7) # FALSE 22934 & TRUE 12013 -- more than half of the genes did not pass
-cts.matrix.d7.filtered <- cts.matrix.d7[keep.d7,] # Subset the rows of countdata to keep the more highly expressed genes
-dim(cts.matrix.d7.filtered) # 12013 genes & 36 samples
+raw.cts.d18          <- data.frame(raw.cts.d18[,-1], row.names=raw.cts.d18[,1])
+raw.countMatrix.d18  <- as.matrix(raw.cts.d18, row.names="transcript_id")
+ncol(raw.countMatrix.d18) # 11  samples from just Day 18
+nrow(raw.countMatrix.d18) # 66071 total genes
+# pre-filtering; genes ommitted if < 5 counts per million reads in 50% of samples
+ # view the colSums of our Day0 samples  - notice the read sums are around 1 million
+CPM.d18 <- cpm(raw.countMatrix.d18) # Obtain CPMs (counts oer million) using egdeR
+head(CPM.d18) # Have a look at the output
+thresh.d18 <- CPM.d18 > 5 # Which values in myCPM are greater than 5?
+head(thresh.d18) # This produces a logical matrix with TRUEs and FALSES
+rowSums(head(thresh.d18)) # Summary of how many TRUEs there are in each row
+table(rowSums(thresh.d18)) # 2300  genes with TRUE in all 11 samples; 57789  genes with false in all 11 samples
+#     0     1     2     3     4     5     6     7     8     9    10    11 
+# 57789  1711   704   525   406   353   348   316   368   470   781  2300
+keep.d18 <- rowSums(thresh.d18) >= floor(ncol(thresh.d18)/2) # we would like to keep genes that have at least 50% TRUES in each row of thresh
+summary(keep.d18) # only 8% of genes passed
+#    Mode   FALSE    TRUE 
+# logical   61135    4936 
+countMatrix.d18.filtered <- raw.countMatrix.d18[keep.d18,] # Subset the rows of countdata to keep the more highly expressed genes
+dim(countMatrix.d18.filtered) # 4936 fenes  23 samples
 
-hist_1_d7<-qplot((colSums(cts.matrix.d7.filtered)) , geom="histogram")
-d7_1_numgenes <- dim(cts.matrix.d7.filtered)[1]
-d7_1_samp <- dim(cts.matrix.d7.filtered)[2]
+hist_1_d18     <- qplot((colSums(countMatrix.d18.filtered)) , geom="histogram")
+d18_1_numgenes <- dim(countMatrix.d18.filtered)[1]
+d18_1_samp     <- dim(countMatrix.d18.filtered)[2]
 
 # % Genes with annotation == (filtered genes with annotation / filtered genes) * 100 
-Day7_PercAnnot_5cpm <- paste( ( (nrow(Geoduck_annotationOM %>% dplyr::filter(V1  %in% (rownames(cts.matrix.d7.filtered))))) / nrow(cts.matrix.d7.filtered) * 100), " %", sep = '')
+SeqIDs$TranscriptID <- sub(" ,*","",SeqIDs$TranscriptID) #omits te space so we can match the rownames in countMatrix.d18.filtered
+Day18_PercAnnot_5cpm <- paste( ( (nrow(SeqIDs %>% dplyr::filter(TranscriptID  %in% (rownames(countMatrix.d18.filtered))))) / nrow(SeqIDs) * 100), " %", sep = '') # "7.40863039399625 %"
 
-# ========================================================== 
-#
-# DAY 14 (5 CPM in 50% samples using edgeR)
-# ========================================================== 
-cts.merged.d14 <- raw_counts.merged.as.table[,c(1,na.omit(match(exp.data.d14$Sample.Name, colnames(raw_counts.merged.as.table))))]
-cts.merged.d14 <- data.frame(cts.merged.d14[,-1], row.names=cts.merged.d14[,1])
-cts.matrix.d14  <-as.matrix(cts.merged.d14, row.names="transcript_id")
-ncol(cts.matrix.d14) # 35 samples from just Day 14
-colnames(cts.matrix.d14) == exp.data.d14$Sample.Name # chec if all TRUE; NOTE: SG92 was ommitted earlier to make sure this reads TRUE
-UT_seq_map %>% dplyr::filter(Sample.Name == "SG92") # there was no sample in SG92 for TagSeq; 35 total is correct!
-# pre-filtering; genes ommitted if < 3 counts per million reads in 50% of samples
-CPM.d14 <- cpm(cts.matrix.d14) # Obtain CPMs (counts oer million) using egdeR
-head(CPM.d14) # Have a look at the output
-thresh.d14 <- CPM.d14 > 5 # Which values in myCPM are greater than 3?
-head(thresh.d14) # This produces a logical matrix with TRUEs and FALSES
-rowSums(head(thresh.d14)) # Summary of how many TRUEs there are in each row
-table(rowSums(thresh.d14)) # 6473 genes with TRUE in all 35 samples 
-keep.d14 <- rowSums(thresh.d14) >= (ncol(thresh.d14)/2) # we would like to keep genes that have at least 50% TRUES in each row of thresh
-summary(keep.d14) # FALSE 22812 & TRUE 12135 -- more than half of the genes did not pass
-cts.matrix.d14.filtered <- cts.matrix.d14[keep.d14,] # Subset the rows of countdata to keep the more highly expressed genes
-dim(cts.matrix.d14.filtered) # 12135 genes & 35 samples
 
-hist_1_d14<-qplot((colSums(cts.matrix.d14.filtered)) , geom="histogram")
-d14_1_numgenes <- dim(cts.matrix.d14.filtered)[1]
-d14_1_samp <- dim(cts.matrix.d14.filtered)[2]
 
-# % Genes with annotation == (filtered genes with annotation / filtered genes) * 100 
-Day14_PercAnnot_5cpm <- paste( ( (nrow(Geoduck_annotationOM %>% dplyr::filter(V1  %in% (rownames(cts.matrix.d14.filtered))))) / nrow(cts.matrix.d14.filtered) * 100), " %", sep = '')
 
-# ========================================================== 
-#
-# DAY 21  (5 CPM in 50% samples using edgeR)
-# ========================================================== 
-cts.merged.d21 <- raw_counts.merged.as.table[,c(1,na.omit(match(exp.data.d21$Sample.Name, colnames(raw_counts.merged.as.table))))]
-cts.merged.d21 <- data.frame(cts.merged.d21[,-1], row.names=cts.merged.d21[,1])
-cts.matrix.d21  <-as.matrix(cts.merged.d21, row.names="transcript_id")
-ncol(cts.matrix.d21) # # 62 total sampels on day 21
-colnames(cts.matrix.d21) == exp.data.d21$Sample.Name # check if TRUE, means the same as the exp/design dataframe exp.data.d21
-# pre-filtering; genes ommitted if < 3 counts per million reads in 50% of samples
-CPM.d21 <- cpm(cts.matrix.d21) # Obtain CPMs (counts oer million) using egdeR
-head(CPM.d21) # Have a look at the output
-thresh.d21 <- CPM.d21 > 5 # filter CPM by threshold
-head(thresh.d21) # This produces a logical matrix with TRUEs and FALSES
-rowSums(head(thresh.d21)) # Summary of how many TRUEs there are in each row
-table(rowSums(thresh.d21)) # 5219 genes with TRUE in all 62 samples 
-keep.d21 <- rowSums(thresh.d21) >= (ncol(thresh.d21)/2) # we would like to keep genes that have at least 50% TRUES in each row of thresh
-summary(keep.d21) # FALSE 23147 & TRUE 11800 -- more than three quarters of the genes did not pass
-cts.matrix.d21.filtered <- cts.matrix.d21[keep.d21,] # Subset the rows of countdata to keep the more highly expressed genes
-dim(cts.matrix.d21.filtered) # 11800 genes &  62 samples
-
-hist_1_d21<-qplot((colSums(cts.matrix.d21.filtered)) , geom="histogram")
-d21_1_numgenes <- dim(cts.matrix.d21.filtered)[1]
-d21_1_samp <- dim(cts.matrix.d21.filtered)[2]
-
-# % Genes with annotation == (filtered genes with annotation / filtered genes) * 100 
-Day21_PercAnnot_5cpm <- paste( ( (nrow(Geoduck_annotationOM %>% dplyr::filter(V1  %in% (rownames(cts.matrix.d21.filtered))))) / nrow(cts.matrix.d21.filtered) * 100), " %", sep = '')
-
-png("../Data/Filtered_Counts/5cpm_50perc/Histograms_5cpm_50perc.png", 1000, 1000, pointsize=20)
-plot_grid(hist_1_all, hist_1_d0, hist_1_d7, hist_1_d14, hist_1_d21)
+png("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Data/TagSeq/Filtered_Counts/Histograms_5cpm_50perc.png", 1000, 1000, pointsize=20)
+plot_grid(hist_1_d2, hist_1_d18)
 dev.off()
 
 
 # write csv
-write.csv(cts.matrix.all.filtered,"../Data/Filtered_Counts/5cpm_50perc/all.counts.filtered_5cpm50perc.csv") # 'path' called in previous # write .csv section
-write.csv(cts.matrix.d0.filtered,"../Data/Filtered_Counts/5cpm_50perc/day0.counts.filtered_5cpm50perc.csv") # 'path' called in previous # write .csv section
-write.csv(cts.matrix.d7.filtered,"../Data/Filtered_Counts/5cpm_50perc/day7.counts.filtered_5cpm50perc.csv") # 'path' called in previous # write .csv section
-write.csv(cts.matrix.d14.filtered,"../Data/Filtered_Counts/5cpm_50perc/day14.counts.filtered_5cpm50perc.csv") # 'path' called in previous # write .csv section
-write.csv(cts.matrix.d21.filtered,"../Data/Filtered_Counts/5cpm_50perc/day21.counts.filtered_5cpm50perc.csv") # 'path' called in previous # write .csv section
+write.csv(countMatrix.d2.filtered,"C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Data/TagSeq/Filtered_Counts/filtered_counts_5cpm_50perc/day2.filtered_5cpm50perc.csv") # 'path' called in previous # write .csv section
 
-```
-### MORE STRICT CUT-OFF [10 CPM IN 50% SAMPLES ]
-```{r  10 CPM 50% SAMPLES}
-# ========================================================== 
-#
-# ALL TIMEPOINTS (10 CPM in 50% samples using edgeR)
-# ========================================================== 
-
-# pre-filtering; genes ommitted if < 3 counts per million reads in 50% of samples
-cts.matrix.all_2 <- raw_counts.matrix
-hist_2_all <- hist(colSums(cts.matrix.all_2)) # view the colSums of our all samples  - notice the read sums are around 1 million
-CPM.all_2 <- cpm(cts.matrix.all_2) # Obtain CPMs (counts oer million) using egdeR
-head(CPM.all_2) # Have a look at the output
-thresh.all_2 <- CPM.all_2 > 10 # Which values in myCPM are greater than 3?
-head(thresh.all_2) # This produces a logical matrix with TRUEs and FALSES
-rowSums(head(thresh.all_2)) # Summary of how many TRUEs there are in each row
-table(rowSums(thresh.all_2)) # 2618 genes with TRUE in all 141 samples 
-keep.all_2 <- rowSums(thresh.all_2) >= (ncol(thresh.all_2)/2) # we would like to keep genes that have at least 50% TRUES in each row of thresh
-summary(keep.all_2) # FALSE 26487 & TRUE  8460 -- more than 2/3 of the genes did not pass
-cts.matrix.all_2.filtered <- cts.matrix.all_2[keep.all_2,] # Subset the rows of countdata to keep the more highly expressed genes
-
-hist_2_all<-qplot((colSums(cts.matrix.all_2.filtered)) , geom="histogram")
-all_2_numgenes <- dim(cts.matrix.all_2.filtered)[1]
-all_2_samp <- dim(cts.matrix.all_2.filtered)[2]
-
-# % Genes with annotation == (filtered genes with annotation / filtered genes) * 100 
-All_PercAnnot_10cpm <- paste( ( (nrow(Geoduck_annotationOM %>% dplyr::filter(V1  %in% (rownames(cts.matrix.all_2.filtered))))) / nrow(cts.matrix.all_2.filtered) * 100), " %", sep = '')
-
-paste( (mean(colSums(cts.matrix.all_2.filtered))) , (sd(colSums(cts.matrix.all_2.filtered))), sep ='?')  # mean SD read count per sample
-
-
-# ========================================================== 
-#
-# DAY 0  (10 CPM in 50% samples using edgeR)
-# ========================================================== 
-# About: run dyplr 'antijoin' to call cts columns that match 'Sample.Name' in the data frame 'exp.data.d0_2'
-cts.merged.d0_2 <- raw_counts.merged.as.table[,c(1,na.omit(match(exp.data.d0$Sample.Name, colnames(raw_counts.merged.as.table))))]
-cts.merged.d0_2 <- data.frame(cts.merged.d0_2[,-1], row.names=cts.merged.d0_2[,1])
-cts.matrix.d0_2  <-as.matrix(cts.merged.d0_2, row.names="transcript_id")
-ncol(cts.matrix.d0_2) # 8  samples from just Day 0
-nrow(cts.matrix.d0_2) # 34947 total genes
-colnames(cts.matrix.d0_2) == exp.data.d0$Sample.Name # check if TRUE, means the same as the exp/design dataframe exp.data.d0_2
-# pre-filtering; genes ommitted if < 3 counts per million reads in 50% of samples
- # view the colSums of our Day0 samples  - notice the read sums are around 1 million
-CPM.d0_2 <- cpm(cts.matrix.d0_2) # Obtain CPMs (counts oer million) using egdeR
-head(CPM.d0_2) # Have a look at the output
-thresh.d0_2 <- CPM.d0_2 > 10 # Which values in myCPM are greater than 3?
-head(thresh.d0_2) # This produces a logical matrix with TRUEs and FALSES
-rowSums(head(thresh.d0_2)) # Summary of how many TRUEs there are in each row
-table(rowSums(thresh.d0_2)) # 9631 genes with TRUE in all 8 samples 
-keep.d0_2 <- rowSums(thresh.d0_2) >= (ncol(thresh.d0_2)/2) # we would like to keep genes that have at least 50% TRUES in each row of thresh
-summary(keep.d0_2) # FALSE 25740 & TRUE 9207 -- more than half of the genes did not pass
-cts.matrix.d0_2.filtered <- cts.matrix.d0_2[keep.d0_2,] # Subset the rows of countdata to keep the more highly expressed genes
-dim(cts.matrix.d0_2.filtered) #  9207 genes & 8 samples
-
-paste( (mean(colSums(cts.matrix.d0_2.filtered))) , (sd(colSums(cts.matrix.d0_2.filtered))), sep ='?')  # mean SD read count per sample
-
-hist_2_d0<-qplot((colSums(cts.matrix.d0_2.filtered)) , geom="histogram")
-d0_2_numgenes <- dim(cts.matrix.d0_2.filtered)[1]
-d0_2_samp <- dim(cts.matrix.d0_2.filtered)[2]
-
-# % Genes with annotation == (filtered genes with annotation / filtered genes) * 100 
-Day0_PercAnnot_10cpm <- paste( ( (nrow(Geoduck_annotationOM %>% dplyr::filter(V1  %in% (rownames(cts.matrix.d0_2.filtered))))) / nrow(cts.matrix.d0_2.filtered) * 100), " %", sep = '')
-
-# ========================================================== 
-#
-# DAY 7 (10 CPM in 50% samples using edgeR)
-# ========================================================== 
-cts.merged.d7_2 <- raw_counts.merged.as.table[,c(1,na.omit(match(exp.data.d7$Sample.Name, colnames(raw_counts.merged.as.table))))]
-cts.merged.d7_2 <- data.frame(cts.merged.d7_2[,-1], row.names=cts.merged.d7_2[,1])
-cts.matrix.d7_2  <-as.matrix(cts.merged.d7_2, row.names="transcript_id")
-ncol(cts.matrix.d7_2) # 36 samples from just Day 7
-colnames(cts.matrix.d7_2) == exp.data.d7$Sample.Name # check if TRUE, means the same as the exp/design dataframe exp.data.d7_2
-# pre-filtering; genes ommitted if < 3 counts per million reads in 50% of samples
- # view the colSums of our Day7 samples 
-CPM.d7_2 <- cpm(cts.matrix.d7_2) # Obtain CPMs (counts oer million) using egdeR
-head(CPM.d7_2) # Have a look at the output
-thresh.d7_2 <- CPM.d7_2 > 10 # Which values in myCPM are greater than 3?
-head(thresh.d7_2) # This produces a logical matrix with TRUEs and FALSES
-rowSums(head(thresh.d7_2)) # Summary of how many TRUEs there are in each row
-table(rowSums(thresh.d7_2)) # 6880 genes with TRUE in all 36 samples 
-keep.d7_2 <- rowSums(thresh.d7_2) >= (ncol(thresh.d7_2)/2) # we would like to keep genes that have at least 50% TRUES in each row of thresh
-summary(keep.d7_2) # FALSE 26399  & TRUE 8548 -- more than half of the genes did not pass
-cts.matrix.d7_2.filtered <- cts.matrix.d7_2[keep.d7_2,] # Subset the rows of countdata to keep the more highly expressed genes
-dim(cts.matrix.d7_2.filtered) # 8548 genes & 36 samples
-
-hist_2_d7<-qplot((colSums(cts.matrix.d7_2.filtered)) , geom="histogram")
-d7_2_numgenes <- dim(cts.matrix.d7_2.filtered)[1]
-d7_2_samp <- dim(cts.matrix.d7_2.filtered)[2]
-
-paste( (mean(colSums(cts.matrix.d7_2.filtered))) , (sd(colSums(cts.matrix.d7_2.filtered))), sep ='?')  # mean SD read count per sample
-
-
-Day7_PercAnnot_10cpm <- paste( ( (nrow(Geoduck_annotationOM %>% dplyr::filter(V1  %in% (rownames(cts.matrix.d7_2.filtered))))) / nrow(cts.matrix.d7_2.filtered) * 100), " %", sep = '')
-
-
-# ========================================================== 
-#
-# DAY 14 (10 CPM in 50% samples using edgeR)
-# ========================================================== 
-cts.merged.d14_2 <- raw_counts.merged.as.table[,c(1,na.omit(match(exp.data.d14$Sample.Name, colnames(raw_counts.merged.as.table))))]
-cts.merged.d14_2 <- data.frame(cts.merged.d14_2[,-1], row.names=cts.merged.d14_2[,1])
-cts.matrix.d14_2  <-as.matrix(cts.merged.d14_2, row.names="transcript_id")
-ncol(cts.matrix.d14_2) # 35 samples from just Day 14
-colnames(cts.matrix.d14_2) == exp.data.d14$Sample.Name # chec if all TRUE; NOTE: SG92 was ommitted earlier to make sure this reads TRUE
-UT_seq_map %>% dplyr::filter(Sample.Name == "SG92") # there was no sample in SG92 for TagSeq; 35 total is correct!
-# pre-filtering; genes ommitted if < 3 counts per million reads in 50% of samples
-CPM.d14_2 <- cpm(cts.matrix.d14_2) # Obtain CPMs (counts oer million) using egdeR
-head(CPM.d14_2) # Have a look at the output
-thresh.d14_2 <- CPM.d14_2 > 10 # Which values in myCPM are greater than 3?
-head(thresh.d14_2) # This produces a logical matrix with TRUEs and FALSES
-rowSums(head(thresh.d14_2)) # Summary of how many TRUEs there are in each row
-table(rowSums(thresh.d14_2)) # 6473 genes with TRUE in all 35 samples 
-keep.d14_2 <- rowSums(thresh.d14_2) >= (ncol(thresh.d14_2)/2) # we would like to keep genes that have at least 50% TRUES in each row of thresh
-summary(keep.d14_2) # FALSE 26321 & TRUE 8626 -- more than half of the genes did not pass
-cts.matrix.d14_2.filtered <- cts.matrix.d14_2[keep.d14_2,] # Subset the rows of countdata to keep the more highly expressed genes
-dim(cts.matrix.d14_2.filtered) # 8626 genes & 35 samples
-
-hist_2_d14<-qplot((colSums(cts.matrix.d14_2.filtered)) , geom="histogram")
-d14_2_numgenes <- dim(cts.matrix.d14_2.filtered)[1]
-d14_2_samp <- dim(cts.matrix.d14_2.filtered)[2]
-
-paste( (mean(colSums(cts.matrix.d14_2.filtered))) , (sd(colSums(cts.matrix.d14_2.filtered))), sep ='?')  # mean SD read count per sample
-
-
-Day14_PercAnnot_10cpm <- paste( ( (nrow(Geoduck_annotationOM %>% dplyr::filter(V1  %in% (rownames(cts.matrix.d14_2.filtered))))) / nrow(cts.matrix.d14_2.filtered) * 100), " %", sep = '')
-
-# ========================================================== 
-#
-# DAY 21  (10 CPM in 50% samples using edgeR)
-# ========================================================== 
-cts.merged.d21_2 <- raw_counts.merged.as.table[,c(1,na.omit(match(exp.data.d21$Sample.Name, colnames(raw_counts.merged.as.table))))]
-cts.merged.d21_2 <- data.frame(cts.merged.d21_2[,-1], row.names=cts.merged.d21_2[,1])
-cts.matrix.d21_2  <-as.matrix(cts.merged.d21_2, row.names="transcript_id")
-ncol(cts.matrix.d21_2) # # 62 total sampels on day 21
-colnames(cts.matrix.d21_2) == exp.data.d21$Sample.Name # check if TRUE, means the same as the exp/design dataframe exp.data.d21_2
-# pre-filtering; genes ommitted if < 3 counts per million reads in 50% of samples
-CPM.d21_2 <- cpm(cts.matrix.d21_2) # Obtain CPMs (counts oer million) using egdeR
-head(CPM.d21_2) # Have a look at the output
-thresh.d21_2 <- CPM.d21_2 > 10 # filter CPM by threshold
-head(thresh.d21_2) # This produces a logical matrix with TRUEs and FALSES
-rowSums(head(thresh.d21_2)) # Summary of how many TRUEs there are in each row
-table(rowSums(thresh.d21_2)) # 5219 genes with TRUE in all 62 samples 
-keep.d21_2 <- rowSums(thresh.d21_2) >= (ncol(thresh.d21_2)/2) # we would like to keep genes that have at least 50% TRUES in each row of thresh
-summary(keep.d21_2) # FALSE 26526 & TRUE 8421 -- more than three quarters of the genes did not pass
-cts.matrix.d21_2.filtered <- cts.matrix.d21_2[keep.d21_2,] # Subset the rows of countdata to keep the more highly expressed genes
-dim(cts.matrix.d21_2.filtered) # 8421 genes &  62 samples
-
-hist_2_d21<-qplot((colSums(cts.matrix.d21_2.filtered)) , geom="histogram")
-d21_2_numgenes <- dim(cts.matrix.d21_2.filtered)[1]
-d21_2_samp <- dim(cts.matrix.d21_2.filtered)[2]
-
-paste( (mean(colSums(cts.matrix.d21_2.filtered))) , (sd(colSums(cts.matrix.d21_2.filtered))), sep ='?')  # mean SD read count per sample
-
-Day21_PercAnnot_10cpm <- paste( ( (nrow(Geoduck_annotationOM %>% dplyr::filter(V1  %in% (rownames(cts.matrix.d21_2.filtered))))) / nrow(cts.matrix.d21_2.filtered) * 100), " %", sep = '')
-
-png("../Data/Filtered_Counts/10cpm_50perc/Histograms_10cpm_50perc.png", 1000, 1000, pointsize=20)
-plot_grid(hist_2_all, hist_2_d0, hist_2_d7, hist_2_d14, hist_2_d21)
-dev.off()
-
-
-# write csv
-write.csv(cts.matrix.all_2.filtered,"../Data/Filtered_Counts/10cpm_50perc/all.counts.filtered_10cpm50perc.csv") # 'path' called in previous # write .csv section
-write.csv(cts.matrix.d0_2.filtered, "../Data/Filtered_Counts/10cpm_50perc/day0.counts.filtered_10cpm50perc.csv") # 'path' called in previous # write .csv section
-write.csv(cts.matrix.d7_2.filtered, "../Data/Filtered_Counts/10cpm_50perc/day7.counts.filtered_10cpm50perc.csv") # 'path' called in previous # write .csv section
-write.csv(cts.matrix.d14_2.filtered,"../Data/Filtered_Counts/10cpm_50perc/day14.counts.filtered_10cpm50perc.csv") # 'path' called in previous # write .csv section
-write.csv(cts.matrix.d21_2.filtered,"../Data/Filtered_Counts/10cpm_50perc/day21.counts.filtered_10cpm50perc.csv") # 'path' called in previous # write .csv section
-
-```
-
-
-
-
-```{r summary table} 
-# prep a table for knitr
-filt_cts_table <- data.frame(matrix(nrow = 5, ncol = 6)) # create a new data table
-colnames(filt_cts_table)<-c('Time', 'GeneCount_5cpm', 'PercAnnot_5cpm', 'GeneCount_10cpm', 'PercAnnot_10cpm', 'GeneCount_diff_10cpm_5cpm') 
-# write to table
-filt_cts_table$Time <- c("all", "d0", "d7", "d14", "d21")
-filt_cts_table$GeneCount_5cpm <- c(all_1_numgenes, d0_1_numgenes, d7_1_numgenes, d14_1_numgenes, d21_1_numgenes)
-filt_cts_table$GeneCount_10cpm <- c(all_2_numgenes, d0_2_numgenes, d7_2_numgenes, d14_2_numgenes, d21_2_numgenes)
-filt_cts_table$GeneCount_diff_10cpm_5cpm <- c( (all_2_numgenes/all_1_numgenes*100),  (d0_2_numgenes/d0_1_numgenes*100) ,  (d7_2_numgenes/d7_1_numgenes*100),  
-                               (d14_2_numgenes/d14_1_numgenes*100),  (d21_2_numgenes/d21_1_numgenes*100) )
-
-filt_cts_table$PercAnnot_5cpm   <- c(All_PercAnnot_5cpm,Day0_PercAnnot_5cpm,Day7_PercAnnot_5cpm,Day14_PercAnnot_5cpm, Day21_PercAnnot_5cpm)
-filt_cts_table$PercAnnot_10cpm  <- c(All_PercAnnot_10cpm,Day0_PercAnnot_10cpm,Day7_PercAnnot_10cpm,Day14_PercAnnot_10cpm, Day21_PercAnnot_10cpm)
-
-# knitr
-knitr::kable(filt_cts_table, caption = "Filtered counts: Number & % difference of PASSED genes at two thresholds")
-write.csv(filt_cts_table, "../Data/filtered_counts/Summary_filtered_counts.csv")
-```
-
-```{r filtered counts data}
-d0_filt_10CPM  <- read.csv("../Data/Filtered_Counts/10cpm_50perc/day0.counts.filtered_10cpm50perc.csv", sep=',', header=TRUE) 
-d0_filt_10CPM  <- d0_filt_10CPM[,-1] 
-d7_filt_10CPM  <- read.csv("../Data/Filtered_Counts/10cpm_50perc/day7.counts.filtered_10cpm50perc.csv", sep=',', header=TRUE) 
-d7_filt_10CPM  <- d7_filt_10CPM[,-1] 
-d14_filt_10CPM  <- read.csv("../Data/Filtered_Counts/10cpm_50perc/day14.counts.filtered_10cpm50perc.csv", sep=',', header=TRUE) 
-d14_filt_10CPM  <- d14_filt_10CPM[,-1] 
-d21_filt_10CPM  <- read.csv("../Data/Filtered_Counts/10cpm_50perc/day21.counts.filtered_10cpm50perc.csv", sep=',', header=TRUE) 
-d21_filt_10CPM  <- d21_filt_10CPM[,-1] 
-
-# Mean +- SD filtered read counts for 10 CPM 50% filtered data 
-d0means  <- as.data.frame(colMeans(d0_filt_10CPM))
-rownames(d0means)<-NULL
-colnames(d0means) <- "mean"
-d7means  <- as.data.frame(colMeans(d7_filt_10CPM))
-rownames(d7means)<-NULL
-colnames(d7means) <- "mean"
-d14means <- as.data.frame(colMeans(d14_filt_10CPM))
-rownames(d14means)<-NULL
-colnames(d14means) <- "mean"
-d21means <- as.data.frame(colMeans(d21_filt_10CPM))
-rownames(d21means)<-NULL
-colnames(d21means) <- "mean"
-
-meanMaster_10cpm <-rbind(d0means, d7means, d14means, d21means)
-colMeans(meanMaster_10cpm)
-colSdDiffs(meanMaster_10cpm)
-
-# Sum  read counts for 10 CPM 50% filtered data 
-d0sum  <- as.data.frame(colSums(d0_filt_10CPM))
-rownames(d0sum)<-NULL
-colnames(d0sum) <- "sum"
-d7sum  <- as.data.frame(colSums(d7_filt_10CPM))
-rownames(d7sum)<-NULL
-colnames(d7sum) <- "sum"
-d14sum <- as.data.frame(colSums(d14_filt_10CPM))
-rownames(d14sum)<-NULL
-colnames(d14sum) <- "sum"
-d21sum <- as.data.frame(colSums(d21_filt_10CPM))
-rownames(d21sum)<-NULL
-colnames(d21sum) <- "sum"
-
-sumMaster_10cpm <-rbind(d0sum, d7sum, d14sum, d21sum)
-colMeans(sumMaster_10cpm)
-colSdDiffs(sumMaster_10cpm)
-min(sumMaster_10cpm)
-max(sumMaster_10cpm)
-View(sumMaster_10cpm)
+write.csv(countMatrix.d18.filtered,"C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Data/TagSeq/Filtered_Counts/filtered_counts_5cpm_50perc/day18.counts.filtered_5cpm50perc.csv") # 'path' called in previous # write .csv section
 
 ```
