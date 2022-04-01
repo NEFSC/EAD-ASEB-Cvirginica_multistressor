@@ -1,0 +1,1643 @@
+---
+title: "DESeq2_5cpm"
+author: "Samuel Gurr"
+date: "March 29, 2021"
+output:
+html_document:
+toc: true
+toc_float: true
+---
+
+# Setup: 
+
+```{r setup, include=TRUE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, cache = TRUE)
+```
+
+### Load libraries
+```{r load_libraries, include = TRUE}
+# load libraries - notes show the install command needed to install (pre installed)
+library(DESeq2) # note: this was previously installed with the command `BiocManager::install("DESeq2")`
+library(edgeR)
+library(goseq)
+library(dplyr)
+library(GenomicFeatures)
+library(data.table)
+library(calibrate)
+library(data.table)
+# Plotting
+library(ggplot2)
+library(cowplot)
+library(pheatmap)
+library(gplots)
+library(RColorBrewer)
+library(pcaExplorer) 
+
+#BiocManager::install for these packages
+library(affycoretools) 
+library(vsn)
+library(tidybulk)
+library(EnhancedVolcano)  
+library(pcaExplorer) 
+
+```
+
+### Set working directory
+```{r set_wd, include = TRUE}
+
+# SET WORKING DIRECTORY AND LOAD DATA
+setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/")
+getwd()
+path = 'C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Output/DESeq2/' # personnal computer
+```
+
+
+
+# LOAD DATA: choose ONE of the counts clusters (filtered raw reads or unfiltered raw reads)
+
+
+
+### Gene count data - convert to matrix - NOTE ONLY RUN ONE (FILTERED  versus UNFILTERED)
+I include both filtered and unfiltered here to compare the results. 
+DESEq2 mentions that pre-filtering is not necessary however will reduce the memory/time to run dds and rlog of the models 
+Below are both RAW counts filtered and unfiltered to run DESeq2 
+
+# FILTERED COUNTS:  10 CPM (with edgeR) and 50% of samples in each day (days 0, 7, 14, 21)
+```{r FILTERED_count.data, include = TRUE}
+getwd()
+### filtered counts tables - format matrix after upload [from Count_Matrix_Stats.Filter.R] 
+d2.counts_matrix  <- read.csv(file="../Data/TagSeq/Filtered_counts/filtered_counts_5cpm_50perc/day2.filtered_5cpm50perc.csv", sep=',', header=TRUE) 
+d2.counts_matrix <- data.frame(d2.counts_matrix[,-1], row.names=d2.counts_matrix[,1]) 
+
+d18.counts_matrix  <- read.csv(file="../Data/TagSeq/Filtered_counts/filtered_counts_5cpm_50perc/day18.counts.filtered_5cpm50perc.csv", sep=',', header=TRUE) 
+d18.counts_matrix <- data.frame(d18.counts_matrix[,-1], row.names=d18.counts_matrix[,1]) 
+
+```
+
+
+### load the constant DEGs found up and down in response to primary treatment days 7 14 and 21
+This data set is compiled and output in this same markdown file 
+cluster == {r Output_tables_and_knitr_summary_tables} (below!)
+
+Objective: use 'Const.DEGs.list' to label callouts in volcano plots 
+of the primary treatment effect days 7 14 and 21
+
+```{r load constant DEGs}
+
+# NOTE: this data 
+Const.DEGs <- read.csv(file="../Output/DESeq2/5cpm/Summary_Primary_DEGs_occurances_5cpm_GeneIDs.csv", sep=',', header=TRUE) 
+Const.DEGs <- Const.DEGs[,c(2:5)]
+names(Const.DEGs)[1] <- "Gene.ID"
+
+annot <- read.delim(file="../../Seq_details/Panopea-generosa-genes-annotations.txt", header=F) 
+
+annot <- annot[,c(1,7:8)]
+names(annot) <- c('Gene.ID', 'description', 'GO.terms')
+
+merge.constDEGs.annot <- merge(Const.DEGs, annot, by='Gene.ID')
+head(merge.constDEGs.annot)
+
+# ommit rows containing NA for GO and gene annotation term
+Const.DEGs.annotated <- merge.constDEGs.annot[!is.na(merge.constDEGs.annot$GO.terms),]
+Const.DEGs.list <- list(Const.DEGs.annotated$Gene.ID) # 12 degs contant upreg or downreg over days 7 14 and 21 WITH Go.term annotation
+```
+
+
+### Sample metadata - Experimental treatments/groups
+```{r experiment_data, include = TRUE}
+### experiment metadata [from Count_Matrix_Stats.Filter.R]  - convert characaters to factors for DESeq2
+all.exp_data   <- read.csv(file="../Data/TagSeq/all.exp.metadata.csv", sep=',', header=TRUE) %>%   mutate_if(is.character, as.factor)
+
+d2.exp_data    <- read.csv(file="../Data/TagSeq/day2.exp.data.csv", sep=',', header=TRUE) %>%   mutate_if(is.character, as.factor)
+
+d18.exp_data   <- read.csv(file="../Data/TagSeq/day18.exp.data.csv", sep=',', header=TRUE) %>%   mutate_if(is.character, as.factor)
+
+```
+
+
+
+# DESeq2 datasets
+
+
+
+### DEsign DESeqDatasets
+```{r build_dds_datasets}
+# ========================================================== 
+# DAY 2 FULL MODEL ==  design = ~ Temperature * OA * Salinity
+# ========================================================== #
+# build the metadata matrix ::::::::::::::::::::::::::::
+d2.metadata     <- d2.exp_data %>% 
+                    dplyr::select(c('SapleName_readmatrix', 'Temperature', 'OA', 'Salinity')) %>% # coondense dataset to build target matrix
+                    dplyr::rename("Sample.Name" = "SapleName_readmatrix") %>% 
+                    dplyr::mutate(All_Treatment = paste(Temperature, OA, Salinity, sep = '.'))
+d2.metadata     <- data.frame(d2.metadata[,-1], row.names=d2.metadata[,1]) # move Sample.Name column as row names  
+d2.metadata.mtx <- as.matrix(d2.metadata, row.names="Oyster.ID") # create matrix 
+# check for 'TRUE' in each - check before proceeding  design
+d2.metadata.mtx <- d2.metadata.mtx[match(colnames(d2.counts_matrix),rownames(d2.metadata.mtx)), ]
+# all(rownames(d2.metadata.mtx) %in% colnames(d2.counts_matrix)) # should be TRUE
+# all(rownames(d2.metadata.mtx) == colnames(d2.counts_matrix)) # should be TRUE
+# all(rownames(d2.metadata.mtx) == colnames(d2.counts_matrix))  # should be TRUE
+
+# build dds ::::::::::::::::::::::::::::::::::::::::::::
+# FULL MODEL
+dds.d2 <- DESeqDataSetFromMatrix(countData = d2.counts_matrix,
+                                        colData = d2.metadata.mtx,
+                                        design = ~ Temperature+
+                                                   OA+
+                                                   Salinity+
+                                                   Temperature:OA+
+                                                   Temperature:Salinity+
+                                                   OA:Salinity)
+# GROUP MDOEL
+dds.d2.group <- DESeqDataSetFromMatrix(countData = d2.counts_matrix,
+                                        colData = d2.metadata.mtx,
+                                        design = ~ All_Treatment-1) 
+# ADDITIVE MODEL 
+dds.d2.main <- DESeqDataSetFromMatrix(countData = d2.counts_matrix,
+                                       colData = d2.metadata.mtx,
+                                      design = ~ Temperature+OA+Salinity) 
+
+
+
+
+# ========================================================== 
+# DAY 18 FULL MODEL ==  design = ~ Temperature * OA * Salinity
+# ==========================================================
+
+# build the metadata matrix ::::::::::::::::::::::::::::
+d18.metadata     <- d18.exp_data %>% 
+                    dplyr::select(c('SapleName_readmatrix', 'Temperature', 'OA', 'Salinity')) %>% # coondense dataset to build target matrix
+                    dplyr::rename("Sample.Name" = "SapleName_readmatrix") %>% 
+                    dplyr::mutate(All_Treatment = paste(Temperature, OA, Salinity, sep = '.'))
+d18.metadata     <- data.frame(d18.metadata[,-1], row.names=d18.metadata[,1]) # move Sample.Name column as row names  
+d18.metadata.mtx <- as.matrix(d18.metadata, row.names="Oyster.ID") # create matrix 
+# check for 'TRUE' in each - check before proceeding  design
+d18.metadata.mtx <- d18.metadata.mtx[match(colnames(d18.counts_matrix),rownames(d18.metadata.mtx)), ]
+# all(rownames(d18.metadata.mtx) %in% colnames(d18.counts_matrix)) # should be TRUE
+# all(rownames(d18.metadata.mtx) == colnames(d18.counts_matrix)) # should be TRUE
+# all(rownames(d18.metadata.mtx) == colnames(d18.counts_matrix))  # should be TRUE
+
+# build dds ::::::::::::::::::::::::::::::::::::::::::::
+# FULL MODEL
+dds.d18 <- DESeqDataSetFromMatrix(countData = d18.counts_matrix,
+                                        colData = d18.metadata.mtx,
+                                        design = ~ Temperature+
+                                                   OA+
+                                                   Salinity+
+                                                   Temperature:OA+
+                                                   Temperature:Salinity+
+                                                   OA:Salinity)
+# GROUP MDOEL
+dds.d18.group <- DESeqDataSetFromMatrix(countData = d18.counts_matrix,
+                                        colData = d18.metadata.mtx,
+                                        design = ~ All_Treatment-1) 
+# ADDITIVE MODEL 
+dds.d18.main <- DESeqDataSetFromMatrix(countData = d18.counts_matrix,
+                                       colData = d18.metadata.mtx,
+                                      design = ~ Temperature+OA+Salinity) 
+
+```
+
+### Plot reads per gene and reads per sample in each dds
+```{r ddsPlots_read.gene_reads.sample}
+# DAY 2 PLOT THE (1) READS PER SAMPLE (2) READS PER GENE - FOR EACH DDS
+d2.nsamples        <- ncol(counts(dds.d2)) # Number of samples - for the plot label
+d2.rps             <- qplot(colSums(counts(dds.d2))) +# reads of reads per sample 
+                        labs(x = "Mapped reads per sample", y = "Number of samples",
+                             title = "Day 2 (Larva): Mapped reads per sample") +
+                        geom_label(aes(x = 12e5, y = 1, label = paste(d2.nsamples, "samples")))
+d2.ngenes          <- nrow(counts(dds.d2)) # Number of genes
+d2.ngenes_min      <- min(rowSums(counts(dds.d2))) #  minimum reads
+d2.ngenes_mean.min <- min(rowMeans2(counts(dds.d2))) # minimum row mean
+d2.ngenes_max      <- max(rowSums(counts(dds.d2))) #  maximum reads
+d2.rpg             <- qplot(log10(rowSums(counts(dds.d2))), bins = 16) + # number of reads per gene
+                        labs(x = "log10(Mapped reads per gene)", y = "Number of genes",
+                             title = "Day 2 (Larva): Mapped reads per gene") +
+                        geom_label(aes(x = 4, y = 3000, label = paste(d2.ngenes, "total genes"))) +
+                        geom_label(aes(x = 4, y = 2700, label = paste("max count =", d2.ngenes_max))) +
+                        geom_label(aes(x = 4, y = 2400, label = paste("min count =", d2.ngenes_min))) +
+                        geom_label(aes(x = 4, y = 2100, label = paste("min mean =", d2.ngenes_mean.min))) +
+                        expand_limits(y=c(NA, 3250))
+d2.countfig        <- plot_grid(d2.rps, d2.rpg)
+
+# DAY 18 PLOT THE (1) READS PER SAMPLE (18) READS PER GENE - FOR EACH DDS
+d18.nsamples        <- ncol(counts(dds.d18.group)) # Number of samples - for the plot label
+d18.rps             <- qplot(colSums(counts(dds.d18.group))) +# reads of reads per sample 
+                        labs(x = "Mapped reads per sample", y = "Number of samples",
+                             title = "Day 18 (Spat): Mapped reads per sample") +
+                        geom_label(aes(x = 12e5, y = 1, label = paste(d18.nsamples, "samples")))
+d18.ngenes          <- nrow(counts(dds.d18.group)) # Number of genes
+d18.ngenes_min      <- min(rowSums(counts(dds.d18.group))) #  minimum reads
+d18.ngenes_mean.min <- min(rowMeans2(counts(dds.d18.group))) # minimum row mean
+d18.ngenes_max      <- max(rowSums(counts(dds.d18.group))) #  maximum reads
+d18.rpg             <- qplot(log10(rowSums(counts(dds.d18.group))), bins = 16) + # number of reads per gene
+                        labs(x = "log10(Mapped reads per gene)", y = "Number of genes",
+                             title = "Day 18 (Spat): Mapped reads per gene") +
+                        geom_label(aes(x = 4, y = 3000, label = paste(d18.ngenes, "total genes"))) +
+                        geom_label(aes(x = 4, y = 2700, label = paste("max count =", d18.ngenes_max))) +
+                        geom_label(aes(x = 4, y = 2400, label = paste("min count =", d18.ngenes_min))) +
+                        geom_label(aes(x = 4, y = 2100, label = paste("min mean =", d18.ngenes_mean.min))) +
+                        expand_limits(y=c(NA, 3250))
+d18.countfig        <- plot_grid(d18.rps, d18.rpg)
+
+png("../Data/TagSeq/DESeq2/dds_GeneCounts_5cpm.png", 1000, 1000, pointsize=20)
+plot_grid(d2.countfig, d18.countfig)
+dev.off()
+```
+
+### RUN DESEQ2 model - wait for this to complete...
+# NOTE: this will be longer dependent on filtered vs. unfiltered raw read count data for dds objects 
+```{r run_dds}
+# RUN DESEQ2 model - view all the pariwise comparisons
+dds.d2        <- DESeq(dds.d2) #  full model            wait for this to complete....
+dds.d2.group  <- DESeq(dds.d2.group) # group model      wait for this to complete....
+dds.d2.main   <- DESeq(dds.d2.main) # main effect model wait for this to complete....    
+ 
+# RUN DESEQ2 model - view all the pariwise comparisons
+dds.d18       <- DESeq(dds.d18) #  full model             wait for this to complete....
+dds.d18.group <- DESeq(dds.d18.group) # group model       wait for this to complete.... 
+dds.d18.main  <- DESeq(dds.d18.main) # main effect model wait for this to complete....     
+
+
+```
+
+# Analysis (DEG tables)
+Rationale for thresholds in the following cluster:
+With the thousands of pairwise comparisons between genes, it is critical to acknowledge the prevalence of spurious discoveries that must be guarded against!
+In the following, I will run each model with 'alpha = 0.05' to assume a False Discovery Rate of 5%. I reinforce this thinking by graphing all pvalues 
+as a histogram to show the distrubution - abline(s) show the FDR cut-off and the true padj values at 0.05 and 0.1 thresholds. 
+
+Strader et al. 2018 - 48 total samples, genes with mean count <10 across all samples werre ommitted
+                    - rlog transformated (rlog fxn)
+                    - adonic and vegan package to assess multivariate analysis of variance 
+                    - Used a 10% false discovery rate threshold
+                    - GO enrichments performend using the stat value output from DESeq2 using Mann Whitney U test (here: https://github.com/z0on/ GO_MWU)
+Johnson and Kelly 2021 - 40 samples 
+                       - used edgeR to assess pairwise changes in gene expression between treatments
+                       - filtered genes with fewer than 3 CPM across 50%  *n=20_ of all samples
+                       used R program vegan to assess PCoA with Euclidean distances from log2+1 transformed normalized counts from cpm function in egde R
+                       - used Mann Whitney U test to identify enriched ontologies - than this also after identifying modules via WGCNA with physiological measurements
+
+
+NOTE: 
+Read 'Interactions' here 
+https://bioconductor.riken.jp/packages/3.8/bioc/vignettes/DESeq2/inst/doc/DESeq2.html#interactions
+When adding the interaction term x:y to a dds model, the main condition effect only represents the effect of that ccondition
+for the REFERENCe level in the other. Example: design = ~primary + second + primary:second
+levels = A M (primary) & A  M S (second)
+The main effect of primary as Primary_A_v_M in this model is ONLY in response to A (ref level) for the treatment 'second' 
+
+
+
+
+# Main Treatment effects: padj < 0.05; FDR 5%; LFC >1 (<-1)
+Primary: Ambient v Moderate; 
+Second:  Ambient v Moderate,  Ambient v Severe, & Moderate v Severe; 
+Third:   Ambient v Moderate
+
+#Day 2
+```{r Day2 dds model analysis}
+
+# DAY 2 - models using the dds.gorup
+resultsNames(dds.d2.group)
+
+
+
+
+#  :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+# TEMPERATURE EFFECT :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+#  :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+
+
+
+# run model ::::::::::::::::::::::::::::::::::::::::
+res.d2_temperature.group     <- results(dds.d2.group, 
+                                    contrast = list(c("All_TreatmentHigh.High.High", "All_TreatmentHigh.Low.High", "All_TreatmentHigh.High.Low", "All_TreatmentHigh.Low.Low"), c("All_TreatmentLow.High.High", "All_TreatmentLow.Low.High", "All_TreatmentLow.High.Low", "All_TreatmentLow.Low.Low")),  alpha= 0.1)
+# stats on the model  ::::::::::::::::::::::::::::::
+table(res.d2_temperature.group$padj<0.05) # 637 DEGs
+d2.numDEGs_padj_temperature  <- data.frame(table(res.d2_temperature.group$padj<0.05))[2,2] # DEGs - NOT considering LFC - just p adj == 637
+resd2.temperature.ordered    <- res.d2_temperature.group[order(res.d2_temperature.group$padj), ] # Order by adjusted p-value
+d2.num.DownReg_temperature   <- sum((res.d2_temperature.group$log2FoldChange[1:d2.numDEGs_padj_temperature] > 1) == TRUE) #  LFC >= 1 == 137
+d2.num.UpReg_temperature     <- sum((res.d2_temperature.group$log2FoldChange[1:d2.numDEGs_padj_temperature] < 1) == TRUE) # LFC >= 1  == 500
+d2.total_temperature         <- sum(d2.num.DownReg_temperature,d2.num.UpReg_temperature) # sum of DEGs with the criteria pdj < 0.05 + LFC>1 (< -1)
+# 637 total DEGs
+# with an LFC of 1..
+# 137 upregualted
+# 500 downregulated 
+# Overall... LPC threshold DID NOT alter the padj DEGs
+# plot histogram   ::::::::::::::::::::::::::::::::::
+png("../Output/DESeq2/Day2_larva/plots/FDR_histograms/Day2.FDR_hist_temperature.png", 1000, 1000, pointsize=20)
+hist(res.d2_temperature.group$pvalue, breaks=20, col="grey") # view histogram
+abline(h=c( (nrow(res.d2_temperature.group)*0.05), 
+            ((table(res.d2_temperature.group$padj < 0.1)[2]) + (nrow(res.d2_temperature.group)*0.1)),
+            ((table(res.d2_temperature.group$padj < 0.05)[2]) + (nrow(res.d2_temperature.group)*0.05)) ),
+                  col=c("blue", "red", "red"), lty=c(1,2,1), lwd=c(1, 3, 1)) # add line at 
+dev.off()
+# Write results  ::::::::::::::::::::::::::::::::::::
+resdata.d2.temperature           <- merge(as.data.frame(resd2.temperature.ordered), as.data.frame(counts(dds.d2, normalized=TRUE)), by="row.names", sort=FALSE)
+names(resdata.d2.temperature)[1] <- "Gene"
+resdata.d2.temperature           <- resdata.d2.temperature[order(resdata.d2.temperature$padj), ] # Order by adjusted p-value
+write.csv(resdata.d2.temperature, paste(path,"Day2_larva/DEG_data/Day2.temperature_DESeq2results.csv", sep = '')) # write
+# volcano plot   ::::::::::::::::::::::::::::::::::::
+png("../Output/DESeq2/Day2_larva/plots/volcano/Day2.tempeature-VolcanoPlot.png", 1000, 1000, pointsize=20)
+EnhancedVolcano(res.d2_temperature.group,
+                lab = rownames(res.d2_temperature.group),
+                x = 'log2FoldChange',
+                y = 'padj',
+                title = 'Day 2 (larva): temperature (High v Low)',
+                subtitle = "DESeq2 - Differential expression",
+                FCcutoff = 1,
+                pCutoff = 0.05,
+                pointSize = 4.0,
+                labSize = 6.0,
+                colAlpha = 1,
+                legendPosition = 'right',
+                legendLabSize = 12,
+                legendIconSize = 4.0,
+                widthConnectors = 0.75)
+dev.off()
+
+
+
+
+
+
+
+#  :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+#  OA EFFECT         :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+#  :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+
+
+
+
+
+res.d2_OA.group <- results(dds.d2.group, 
+                                    contrast = list(c("All_TreatmentHigh.High.High", "All_TreatmentLow.High.High", "All_TreatmentHigh.High.Low", "All_TreatmentLow.High.Low"), c("All_TreatmentLow.Low.Low", "All_TreatmentHigh.Low.Low", "All_TreatmentLow.Low.High", "All_TreatmentHigh.Low.High")),  alpha= 0.1)
+table(res.d2_OA.group$padj<0.05) # 165 DEGs
+
+
+# stats on the model  ::::::::::::::::::::::::::::::
+table(res.d2_OA.group$padj<0.05) # 637 165
+d2.numDEGs_padj_OA  <- data.frame(table(res.d2_OA.group$padj<0.05))[2,2] # DEGs - NOT considering LFC - just p adj == 165
+resd2.OA.ordered    <- res.d2_OA.group[order(res.d2_OA.group$padj), ] # Order by adjusted p-value
+d2.num.DownReg_OA   <- sum((res.d2_OA.group$log2FoldChange[1:d2.numDEGs_padj_OA] > 1) == TRUE) #  LFC >= 1 == 38
+d2.num.UpReg_OA     <- sum((res.d2_OA.group$log2FoldChange[1:d2.numDEGs_padj_OA] < 1) == TRUE) # LFC >= 1  == 127
+d2.total_OA         <- sum(d2.num.DownReg_OA,d2.num.UpReg_OA) # sum of DEGs with the criteria pdj < 0.05 + LFC>1 (< -1)
+# 165 total DEGs
+# with an LFC of 1..
+# 38 upregualted
+# 127 downregulated 
+# Overall... LPC threshold DID NOT alter the padj DEGs
+# plot histogram   ::::::::::::::::::::::::::::::::::
+png("../Output/DESeq2/Day2_larva/plots/FDR_histograms/Day2.FDR_hist_OA.png", 1000, 1000, pointsize=20)
+hist(res.d2_OA.group$pvalue, breaks=20, col="grey") # view histogram
+abline(h=c( (nrow(res.d2_OA.group)*0.05), 
+            ((table(res.d2_OA.group$padj < 0.1)[2]) + (nrow(res.d2_OA.group)*0.1)),
+            ((table(res.d2_OA.group$padj < 0.05)[2]) + (nrow(res.d2_OA.group)*0.05)) ),
+                  col=c("blue", "red", "red"), lty=c(1,2,1), lwd=c(1, 3, 1)) # add line at 
+dev.off()
+# Write results  ::::::::::::::::::::::::::::::::::::
+resdata.d2.OA            <- merge(as.data.frame(resd2.OA.ordered), as.data.frame(counts(dds.d2, normalized=TRUE)), by="row.names", sort=FALSE)
+names(resdata.d2.OA)[1]  <- "Gene"
+resdata.d2.OA            <- resdata.d2.OA[order(resdata.d2.OA$padj), ] # Order by adjusted p-value
+write.csv(resdata.d2.OA, paste(path,"Day2_larva/DEG_data/Day2.OA_DESeq2results.csv", sep = '')) # write
+# volcano plot   ::::::::::::::::::::::::::::::::::::
+png("../Output/DESeq2/Day2_larva/plots/volcano/Day2.OA-VolcanoPlot.png", 1000, 1000, pointsize=20)
+EnhancedVolcano(res.d2_OA.group,
+                lab = rownames(res.d2_OA.group),
+                x = 'log2FoldChange',
+                y = 'padj',
+                title = 'Day 2 (larva): OA (High v Low)',
+                subtitle = "DESeq2 - Differential expression",
+                FCcutoff = 1,
+                pCutoff = 0.05,
+                pointSize = 4.0,
+                labSize = 6.0,
+                colAlpha = 1,
+                legendPosition = 'right',
+                legendLabSize = 12,
+                legendIconSize = 4.0,
+                widthConnectors = 0.75)
+dev.off()
+
+
+
+
+
+
+
+
+# :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+# SALINITY EFFECT    ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+# :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+
+
+
+
+
+
+res.d2_salinity.group <- results(dds.d2.group, 
+                                    contrast = list(c("All_TreatmentHigh.High.High", "All_TreatmentLow.High.High", "All_TreatmentLow.Low.High", "All_TreatmentHigh.Low.High"), c("All_TreatmentLow.Low.Low", "All_TreatmentHigh.Low.Low", "All_TreatmentHigh.High.Low", "All_TreatmentLow.High.Low")),  alpha= 0.1)
+table(res.d2_salinity.group$padj<0.05) # 719 DEGs
+
+
+# stats on the model  ::::::::::::::::::::::::::::::
+table(res.d2_salinity.group$padj<0.05) # 719 165
+d2.numDEGs_padj_salinity  <- data.frame(table(res.d2_salinity.group$padj<0.05))[2,2] # DEGs - NOT considering LFC - just p adj == 719
+resd2.salinity.ordered    <- res.d2_salinity.group[order(res.d2_salinity.group$padj), ] # Order by adjusted p-value
+d2.num.DownReg_salinity   <- sum((res.d2_salinity.group$log2FoldChange[1:d2.numDEGs_padj_salinity] > 1) == TRUE) #  LFC >= 1 == 185
+d2.num.UpReg_salinity     <- sum((res.d2_salinity.group$log2FoldChange[1:d2.numDEGs_padj_salinity] < 1) == TRUE) # LFC >= 1  == 534
+d2.total_salinity         <- sum(d2.num.DownReg_salinity,d2.num.UpReg_salinity) # sum of DEGs with the criteria pdj < 0.05 + LFC>1 (< -1)
+# 719 total DEGs
+# with an LFC of 1..
+# 534 upregualted
+# 185 downregulated 
+# Overall... LPC threshold DID NOT alter the padj DEGs
+# plot histogram   ::::::::::::::::::::::::::::::::::
+png("../Output/DESeq2/Day2_larva/plots/FDR_histograms/Day2.FDR_hist_salinity.png", 1000, 1000, pointsize=20)
+hist(res.d2_salinity.group$pvalue, breaks=20, col="grey") # view histogram
+abline(h=c( (nrow(res.d2_salinity.group)*0.05), 
+            ((table(res.d2_salinity.group$padj < 0.1)[2]) + (nrow(res.d2_salinity.group)*0.1)),
+            ((table(res.d2_salinity.group$padj < 0.05)[2]) + (nrow(res.d2_salinity.group)*0.05)) ),
+                  col=c("blue", "red", "red"), lty=c(1,2,1), lwd=c(1, 3, 1)) # add line at 
+dev.off()
+# Write results  ::::::::::::::::::::::::::::::::::::
+resdata.d2.salinity            <- merge(as.data.frame(resd2.salinity.ordered), as.data.frame(counts(dds.d2, normalized=TRUE)), by="row.names", sort=FALSE)
+names(resdata.d2.salinity)[1]  <- "Gene"
+resdata.d2.salinity            <- resdata.d2.salinity[order(resdata.d2.salinity$padj), ] # Order by adjusted p-value
+write.csv(resdata.d2.salinity, paste(path,"Day2_larva/DEG_data/Day2.salinity_DESeq2results.csv", sep = '')) # write
+# volcano plot   ::::::::::::::::::::::::::::::::::::
+png("../Output/DESeq2/Day2_larva/plots/volcano/Day2.salinity-VolcanoPlot.png", 1000, 1000, pointsize=20)
+EnhancedVolcano(res.d2_salinity.group,
+                lab = rownames(res.d2_salinity.group),
+                x = 'log2FoldChange',
+                y = 'padj',
+                title = 'Day 2 (larva): salinity (High v Low)',
+                subtitle = "DESeq2 - Differential expression",
+                FCcutoff = 1,
+                pCutoff = 0.05,
+                pointSize = 4.0,
+                labSize = 6.0,
+                colAlpha = 1,
+                legendPosition = 'right',
+                legendLabSize = 12,
+                legendIconSize = 4.0,
+                widthConnectors = 0.75)
+dev.off()
+
+
+
+
+
+
+
+
+
+
+# :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+# Transform data (rlog) for additional visuals (PCA and heatmaps                     ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+# :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+
+
+
+
+
+
+# Plot dispersions   :::::::::::::::::::::::::::::::::
+png("../Output/DESeq2/Day2_larva/plots/Day2.dispersions.png", 1000, 1000, pointsize=20)
+plotDispEsts(dds.d2.group, main="Day 2 dispersions")
+dev.off()
+
+# Data transformations for heatmap and PCA visuals :::::::
+# rlog - regularized log transformation of origin count data to log2 scale - fit for each sample and dist. of coefficients in the data
+rlog.d2<- rlogTransformation(dds.d2) # rlog transform (regularized log)
+
+# diagnostiscs    :::::::::::::::::::::::::::::::::
+png("../Output/DESeq2/Day2_larva/plots/Day2.rlog_histogram.png", 1000, 1000, pointsize=20)# diagnostics of transformation # Histogram and sd plot
+hist(assay(rlog.d2)) # view histogram 
+dev.off()
+png("../Output/DESeq2/Day2_larva/plots/Day2.rlog_mean_sd.png", 1000, 1000, pointsize=20)
+meanSdPlot(assay(rlog.d2)) # shows the sd y axis (sq root of varaince in all samples) - flat curve may seem like a goals, BUT may be unreasonable in cases with MANY true DEGs from experimental conditions
+dev.off()
+
+# PCA plot rlog ::::::::::::::::::::::::::::::::::::::::::
+pcaData_d2 <- plotPCA(rlog.d2, intgroup = c("Temperature", "OA", "Salinity"), returnData = TRUE)
+percentVar <- round(100 * attr(pcaData_d2, "percentVar"))
+png("../Output/DESeq2/Day2_larva/plots/Day2.rlog_PCA.png", 1000, 1000, pointsize=20)
+ggplot(pcaData_d2, aes(x = PC1, y = PC2,  alpha = OA, shape = Salinity, color = Temperature, label=name)) +
+  scale_color_manual(values = c("blue", "orange")) +
+  scale_shape_manual(values = c(4, 19, 17)) +
+  geom_text(aes(label=name),hjust=0.2, vjust=1.4, size=5) +
+  geom_point(size =6) +
+  theme_classic() +
+  theme(text = element_text(size=15)) +
+  ggtitle("PCA: Day2 (rlog)") +
+  xlab(paste0("PC1: ", percentVar[1], "% variance")) +
+  ylab(paste0("PC2: ", percentVar[2], "% variance")) +
+  coord_fixed()
+dev.off()
+
+
+# Plot heatmap map rlog ::::::::::::::::::::::::::::::
+# save heatmap fxn
+save_pheatmap <- function(x, filename, width=1000, height=960) { # template for saving pheatmap outputs
+  stopifnot(!missing(x))
+  stopifnot(!missing(filename))
+  png(filename,width = width, height=height)
+  grid::grid.newpage()
+  grid::grid.draw(x$gtable)
+  dev.off()
+}
+
+# Temperature heatmap :::::::::::::::
+# parameters for the pheatmap
+resd2.temperature_topgenes.IDs         <- head(rownames(resd2.temperature.ordered),25) # call the first 13 genes that are differential expressed, FDR < 0.05 correct pdj
+resd2.temperature_topgenes_rlog.counts <- assay(rlog.d2)[resd2.temperature_topgenes.IDs,] 
+resd2.temperature_topgenes_corrected   <- resd2.temperature_topgenes_rlog.counts - rowMeans(resd2.temperature_topgenes_rlog.counts) # subtract from the row mean to get +/- 0 to normalize and ease aesthetic
+df_annot.col.temperature              <- as.data.frame(colData(dds.d2)[c("Temperature")])
+temperature.ann_colors                <- list(Temperature = c(Low="turquoise", High="coral1"))
+d2.temperature.rlog.heatmap           <- pheatmap(resd2.temperature_topgenes_corrected, 
+                                          annotation_col=df_annot.col.temperature, 
+                                          main = "Day 2 (larva): Temperature high v. Low (637 total DEGs - chose top 25)",
+                                          cutree_cols = 2,
+                                          cutree_rows = 2,
+                                          annotation_legend = TRUE,
+                                          annotation_colors = temperature.ann_colors,
+                                          show_rownames = TRUE,
+                                          labels_col=df_annot.col.temperature$Temperature, 
+                                          angle_col = 0,
+                                          fontsize = 8,
+                                          legend = TRUE)
+save_pheatmap(d2.temperature.rlog.heatmap, filename = "../Output/DESeq2//Day2_larva/plots/heatmap/Day2.temperature.rlog_heatmap_top25DEGs.png") #Save heatmap
+# OA heatmap :::::::::::::::
+# parameters for the pheatmap
+resd2.OA_topgenes.IDs                 <- head(rownames(resd2.OA.ordered),25) # call the first 13 genes that are differential expressed, FDR < 0.05 correct pdj
+resd2.OA_topgenes_rlog.counts         <- assay(rlog.d2)[resd2.OA_topgenes.IDs,] 
+resd2.OA_topgenes_corrected           <- resd2.OA_topgenes_rlog.counts - rowMeans(resd2.OA_topgenes_rlog.counts) # subtract from the row mean to get +/- 0 to normalize and ease aesthetic
+df_annot.col.OA                       <- as.data.frame(colData(dds.d2)[c("OA")])
+OA.ann_colors                         <- list(OA = c(Low="turquoise", High="coral1"))
+d2.OA.rlog.heatmap                    <- pheatmap(resd2.OA_topgenes_corrected, 
+                                          annotation_col=df_annot.col.OA, 
+                                          main = "Day 2 (larva): OA high v. Low (165 total DEGs - chose top 25)",
+                                          cutree_cols = 2,
+                                          cutree_rows = 2,
+                                          annotation_legend = TRUE,
+                                          annotation_colors = OA.ann_colors,
+                                          show_rownames = TRUE,
+                                          labels_col=df_annot.col.OA$OA, 
+                                          angle_col = 0,
+                                          fontsize = 8,
+                                  legend = TRUE)
+save_pheatmap(d2.OA.rlog.heatmap, filename = "../Output/DESeq2//Day2_larva/plots/heatmap/Day2.OA.rlog_heatmap_top25DEGs.png") #Save heatmap
+
+# Salinity heatmap :::::::::::::::
+# parameters for the pheatmap
+resd2.salinity_topgenes.IDs           <- head(rownames(resd2.salinity.ordered),25) # call the first 13 genes that are differential expressed, FDR < 0.05 correct pdj
+resd2.salinity_topgenes_rlog.counts   <- assay(rlog.d2)[resd2.salinity_topgenes.IDs,] 
+resd2.salinity_topgenes_corrected     <- resd2.salinity_topgenes_rlog.counts - rowMeans(resd2.salinity_topgenes_rlog.counts) # subtract from the row mean to get +/- 0 to normalize and ease aesthetic
+df_annot.col.salinity                 <- as.data.frame(colData(dds.d2)[c("Salinity")])
+salinity.ann_colors                   <- list(salinity = c(Low="turquoise", High="coral1"))
+d2.salinity.rlog.heatmap              <- pheatmap(resd2.salinity_topgenes_corrected, 
+                                            annotation_col=df_annot.col.salinity, 
+                                            main = "Day 2 (larva): salinity high v. Low (165 total DEGs - chose top 25)",
+                                            cutree_cols = 2,
+                                            cutree_rows = 2,
+                                            annotation_legend = TRUE,
+                                            annotation_colors = salinity.ann_colors,
+                                            show_rownames = TRUE,
+                                            labels_col=df_annot.col.salinity$Salinity, 
+                                            angle_col = 0,
+                                            fontsize = 8,
+                                            legend = TRUE)
+save_pheatmap(d2.salinity.rlog.heatmap, filename = "../Output/DESeq2//Day2_larva/plots/heatmap/Day2.salinity.rlog_heatmap_top25DEGs.png") #Save heatmap
+
+```
+
+#Day 18
+```{r Day 18 DEG Analysis}
+
+
+# DAY 2 - models using the dds.gorup
+resultsNames(dds.d18.group)
+
+
+
+
+#  :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+# TEMPERATURE EFFECT :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+#  :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+
+# ONLY HIGH TEMPERATUR EON DAY !8!!!!
+
+
+
+#  :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+#  OA EFFECT         :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+#  :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+
+
+
+
+
+res.d18_OA.group <- results(dds.d18.group, 
+                                    contrast = list(c("All_TreatmentHigh.High.High", "All_TreatmentHigh.High.Low"), c("All_TreatmentHigh.Low.Low", "All_TreatmentHigh.Low.High")),  alpha= 0.1)
+table(res.d18_OA.group$padj<0.05) # 376 DEGs
+
+
+# stats on the model  ::::::::::::::::::::::::::::::
+table(res.d18_OA.group$padj<0.05) # 637 376
+d18.numDEGs_padj_OA  <- data.frame(table(res.d18_OA.group$padj<0.05))[2,2] # DEGs - NOT considering LFC - just p adj == 376
+resd18.OA.ordered    <- res.d18_OA.group[order(res.d18_OA.group$padj), ] # Order by adjusted p-value
+d18.num.DownReg_OA   <- sum((res.d18_OA.group$log2FoldChange[1:d18.numDEGs_padj_OA] > 1) == TRUE) #  LFC >= 1 == 104
+d18.num.UpReg_OA     <- sum((res.d18_OA.group$log2FoldChange[1:d18.numDEGs_padj_OA] < 1) == TRUE) # LFC >= 1  == 272
+d18.total_OA         <- sum(d18.num.DownReg_OA,d18.num.UpReg_OA) # sum of DEGs with the criteria pdj < 0.05 + LFC>1 (< -1)
+# 376 total DEGs
+# with an LFC of 1..
+# 272 upregualted
+# 104 downregulated 
+# Overall... LPC threshold DID NOT alter the padj DEGs
+# plot histogram   ::::::::::::::::::::::::::::::::::
+png("../Output/DESeq2/Day18_spat/plots/FDR_histograms/Day18.FDR_hist_OA.png", 1000, 1000, pointsize=20)
+hist(res.d18_OA.group$pvalue, breaks=20, col="grey") # view histogram
+abline(h=c( (nrow(res.d18_OA.group)*0.05), 
+            ((table(res.d18_OA.group$padj < 0.1)[2]) + (nrow(res.d18_OA.group)*0.1)),
+            ((table(res.d18_OA.group$padj < 0.05)[2]) + (nrow(res.d18_OA.group)*0.05)) ),
+                  col=c("blue", "red", "red"), lty=c(1,2,1), lwd=c(1, 3, 1)) # add line at 
+dev.off()
+# Write results  ::::::::::::::::::::::::::::::::::::
+resdata.d18.OA            <- merge(as.data.frame(resd18.OA.ordered), as.data.frame(counts(dds.d18.group, normalized=TRUE)), by="row.names", sort=FALSE)
+names(resdata.d18.OA)[1]  <- "Gene"
+resdata.d18.OA            <- resdata.d18.OA[order(resdata.d18.OA$padj), ] # Order by adjusted p-value
+write.csv(resdata.d18.OA, paste(path,"Day18_spat/DEG_data/Day18.OA_DESeq2results.csv", sep = '')) # write
+# volcano plot   ::::::::::::::::::::::::::::::::::::
+png("../Output/DESeq2/Day18_spat/plots/volcano/Day18.OA-VolcanoPlot.png", 1000, 1000, pointsize=20)
+EnhancedVolcano(res.d18_OA.group,
+                lab = rownames(res.d18_OA.group),
+                x = 'log2FoldChange',
+                y = 'padj',
+                title = 'Day 18 (spat): OA (High v Low)',
+                subtitle = "DESeq2 - Differential expression",
+                FCcutoff = 1,
+                pCutoff = 0.05,
+                pointSize = 4.0,
+                labSize = 6.0,
+                colAlpha = 1,
+                legendPosition = 'right',
+                legendLabSize = 12,
+                legendIconSize = 4.0,
+                widthConnectors = 0.75)
+dev.off()
+
+
+
+
+
+
+
+
+# :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+# SALINITY EFFECT    ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+# :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+
+
+
+
+
+
+res.d18_salinity.group <- results(dds.d18.group, 
+                                    contrast = list(c("All_TreatmentHigh.High.High", "All_TreatmentHigh.Low.High"), c("All_TreatmentHigh.Low.Low", "All_TreatmentHigh.High.Low")),  alpha= 0.1)
+table(res.d18_salinity.group$padj<0.05) # 1068 DEGs
+
+
+# stats on the model  ::::::::::::::::::::::::::::::
+table(res.d18_salinity.group$padj<0.05) # 1068 165
+d18.numDEGs_padj_salinity  <- data.frame(table(res.d18_salinity.group$padj<0.05))[2,2] # DEGs - NOT considering LFC - just p adj == 1068
+resd18.salinity.ordered    <- res.d18_salinity.group[order(res.d18_salinity.group$padj), ] # Order by adjusted p-value
+d18.num.DownReg_salinity   <- sum((res.d18_salinity.group$log2FoldChange[1:d18.numDEGs_padj_salinity] > 1) == TRUE) #  LFC >= 1 == 295
+d18.num.UpReg_salinity     <- sum((res.d18_salinity.group$log2FoldChange[1:d18.numDEGs_padj_salinity] < 1) == TRUE) # LFC >= 1  == 773
+d18.total_salinity         <- sum(d18.num.DownReg_salinity,d18.num.UpReg_salinity) # sum of DEGs with the criteria pdj < 0.05 + LFC>1 (< -1)
+# 1068 total DEGs
+# with an LFC of 1..
+# 773 upregualted
+# 295 downregulated 
+# Overall... LPC threshold DID NOT alter the padj DEGs
+# plot histogram   ::::::::::::::::::::::::::::::::::
+png("../Output/DESeq2/Day18_spat/plots/FDR_histograms/Day18.FDR_hist_salinity.png", 1000, 1000, pointsize=20)
+hist(res.d18_salinity.group$pvalue, breaks=20, col="grey") # view histogram
+abline(h=c( (nrow(res.d18_salinity.group)*0.05), 
+            ((table(res.d18_salinity.group$padj < 0.1)[2]) + (nrow(res.d18_salinity.group)*0.1)),
+            ((table(res.d18_salinity.group$padj < 0.05)[2]) + (nrow(res.d18_salinity.group)*0.05)) ),
+                  col=c("blue", "red", "red"), lty=c(1,2,1), lwd=c(1, 3, 1)) # add line at 
+dev.off()
+# Write results  ::::::::::::::::::::::::::::::::::::
+resdata.d18.salinity            <- merge(as.data.frame(resd18.salinity.ordered), as.data.frame(counts(dds.d18.group, normalized=TRUE)), by="row.names", sort=FALSE)
+names(resdata.d18.salinity)[1]  <- "Gene"
+resdata.d18.salinity            <- resdata.d18.salinity[order(resdata.d18.salinity$padj), ] # Order by adjusted p-value
+write.csv(resdata.d18.salinity, paste(path,"Day18_spat/DEG_data/Day18.salinity_DESeq2results.csv", sep = '')) # write
+# volcano plot   ::::::::::::::::::::::::::::::::::::
+png("../Output/DESeq2/Day18_spat/plots/volcano/Day18.salinity-VolcanoPlot.png", 1000, 1000, pointsize=20)
+EnhancedVolcano(res.d18_salinity.group,
+                lab = rownames(res.d18_salinity.group),
+                x = 'log2FoldChange',
+                y = 'padj',
+                title = 'Day 18 (spat): salinity (High v Low)',
+                subtitle = "DESeq2 - Differential expression",
+                FCcutoff = 1,
+                pCutoff = 0.05,
+                pointSize = 4.0,
+                labSize = 6.0,
+                colAlpha = 1,
+                legendPosition = 'right',
+                legendLabSize = 12,
+                legendIconSize = 4.0,
+                widthConnectors = 0.75)
+dev.off()
+
+
+
+
+
+
+
+
+
+
+# :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+# Transform data (rlog) for additional visuals (PCA and heatmaps                     ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+# :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+
+
+
+
+
+
+# Plot dispersions   :::::::::::::::::::::::::::::::::
+png("../Output/DESeq2/Day18_spat/plots/Day18.dispersions.png", 1000, 1000, pointsize=20)
+plotDispEsts(dds.d18.group, main="Day 18 dispersions")
+dev.off()
+
+# Data transformations for heatmap and PCA visuals :::::::
+# rlog - regularized log transformation of origin count data to log2 scale - fit for each sample and dist. of coefficients in the data
+rlog.d18 <- rlogTransformation(dds.d18.group) # rlog transform (regularized log)
+
+# diagnostiscs    :::::::::::::::::::::::::::::::::
+png("../Output/DESeq2/Day18_spat/plots/Day18.rlog_histogram.png", 1000, 1000, pointsize=20)# diagnostics of transformation # Histogram and sd plot
+hist(assay(rlog.d18)) # view histogram 
+dev.off()
+png("../Output/DESeq2/Day18_spat/plots/Day18.rlog_mean_sd.png", 1000, 1000, pointsize=20)
+meanSdPlot(assay(rlog.d18)) # shows the sd y axis (sq root of varaince in all samples) - flat curve may seem like a goals, BUT may be unreasonable in cases with MANY true DEGs from experimental conditions
+dev.off()
+
+# PCA plot rlog ::::::::::::::::::::::::::::::::::::::::::
+pcaData_d18 <- plotPCA(rlog.d18, intgroup = c("OA", "Salinity"), returnData = TRUE)
+percentVar <- round(100 * attr(pcaData_d18, "percentVar"))
+png("../Output/DESeq2/Day18_spat/plots/Day18.rlog_PCA.png", 1000, 1000, pointsize=20)
+ggplot(pcaData_d18, aes(x = PC1, y = PC2,  alpha = OA, shape = Salinity, label=name)) +
+  # scale_color_manual(values = "orange") +
+  scale_shape_manual(values = c(4, 19, 17)) +
+  geom_text(aes(label=name),hjust=0.2, vjust=1.4, size=5) +
+  geom_point(size =6) +
+  theme_classic() +
+  theme(text = element_text(size=15)) +
+  ggtitle("PCA: Day18 (rlog)") +
+  xlab(paste0("PC1: ", percentVar[1], "% variance")) +
+  ylab(paste0("PC2: ", percentVar[2], "% variance")) +
+  coord_fixed()
+dev.off()
+
+
+# Plot heatmap map rlog ::::::::::::::::::::::::::::::
+# save heatmap fxn
+save_pheatmap <- function(x, filename, width=1000, height=960) { # template for saving pheatmap outputs
+  stopifnot(!missing(x))
+  stopifnot(!missing(filename))
+  png(filename,width = width, height=height)
+  grid::grid.newpage()
+  grid::grid.draw(x$gtable)
+  dev.off()
+}
+
+
+# OA heatmap :::::::::::::::
+# parameters for the pheatmap
+resd18.OA_topgenes.IDs                 <- head(rownames(resd18.OA.ordered),25) # call the first 13 genes that are differential expressed, FDR < 0.05 correct pdj
+resd18.OA_topgenes_rlog.counts         <- assay(rlog.d18)[resd18.OA_topgenes.IDs,] 
+resd18.OA_topgenes_corrected           <- resd18.OA_topgenes_rlog.counts - rowMeans(resd18.OA_topgenes_rlog.counts) # subtract from the row mean to get +/- 0 to normalize and ease aesthetic
+df_annot.col.OA                        <- as.data.frame(colData(dds.d18.group)[c("OA")])
+OA.ann_colors                          <- list(OA = c(Low="turquoise", High="coral1"))
+d18.OA.rlog.heatmap                    <- pheatmap(resd18.OA_topgenes_corrected, 
+                                          annotation_col=df_annot.col.OA, 
+                                          main = "Day 18 (spat): OA high v. Low (376 total DEGs - chose top 25)",
+                                          cutree_cols = 2,
+                                          cutree_rows = 2,
+                                          annotation_legend = TRUE,
+                                          annotation_colors = OA.ann_colors,
+                                          show_rownames = TRUE,
+                                          labels_col=df_annot.col.OA$OA, 
+                                          angle_col = 0,
+                                          fontsize = 8,
+                                  legend = TRUE)
+save_pheatmap(d18.OA.rlog.heatmap, filename = "../Output/DESeq2//Day18_spat/plots/heatmap/Day18.OA.rlog_heatmap_top25DEGs.png") #Save heatmap
+
+# Salinity heatmap :::::::::::::::
+# parameters for the pheatmap
+resd18.salinity_topgenes.IDs           <- head(rownames(resd18.salinity.ordered),25) # call the first 13 genes that are differential expressed, FDR < 0.05 correct pdj
+resd18.salinity_topgenes_rlog.counts   <- assay(rlog.d18)[resd18.salinity_topgenes.IDs,] 
+resd18.salinity_topgenes_corrected     <- resd18.salinity_topgenes_rlog.counts - rowMeans(resd18.salinity_topgenes_rlog.counts) # subtract from the row mean to get +/- 0 to normalize and ease aesthetic
+df_annot.col.salinity                  <- as.data.frame(colData(dds.d18.group)[c("Salinity")])
+salinity.ann_colors                    <- list(salinity = c(Low="turquoise", High="coral1"))
+d18.salinity.rlog.heatmap              <- pheatmap(resd18.salinity_topgenes_corrected, 
+                                            annotation_col=df_annot.col.salinity, 
+                                            main = "Day 18 (spat): salinity high v. Low (1068 total DEGs - chose top 25)",
+                                            cutree_cols = 2,
+                                            cutree_rows = 2,
+                                            annotation_legend = TRUE,
+                                            annotation_colors = salinity.ann_colors,
+                                            show_rownames = TRUE,
+                                            labels_col=df_annot.col.salinity$Salinity, 
+                                            angle_col = 0,
+                                            fontsize = 8,
+                                            legend = TRUE)
+save_pheatmap(d18.salinity.rlog.heatmap, filename = "../Output/DESeq2//Day18_spat/plots/heatmap/Day18.salinity.rlog_heatmap_top25DEGs.png") #Save heatmap
+
+
+```
+
+#Day 14
+```{r Day14_main_effects}
+# TEST! (read below)
+# 'Interaction' term tests - run this to see that the 'Primary Treatment' main effect in NOT represented in the full effect model
+test1 <- results(dds.d14, contrast = c("Primary_Treatment", "M", "A"),  alpha= 0.05) # D/N addresses Primary M vs A in reference level Secondary!!! 
+# thus the model above measures the pairwsie comparisons of MA vs. AA
+table(test1$padj<0.05) #  5 DEGs
+test2 <- results(dds.d14.group, contrast = list(("All_TreatmentMA"),("All_TreatmentAA")),  alpha= 0.05) # look here at the group - same genes are DEGs
+table(test2$padj<0.05) #  5 DEGs (same as above)
+
+
+
+# Primary Treatmetn M v A ========================================================================================================== #
+
+
+
+# group by contrast
+res.d14_primary <- results(dds.d14.group, contrast = list(c("All_TreatmentAA", "All_TreatmentAM", "All_TreatmentAS"),  c("All_TreatmentMA", "All_TreatmentMM", "All_TreatmentMS")),  alpha= 0.05)
+table(res.d14_primary$padj<0.05) # 429 DEGs
+
+# main effect model (mo interaction term)
+res.d14.primary_main <- results(dds.d14.main, contrast = c("Primary_Treatment", "A", "M"),  alpha= 0.05)
+table(res.d14.primary_main$padj<0.05) #  431 DEGs 
+
+# full model 
+res.d14.primary_fullmod <- results(dds.d14, contrast = c("Primary_Treatment", "A", "M"),  alpha= 0.05)
+table(res.d14.primary_fullmod$padj<0.05) #  5 DEGs 
+
+# Group contrast - this tests the full model effect above - appears the interaction term in fullmod is the pariwise effect under the reference level in treatment 2
+res.d14.primary_grouptest<- results(dds.d14.group, contrast = list(("All_TreatmentAA"),("All_TreatmentMA")),  alpha= 0.05) # look here at the group - same genes are DEGs
+table(res.d14.primary_grouptest$padj<0.05) #  5 DEGs (same as above)
+
+
+
+# Secondary treatment A v M ========================================================================================================= #
+
+
+# group by contrast
+res.d14.Second_AM <- results(dds.d14.group, contrast = list(c("All_TreatmentAA", "All_TreatmentMA"),c("All_TreatmentAM", "All_TreatmentMM")),  alpha= 0.05)
+table(res.d14.Second_AM$padj<0.05) # 0 DEGs
+
+# main effect model (mo interaction term)
+res.d14.Second_AM_main <- results(dds.d14.main, contrast = c("Second_Treament", "A", "M"),  alpha= 0.05)
+table(res.d14.Second_AM_main$padj<0.05) #  94 DEGs 
+
+# full model 
+res.d14.Second_AM_fullmod <- results(dds.d14, contrast = c("Second_Treament", "A", "M"),  alpha= 0.05) # appears this is actually the pairwise comparisons between AA and AM
+table(res.d14.Second_AM_fullmod$padj<0.05) #  0 DEGs 
+
+# Group contrast - test the putative pariwise comparison with the ref level in fullmod
+res.d14.Second_AM_grouptest<- results(dds.d14.group, contrast = list(("All_TreatmentAA"),("All_TreatmentAM")),  alpha= 0.05) # look here at the group constrasts
+table(res.d14.Second_AM_grouptest$padj<0.05) #  0 DEGs 
+
+
+
+# Secondary treatment A v S ========================================================================================================= #
+
+
+# group by contrast
+res.d14.Second_AS <- results(dds.d14.group, contrast = list(c("All_TreatmentAA", "All_TreatmentMA"),c("All_TreatmentAS", "All_TreatmentMS")),  alpha= 0.05)
+table(res.d14.Second_AS$padj<0.05) #  0 DEGs
+
+# main effect model (mo interaction term)
+res.d14.Second_AS_main <- results(dds.d14.main, contrast = c("Second_Treament", "A", "S"),  alpha= 0.05)
+table(res.d14.Second_AS_main$padj<0.05) #  2 DEGs 
+
+# full model 
+res.d14.Second_AS_fullmod <- results(dds.d14, contrast = c("Second_Treament", "A", "S"),  alpha= 0.05) # appears this is actually the pairwise comparisons between AA and AS
+table(res.d14.Second_AS_fullmod$padj<0.05) #  1 DEGs 
+
+# Group contrast - test the putative pariwise comparison with the ref level in fullmod
+res.d14.Second_AS_grouptest<- results(dds.d14.group, contrast = list(("All_TreatmentAA"),("All_TreatmentAS")),  alpha= 0.05) # look here at the group constrasts
+table(res.d14.Second_AS_grouptest$padj<0.05) #  1 DEGs (same as above)
+
+
+
+# Secondary treatment M v S ========================================================================================================= #
+
+
+# group by contrast
+res.d14.Second_MS <- results(dds.d14.group, contrast = list(c("All_TreatmentAM", "All_TreatmentMM"),c("All_TreatmentAS", "All_TreatmentMS")),  alpha= 0.05)
+table(res.d14.Second_MS$padj<0.05) #  0 DEGs
+
+# main effect model (mo interaction term)
+res.d14.Second_MS_main <- results(dds.d14.main, contrast = c("Second_Treament", "M", "S"),  alpha= 0.05)
+table(res.d14.Second_MS_main$padj<0.05) #  14 DEGs 
+
+# full model 
+res.d14.Second_MS_fullmod <- results(dds.d14, contrast = c("Second_Treament", "M", "S"),  alpha= 0.05) # appears this is actually the pairwise comparisons between AM and AS
+table(res.d14.Second_MS_fullmod$padj<0.05) #  0 DEGs 
+
+# Group contrast - test the putative pariwise comparison with the ref level in fullmod
+res.d14.Second_MS_grouptest<- results(dds.d14.group, contrast = list(("All_TreatmentAM"),("All_TreatmentAS")),  alpha= 0.05) # look here at the group constrasts
+table(res.d14.Second_MS_grouptest$padj<0.05) #  0 DEGs 
+
+
+
+
+# TABLES  &  Volcano Plots
+
+
+
+
+# Primary Treatmetn M v A ========================================================================================================= #
+
+# table(res.d14_P.AvM_group$padj<0.05) 
+d14.numDEGs_padj               <-data.frame(table(res.d14_primary$padj<0.05))[2,2] # DEGs - NOT considering LFC - just p adj
+res.d14_primary.ordered        <- res.d14_primary[order(res.d14_primary$padj), ] # Order by adjusted p-value
+d14.num.UpReg                  <- sum((res.d14_primary.ordered$log2FoldChange[1:d14.numDEGs_padj] > 0) == TRUE) #  LFC >= 1
+d14.num.DownReg                <- sum((res.d14_primary.ordered$log2FoldChange[1:d14.numDEGs_padj] < 0) == TRUE) # LFC >= 1
+d14.total                      <- sum(d14.num.DownReg,d14.num.UpReg) # 429 sum of DEGs with the criteria pdj < 0.05 + LFC>1 (< -1) - 507
+
+# Histogram
+hist(res.d14_primary$pvalue, breaks=20, col="grey") # view histogram, 
+abline(h=c( (nrow(res.d14_primary)*0.1), 
+            ((table(res.d14_primary$padj < 0.1)[2]) + (nrow(res.d14_primary)*0.1)),
+            ((table(res.d14_primary$padj < 0.05)[2]) + (nrow(res.d14_primary)*0.1)) ),
+                  col=c("blue", "red", "red"), lty=c(1,2), lwd=c(1, 3)) # add line at 
+
+# Write csv
+# group model 
+resdata.d14.primary  <- merge(as.data.frame(res.d14_primary.ordered), as.data.frame(counts(dds.d14.group, normalized=TRUE)), by="row.names", sort=FALSE) # Merge with normalized count
+names(resdata.d14.primary)[1] <- "Gene"
+resdata.d14.primary <- resdata.d14.primary[order(resdata.d14.primary$padj), ] # Order by adjusted p-value
+path_out.d14 = 'C:/Users/samjg/Documents/My_Projects/Pgenerosa_TagSeq_Metabolomics/TagSeq/Analysis/Output/DESeq2/5cpm/Day14/' # call path
+write.csv(resdata.d14.primary, paste(path_out.d14,"Day14.Primary_DESeq2results.csv")) # write
+
+# main effect model
+resdata.d14.primary_main  <- merge(as.data.frame(res.d14.primary_main), as.data.frame(counts(dds.d14, normalized=TRUE)), by="row.names", sort=FALSE) # Merge with normalized count
+names(resdata.d14.primary_main)[1] <- "Gene"
+resdata.d14.primary_main <- resdata.d14.primary_main[order(resdata.d14.primary_main$padj), ] # Order by adjusted p-value
+path_out.d14.tests = 'C:/Users/samjg/Documents/My_Projects/Pgenerosa_TagSeq_Metabolomics/TagSeq/Analysis/Output/DESeq2/5cpm/Day14/D14_res_model_tests/' # call path
+write.csv(resdata.d14.primary_main, paste(path_out.d14.tests,"Day14.Primary_res_main.mod.csv")) # write
+
+# full model
+resdata.d14.primary_fullmod  <- merge(as.data.frame(res.d14.primary_fullmod), as.data.frame(counts(dds.d14, normalized=TRUE)), by="row.names", sort=FALSE) # Merge with normalized count 
+names(resdata.d14.primary_fullmod)[1] <- "Gene"
+resdata.d14.primary_fullmod <- resdata.d14.primary_fullmod[order(resdata.d14.primary_fullmod$padj), ] # Order by adjusted p-value
+path_out.d14.tests = 'C:/Users/samjg/Documents/My_Projects/Pgenerosa_TagSeq_Metabolomics/TagSeq/Analysis/Output/DESeq2/5cpm/Day14/D14_res_model_tests/' # call path
+write.csv(resdata.d14.primary_fullmod, paste(path_out.d14.tests,"Day14.Primary_res_full.mod.csv")) # write
+
+# group test of full model
+resdata.d14.primary_grouptest  <- merge(as.data.frame(res.d14.primary_grouptest), as.data.frame(counts(dds.d14, normalized=TRUE)), by="row.names", sort=FALSE)# Merge with normalized 
+names(resdata.d14.primary_grouptest)[1] <- "Gene"
+resdata.d14.primary_grouptest <- resdata.d14.primary_grouptest[order(resdata.d14.primary_grouptest$padj), ] # Order by adjusted p-value
+path_out.d14.tests = 'C:/Users/samjg/Documents/My_Projects/Pgenerosa_TagSeq_Metabolomics/TagSeq/Analysis/Output/DESeq2/5cpm/Day14/D14_res_model_tests/' # call path
+write.csv(resdata.d14.primary_grouptest, paste(path_out.d14.tests,"Day14.Primary_res_grouptest.mod.csv")) # write
+
+
+
+
+# volcano plot 
+png("../Output/DESeq2/5cpm/Day14/Day14.Primary-VolcanoPlot.png", 1000, 1000, pointsize=20)
+# Day14.volcano.primary <- 
+EnhancedVolcano(res.d14_primary,
+          lab = row.names(res.d14_primary),
+          x = 'log2FoldChange',
+          y = 'padj',
+          title = 'Day 14: Primary Treatment (A v M)',
+          subtitle = "DESeq2 - Differential expression",
+          selectLab = c("PGEN_.00g057310", "PGEN_.00g279590", "PGEN_.00g092270", "PGEN_.00g092270", "PGEN_.00g266130"), # call persistant DEGs (day 7,14,21) with mean LFC > 5
+          # selectLab = c("PGEN_.00g003940", "PGEN_.00g057310", "PGEN_.00g092270" ,"PGEN_.00g169480",
+          #               "PGEN_.00g188250", "PGEN_.00g199810", "PGEN_.00g211250" ,"PGEN_.00g266130",
+          #               "PGEN_.00g272710" ,"PGEN_.00g279590","PGEN_.00g348220", "PGEN_.00g348570"), # the list of genes from 'Const.DEGs.list'
+                              xlab = bquote(~Log[2]~ 'fold change'),
+                              ylab = bquote(~-Log[10]~ 'Padj'),
+                              pCutoff = 0.05,
+                              FCcutoff = 1.0,
+                              pointSize = 3.0,
+                              labSize = 3.0,
+                              labCol = 'black',
+                              labFace = 'bold',
+                              boxedLabels = TRUE,
+                            # parseLabels = TRUE,
+                              col = c('black', '#E69F00', '#D55E00', '#0072B2'), # colorblindness pallette
+                              colAlpha = 1,
+                              legendPosition = 'right',
+                              legendLabSize = 10,
+                              legendIconSize = 3.0,
+                              drawConnectors = TRUE,
+                              widthConnectors = 0.2,
+                              colConnectors = 'black')
+dev.off()
+
+
+#  Data transformations for heatmap and PCA visuals
+
+
+
+# Plot dispersions 
+png("../Output/DESeq2/5cpm/Day14/Day14.dispersions.png", 1000, 1000, pointsize=20)
+plotDispEsts(dds.d14, main="Day 14 dispersions")
+dev.off()
+
+# Data transformations for heatmap and PCA visuals ======================================================================================= #
+# rlog - regularized log transformation of origin count data to log2 scale - fit for each sample and dist. of coefficients in the data
+rlog.d14<- rlogTransformation(dds.d14) # rlog transform (regularized log)
+
+png("../Output/DESeq2/5cpm/Day14/Day14.rlog_histogram.png", 1000, 1000, pointsize=20)# diagnostics of transformation # Histogram and sd plot
+hist(assay(rlog.d14)) # view histogram 
+dev.off()
+png("../Output/DESeq2/5cpm/Day14/Day14.rlog_mean_sd.png", 1000, 1000, pointsize=20)
+meanSdPlot(assay(rlog.d14)) # shows the sd y axis (sq root of varaince in all samples) - flat curve may seem like a goals, BUT may be unreasonable in cases with MANY true DEGs from experimental conditions
+dev.off()
+
+
+# PCA plot rlog ----------------------------------------------- #
+
+pcaData_d14 <- plotPCA(rlog.d14, intgroup = c( "Primary_Treatment", "Second_Treament"), returnData = TRUE)
+percentVar <- round(100 * attr(pcaData_d14, "percentVar"))
+png("../Output/DESeq2/5cpm/Day14/Day14.rlog_PCA.png", 1000, 1000, pointsize=20)
+ggplot(pcaData_d14, aes(x = PC1, y = PC2, color = Primary_Treatment, shape = Second_Treament)) +
+  scale_shape_manual(values = c(5, 19, 15)) +
+  geom_text(aes(label=name),hjust=0.2, vjust=1.4, size=3) +
+  geom_point(size =6) +
+  theme_classic() +
+  theme(text = element_text(size=15)) +
+  ggtitle("PCA: Day14 (rlog)") +
+  xlab(paste0("PC1: ", percentVar[1], "% variance")) +
+  ylab(paste0("PC2: ", percentVar[2], "% variance")) +
+  coord_fixed()
+dev.off()
+
+
+
+
+# pheatmap rlog ----------------------------------------------- #
+
+
+
+
+# Plot heat map rlog------------------------ #
+save_pheatmap <- function(x, filename, width=1000, height=960) { # template for saving pheatmap outputs
+  stopifnot(!missing(x))
+  stopifnot(!missing(filename))
+  png(filename,width = width, height=height)
+  grid::grid.newpage()
+  grid::grid.draw(x$gtable)
+  dev.off()
+}
+# parameters for the pheatmap
+topgenes.IDs <- head(rownames(res.d14_primary.ordered),40) # call the first 13 genes that are differentially expressed, FDR < 0.05 correct pdj
+topgenes_rlog.counts <- assay(rlog.d14)[topgenes.IDs,] 
+topgenes_corrected <- topgenes_rlog.counts - rowMeans(topgenes_rlog.counts) # substract from the row mean to get +/- 0 to normalizze and ease the asthetic
+df_annot.col <- as.data.frame(colData(dds.d14)[c("Primary_Treatment","Second_Treament")])
+
+
+# colorblind palette
+# colorBlindBlack8  <- c("#000000", "#E69F00", "#56B4E9", "#009E73", 
+#                        "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+# pie(rep(1, 8), col = colorBlindBlack8)
+
+ann_colors = list(
+    Primary_Treatment = c(A="#56B4E9", M="#E69F00"),
+    Second_Treament = c(A = "#56B4E9", M = "#E69F00", S ="#D55E00"))
+
+d14.rlog.heatmap <- pheatmap(topgenes_corrected, 
+                            annotation_col=df_annot.col, 
+                            main = "Day 14 PRIMARY Ambient versus Moderate (421 total DEGs; 40 shown)",
+                            #color = colorRampPalette(c("limegreen", "white", "gray39"))(50),
+                            cutree_cols = 2,
+                            cutree_rows = 2,
+                            annotation_legend = TRUE,
+                            annotation_colors = ann_colors,
+                            show_rownames = FALSE,
+                            labels_col=(paste(df_annot.col$Primary_Treatment,df_annot.col$Second_Treament, sep ="_")), 
+                            angle_col = 45,
+                            fontsize = 8,
+                            legend = TRUE)
+#Save ppheatmap
+save_pheatmap(d14.rlog.heatmap, filename = "../Output/DESeq2/5cpm/Day14/Day14.PRIMARY.rlog_heatmap.png")
+```
+
+#Day 21
+```{r Day21_Main_effects}
+
+# Primary Treatmetn M v A ========================================================================================================== #
+
+
+
+res.d21_primary <- results(dds.d21.group, contrast = list(c("All_TreatmentAAA", "All_TreatmentAAM", "All_TreatmentAMA", "All_TreatmentAMM", "All_TreatmentASA","All_TreatmentASM"), c("All_TreatmentMAA", "All_TreatmentMAM", "All_TreatmentMMA", "All_TreatmentMMM", "All_TreatmentMSA", "All_TreatmentMSM")),  alpha= 0.1)
+table(res.d21_primary$padj<0.05) # 155 DEGs
+
+# main effect model (mo interaction term)
+res.d21.primary_main <- results(dds.d21.main, contrast = c("Primary_Treatment", "A", "M"),  alpha= 0.05)
+table(res.d21.primary_main$padj<0.05) #  165 DEGs 
+
+# full model 
+res.d21.primary_fullmod <- results(dds.d21, contrast = c("Primary_Treatment", "A", "M"),  alpha= 0.05)
+table(res.d21.primary_fullmod$padj<0.05) #  73 DEGs 
+
+# Group contrast - this tests the full model effect above - appears the interaction term in fullmod is the pariwise effect under the reference level in treatment 2
+res.d21.primary_grouptest<- results(dds.d21.group, contrast = list(("All_TreatmentAAA"),("All_TreatmentMAA")),  alpha= 0.05) # look here at the group - same genes are DEGs
+table(res.d21.primary_grouptest$padj<0.05) #  68 DEGs (same as above)
+
+
+
+
+# Secondary treatment A v M ========================================================================================================= #
+
+
+
+res.d21.Second_AM <- results(dds.d21.group, contrast = list(c("All_TreatmentAAA", "All_TreatmentAAM", "All_TreatmentMAA", "All_TreatmentMAM"), c("All_TreatmentAMA", "All_TreatmentAMM", "All_TreatmentMMA", "All_TreatmentMMM")),  alpha= 0.1)
+table(res.d21.Second_AM$padj<0.05) # 1 DEGs
+
+
+d21.numDEGs_padj_AM            <- data.frame(table(res.d21.Second_AM$padj<0.05))[2,2] # DEGs - NOT considering LFC - just p adj
+res.d21_AM.ordered             <- res.d21.Second_AM[order(res.d21.Second_AM$padj), ] # Order by adjusted p-value
+d21.num.UpReg_AM               <- sum((res.d21.Second_AM$log2FoldChange > 0)[1] == TRUE) #  LFC >= 1
+d21.num.DownReg_AM             <- sum((res.d21.Second_AM$log2FoldChange < 0)[1] == TRUE) # LFC >= 1
+
+
+
+# main effect model (mo interaction term)
+res.d21.Second_AM_main <- results(dds.d21.main, contrast = c("Second_Treament", "A", "M"),  alpha= 0.05)
+
+table(res.d21.Second_AM_main$padj<0.05) #  1 DEGs 
+
+# full model 
+res.d21.Second_AM_fullmod <- results(dds.d21, contrast = c("Second_Treament", "A", "M"),  alpha= 0.05) # appears this is actually the pairwise comparisons between AAA and AMA
+table(res.d21.Second_AM_fullmod$padj<0.05) #  0 DEGs 
+
+# Group contrast - test the putative pariwise comparison with the ref level in fullmod
+res.d21.Second_AM_grouptest<- results(dds.d21.group, contrast = list(("All_TreatmentAAA"),("All_TreatmentAMA")),  alpha= 0.05) # look here at the group constrasts
+table(res.d21.Second_AM_grouptest$padj<0.05) #  0 DEGs 
+
+
+
+
+
+# Secondary treatment A v S ========================================================================================================= #
+
+
+
+res.d21.Second_AS <- results(dds.d21.group, contrast = list(c("All_TreatmentAAA", "All_TreatmentAAM", "All_TreatmentMAA", "All_TreatmentMAM"), c("All_TreatmentASA", "All_TreatmentASM", "All_TreatmentMSA", "All_TreatmentMSM")),  alpha= 0.1)
+table(res.d21.Second_AS$padj<0.05) # 1 DEGs
+
+
+d21.numDEGs_padj_AS            <- data.frame(table(res.d21.Second_AS$padj<0.05))[2,2] # DEGs - NOT considering LFC - just p adj
+res.d21_AS.ordered             <- res.d21.Second_AS[order(res.d21.Second_AS$padj), ] # Order by adjusted p-value
+d21.num.UpReg_AS               <- sum((res.d21.Second_AS$log2FoldChange > 0)[1] == TRUE) #  LFC >= 1
+d21.num.DownReg_AS             <- sum((res.d21.Second_AS$log2FoldChange < 0)[1] == TRUE) # LFC >= 1
+
+
+
+# main effect model (mo interaction term)
+res.d21.Second_AS_main <- results(dds.d21.main, contrast = c("Second_Treament", "A", "S"),  alpha= 0.05)
+table(res.d21.Second_AS_main$padj<0.05) #  0 DEGs 
+
+# full model 
+res.d21.Second_AS_fullmod <- results(dds.d21, contrast = c("Second_Treament", "A", "S"),  alpha= 0.05) # appears this is actually the pairwise comparisons between AAA and ASA
+table(res.d21.Second_AS_fullmod$padj<0.05) #  1 DEGs 
+
+# Group contrast - test the putative pariwise comparison with the ref level in fullmod
+res.d21.Second_AS_grouptest<- results(dds.d21.group, contrast = list(("All_TreatmentAAA"),("All_TreatmentASA")),  alpha= 0.05) # look here at the group constrasts
+table(res.d21.Second_AS_grouptest$padj<0.05) #  1 DEGs (same as above)
+
+
+
+
+# Secondary treatment M v S ========================================================================================================= #
+
+
+
+res.d21.Second_MS <- results(dds.d21.group, contrast = list(c("All_TreatmentAMA", "All_TreatmentAMM", "All_TreatmentMMA", "All_TreatmentMMM"), c("All_TreatmentASA", "All_TreatmentASM", "All_TreatmentMSA", "All_TreatmentMSM")),  alpha= 0.1)
+table(res.d21.Second_MS$padj<0.05) # 0 DEGs
+
+# main effect model (mo interaction term)
+res.d21.Second_MS_main <- results(dds.d21.main, contrast = c("Second_Treament", "M", "S"),  alpha= 0.05)
+table(res.d21.Second_MS_main$padj<0.05) #  0 DEGs 
+
+# full model 
+res.d21.Second_MS_fullmod <- results(dds.d21, contrast = c("Second_Treament", "M", "S"),  alpha= 0.05) # appears this is actually the pairwise comparisons between AMA and ASA
+table(res.d21.Second_MS_fullmod$padj<0.05) #  1 DEGs 
+
+# Group contrast - test the putative pariwise comparison with the ref level in fullmod
+res.d21.Second_MS_grouptest<- results(dds.d21.group, contrast = list(("All_TreatmentAMA"),("All_TreatmentASA")),  alpha= 0.05) # look here at the group constrasts
+table(res.d21.Second_MS_grouptest$padj<0.05) #  2 DEGs 
+
+
+
+
+# Third treatment A v M ========================================================================================================= #
+
+
+
+res.d21.Third <- results(dds.d21.group, contrast = list(c("All_TreatmentAAA", "All_TreatmentAMA", "All_TreatmentASA", "All_TreatmentMAA", "All_TreatmentMMA", "All_TreatmentMSA"), c("All_TreatmentAAM", "All_TreatmentAMM", "All_TreatmentASM", "All_TreatmentMAM", "All_TreatmentMMM", "All_TreatmentMSM")),  alpha= 0.1)
+table(res.d21.Third$padj<0.05) # 0 DEGs
+
+# main effect model (mo interaction term)
+res.d21.Third_main <- results(dds.d21.main, contrast = c("Third_Treatment", "A", "M"),  alpha= 0.05)
+table(res.d21.Third_main$padj<0.05) #  0 DEGs 
+
+# full model 
+res.d21.Third_fullmod <- results(dds.d21, contrast = c("Third_Treatment", "A", "M"),  alpha= 0.05) # appears this is actually the pairwise comparisons between AAA and AAM
+table(res.d21.Third_fullmod$padj<0.05) #  0 DEGs 
+
+# Group contrast - test the putative pariwise comparison with the ref level in fullmod
+res.d21.Third_grouptest<- results(dds.d21.group, contrast = list(("All_TreatmentAAA"),("All_TreatmentAAM")),  alpha= 0.05) # look here at the group constrasts
+table(res.d21.Third_grouptest$padj<0.05) #  0 DEGs 
+
+
+
+# TABLES  &  Volcano Plots
+
+
+
+
+# Primary Treatmetn M v A ========================================================================================================= #
+
+d21.numDEGs_padj               <- data.frame(table(res.d21_primary$padj<0.05))[2,2] # DEGs - NOT considering LFC - just p adj
+res.d21_primary.ordered        <- res.d21_primary[order(res.d21_primary$padj), ] # Order by adjusted p-value
+d21.num.UpReg                  <- sum((res.d21_primary.ordered$log2FoldChange[1:d21.numDEGs_padj] > 0) == TRUE) #  LFC >= 1
+d21.num.DownReg                <- sum((res.d21_primary.ordered$log2FoldChange[1:d21.numDEGs_padj] < 0) == TRUE) # LFC >= 1
+d21.total                      <- sum(d21.num.DownReg,d21.num.UpReg) # 155 sum of DEGs with the criteria pdj < 0.05 + LFC>1 (< -1) - 230 genes
+# Histogram
+hist(res.d21_primary$pvalue, breaks=20, col="grey") # view histogram,  
+abline(h=c( (nrow(res.d21_primary)*0.1), 
+            ((table(res.d21_primary$padj < 0.1)[2]) + (nrow(res.d21_primary)*0.1)),
+            ((table(res.d21_primary$padj < 0.05)[2]) + (nrow(res.d21_primary)*0.1)) ),
+                  col=c("blue", "red", "red"), lty=c(1,2), lwd=c(1, 3)) # add line at 
+
+# Write csv
+resdata.d21.primary  <- merge(as.data.frame(res.d21_primary.ordered), as.data.frame(counts(dds.d21.group, normalized=TRUE)), by="row.names", sort=FALSE) ## Merge with normalized count data
+names(resdata.d21.primary)[1] <- "Gene"
+resdata.d21.primary <- resdata.d21.primary[order(resdata.d21.primary$padj), ] # Order by adjusted p-value
+path_out.d21 = 'C:/Users/samjg/Documents/My_Projects/Pgenerosa_TagSeq_Metabolomics/TagSeq/Analysis/Output/DESeq2/5cpm/Day21/' # call path
+write.csv(resdata.d21.primary, paste(path_out.d21,"Day21.Primary_DESeq2results.csv")) # write
+
+
+
+# volcano plot 
+png("../Output/DESeq2/5cpm/Day21/Day21.PrimaryTreatment-VolcanoPlot.png", 1000, 1000, pointsize=20)
+EnhancedVolcano(res.d21_primary,
+                lab = rownames(res.d21_primary),
+                x = 'log2FoldChange',
+                y = 'padj',
+                title = 'Day 21: Primary Treatment (A v M)',
+                subtitle = "DESeq2 - Differential expression",
+                selectLab = c("PGEN_.00g057310", "PGEN_.00g279590", "PGEN_.00g092270", "PGEN_.00g092270", "PGEN_.00g266130"), # call persistant DEGs (day 7,14,21) with mean LFC > 5
+                # selectLab = c("PGEN_.00g003940", "PGEN_.00g057310", "PGEN_.00g092270" ,"PGEN_.00g169480",
+                #               "PGEN_.00g188250", "PGEN_.00g199810", "PGEN_.00g211250" ,"PGEN_.00g266130",
+                #               "PGEN_.00g272710" ,"PGEN_.00g279590","PGEN_.00g348220", "PGEN_.00g348570"), # the list of genes from 'Const.DEGs.list'
+                              xlab = bquote(~Log[2]~ 'fold change'),
+                              ylab = bquote(~-Log[10]~ 'Padj'),
+                              pCutoff = 0.05,
+                              FCcutoff = 1.0,
+                              pointSize = 3.0,
+                              labSize = 3.0,
+                              labCol = 'black',
+                              labFace = 'bold',
+                              boxedLabels = TRUE,
+                            # parseLabels = TRUE,
+                              col = c('black', '#E69F00', '#D55E00', '#0072B2'), # colorblindness pallette
+                              colAlpha = 1,
+                              legendPosition = 'right',
+                              legendLabSize = 10,
+                              legendIconSize = 3.0,
+                              drawConnectors = TRUE,
+                              widthConnectors = 0.2,
+                              colConnectors = 'black')
+dev.off()
+
+
+
+
+
+
+#  Data transformations for heatmap and PCA visuals
+
+
+
+
+# Plot dispersions 
+png("../Output/DESeq2/5cpm/Day21/Day21.dispersions.png", 1000, 1000, pointsize=20)
+plotDispEsts(dds.d21, main="Day 21 dispersions")
+dev.off()
+
+# Data transformations for heatmap and PCA visuals ======================================================================================= #
+# rlog - regularized log transformation of origin count data to log2 scale - fit for each sample and dist. of coefficients in the data
+rlog.d21<- rlogTransformation(dds.d21) # rlog transform (regularized log)
+
+png("../Output/DESeq2/5cpm/Day21/Day21.rlog_histogram.png", 1000, 1000, pointsize=20)# diagnostics of transformation # Histogram and sd plot
+hist(assay(rlog.d21)) # view histogram 
+dev.off()
+png("../Output/DESeq2/5cpm/Day21/Day21.rlog_mean_sd.png", 1000, 1000, pointsize=20)
+meanSdPlot(assay(rlog.d21)) # shows the sd y axis (sq root of varaince in all samples) - flat curve may seem like a goals, BUT may be unreasonable in cases with MANY true DEGs from experimental conditions
+dev.off()
+
+
+
+# PCA plot rlog ----------------------------------------------- #
+
+pcaData_d21 <- plotPCA(rlog.d21, intgroup = c( "Primary_Treatment", "Second_Treament", "Third_Treatment"), returnData = TRUE)
+percentVar <- round(100 * attr(pcaData_d21, "percentVar"))
+png("../Output/DESeq2/5cpm/Day21/Day21.rlog_PCA.png", 1000, 1000, pointsize=20)
+ggplot(pcaData_d21, aes(x = PC1, y = PC2, alpha = Primary_Treatment, shape = Second_Treament, fill = Third_Treatment)) +
+  scale_shape_manual(values = c(15, 19, 17)) +
+  geom_text(aes(label=name),hjust=0.2, vjust=1.4, size=3) +
+  geom_point(size =6) +
+  scale_fill_manual(values = c("black", "white")) +
+  theme_classic() +
+  theme(text = element_text(size=15)) +
+  ggtitle("PCA: Day21 (rlog)") +
+  xlab(paste0("PC1: ", percentVar[1], "% variance")) +
+  ylab(paste0("PC2: ", percentVar[2], "% variance")) +
+  coord_fixed()
+dev.off()
+
+
+
+# pheatmap rlog ----------------------------------------------- #
+
+
+
+
+# Plot heat map rlog------------------------ #
+save_pheatmap <- function(x, filename, width=1000, height=960) { # template for saving pheatmap outputs
+  stopifnot(!missing(x))
+  stopifnot(!missing(filename))
+  png(filename,width = width, height=height)
+  grid::grid.newpage()
+  grid::grid.draw(x$gtable)
+  dev.off()
+}
+# parameters for the pheatmap
+topgenes.IDs <- head(rownames(res.d21_primary.ordered),40) # call the first 13 genes that are differentially expressed, FDR < 0.05 correct pdj
+topgenes_rlog.counts <- assay(rlog.d21)[topgenes.IDs,] 
+topgenes_corrected <- topgenes_rlog.counts - rowMeans(topgenes_rlog.counts) # substract from the row mean to get +/- 0 to normalizze and ease the asthetic
+df_annot.col <- as.data.frame(colData(dds.d21)[c("Primary_Treatment","Second_Treament","Third_Treatment")])
+
+# colorblind palette
+# colorBlindBlack8  <- c("#000000", "#E69F00", "#56B4E9", "#009E73", 
+#                        "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+# pie(rep(1, 8), col = colorBlindBlack8)
+
+ann_colors = list(
+    Primary_Treatment = c(A="#56B4E9", M="#E69F00"),
+    Second_Treament = c(A = "#56B4E9", M = "#E69F00", S ="#D55E00"),
+    Third_Treatment = c(A = "#56B4E9", M = "#E69F00"))
+
+d21.rlog.heatmap <- pheatmap(topgenes_corrected, 
+                            annotation_col=df_annot.col, 
+                            main = "Day 21 PRIMARY Ambient versus Moderate (155 total DEGs; 40 shown)",
+                            #color = colorRampPalette(c("limegreen", "white", "gray39"))(50),
+                            cutree_cols = 3,
+                            cutree_rows = 2,
+                            annotation_legend = TRUE,
+                            annotation_colors = ann_colors,
+                            show_rownames = FALSE,
+                            labels_col=(paste(df_annot.col$Primary_Treatment,df_annot.col$Second_Treament, df_annot.col$Third_Treatment)), 
+                            angle_col = 45,
+                            fontsize = 6,
+                            legend = TRUE)
+#Save ppheatmap
+save_pheatmap(d21.rlog.heatmap, filename = "../Output/DESeq2/5cpm/Day21/Day21.PRIMARY.rlog_heatmap.png")
+```
+
+# grid volcano - primary treatment effect with constant DEGs > 5 mean LFC
+```{r grid volcano}
+library(gridExtra)
+volcano.Grid.Primary <- grid.arrange(Day7.volcano.primary, Day14.volcano.primary,ncol=1, nrow=2, clip="off")
+
+pdf("../Output/DESeq2/5cpm/volcano.Grid.Primary.pdf")
+Day7.volcano.primary
+# grid.arrange(Day7.volcano.primary, Day14.volcano.primary,ncol=1, nrow=2, clip="off")
+dev.off()
+```
+
+# summary table of DEGs and occurances ("persistant" DEGs)
+```{r Output_tables_and_knitr_summary_tables}
+# write to table
+# prep a table for knitr
+Primary.DEGs.table <- data.frame(matrix(nrow = 4, ncol = 6)) # create a new data table
+colnames(Primary.DEGs.table)<-c('Day', 'Treatment','Pairwise.compare', 'DEGs_total', 'DEGs_UP', 'DEGs_DOWN') 
+Primary.DEGs.table$Day <- c("0", "7", "14", "21")
+Primary.DEGs.table$Treatment <- "Primary"
+Primary.DEGs.table$Pairwise.compare <- "A_v_M"
+Primary.DEGs.table$DEGs_total <- c(d0.total, d7.total, d14.total, d21.total)
+Primary.DEGs.table$DEGs_UP <- c(d0.num.UpReg, d7.num.UpReg, d14.num.UpReg, d21.num.UpReg)
+Primary.DEGs.table$DEGs_DOWN <- c(d0.num.DownReg, d7.num.DownReg, d14.num.DownReg, d21.num.DownReg)
+
+
+# FDR histograms - red line shows the false discovery rate of 0.05 called in each model as "alpha = 0.05"
+# peaks at pdj < 0.05 above this line are considering true in the models
+# hist(resd0.primary$pvalue, breaks=20, col="grey")          + abline(h=(nrow(resd0.primary)*0.05),col="red")
+# hist(res.d7.primary$pvalue, breaks=20, col="grey")     + abline(h=(nrow(res.d7.primary)*0.05),col="red")
+# hist(res.d14_P.AvM_group$pvalue, breaks=20, col="grey")    + abline(h=(nrow(res.d14_P.AvM_group)*0.05),col="red")
+# hist(res.d21_Prim_AvM_group$pvalue, breaks=20, col="grey") + abline(h=(nrow(res.d21_Prim_AvM_group)*0.05),col="red")
+
+# output tables for DEGs 
+# Day 0 
+DE_d0.primary <- merge(as.data.frame(resd0.primary), as.data.frame(counts(dds.d0, normalized=FALSE)), by="row.names", sort=FALSE) %>% dplyr::filter(padj < 0.05) %>% mutate(up = log2FoldChange < 0) %>% mutate(down = log2FoldChange > 0) # remember! this model is M vA whereas the rest ate A v M
+write.csv(DE_d0.primary, "../Output/DESeq2/5cpm/Day0/DE_Day0_Primary.csv")
+
+# Day 7 
+DE_d7.primary <- merge(as.data.frame(res.d7.primary), as.data.frame(counts(dds.d7, normalized=FALSE)), by="row.names", sort=FALSE) %>% dplyr::filter(padj < 0.05) %>% mutate(up = log2FoldChange > 0) %>% mutate(down = log2FoldChange < 0)
+write.csv(DE_d7.primary, "../Output/DESeq2/5cpm/Day7/DE_Day7_Primary.csv")
+
+# Day 14 
+DE_d14.primary <- merge(as.data.frame(res.d14_primary), as.data.frame(counts(dds.d14, normalized=FALSE)), by="row.names", sort=FALSE) %>% dplyr::filter(padj < 0.05) %>% mutate(up = log2FoldChange > 0) %>% mutate(down = log2FoldChange < 0)
+write.csv(DE_d14.primary, "../Output/DESeq2/5cpm/Day14/DE_Day14_Primary.csv")
+
+# Day 21
+DE_d21.primary <- merge(as.data.frame(res.d21_primary), as.data.frame(counts(dds.d21, normalized=FALSE)), by="row.names", sort=FALSE) %>% dplyr::filter(padj < 0.05) %>% mutate(up = log2FoldChange > 0) %>% mutate(down = log2FoldChange < 0)
+write.csv(DE_d21.primary, "../Output/DESeq2/5cpm/Day21/DE_Day21_Primary.csv")
+
+
+d0_P.DEGs_boolean <- DE_d0.primary %>% dplyr::select(c("Row.names"
+,"log2FoldChange","padj","up","down")) %>% dplyr::mutate(Day_Trmt = "Day0_Primary_AvM")
+
+d7_P.DEGs_boolean <- DE_d7.primary %>% dplyr::select(c("Row.names"
+,"log2FoldChange","padj","up","down")) %>% dplyr::mutate(Day_Trmt = "Day7_Primary_AvM")
+
+d14_P.DEGs_boolean <- DE_d14.primary %>% dplyr::select(c("Row.names"
+,"log2FoldChange","padj","up","down")) %>% dplyr::mutate(Day_Trmt = "Day14_Primary_AvM")
+
+d21_P.DEGs_boolean <- DE_d21.primary %>% dplyr::select(c("Row.names"
+,"log2FoldChange","padj","up","down")) %>% dplyr::mutate(Day_Trmt = "Day21_Primary_AvM")
+
+All_DEGs_Primary.Ambieant_v_Moderate <- rbind(d0_P.DEGs_boolean,d7_P.DEGs_boolean, d14_P.DEGs_boolean,d21_P.DEGs_boolean)
+write.csv(All_DEGs_Primary.Ambieant_v_Moderate, "../Output/DESeq2/5cpm/DE_PrimaryTreatment.All.csv")
+
+# Summary table for the frequency that DEGs occured 
+# unique(All_DEGs_Primary.Ambieant_v_Moderate$Day_Trmt) # unique DAy_treat to filter
+DE_freq.upreg <-All_DEGs_Primary.Ambieant_v_Moderate %>%
+            filter(Day_Trmt %in% c('Day7_Primary_AvM', 'Day14_Primary_AvM', 'Day21_Primary_AvM')) %>% 
+            filter(up == TRUE) %>% 
+            group_by(Row.names, up) %>%
+            summarise(Freq = n()) %>% 
+            arrange(desc(Freq))
+DE_freq.upreg.sum <- DE_freq.upreg %>% group_by(Freq) %>% summarise(num.transcripts = n(),Direction = "upregulated")
+
+DE_freq.downreg <-All_DEGs_Primary.Ambieant_v_Moderate %>%
+            filter(Day_Trmt %in% c('Day7_Primary_AvM', 'Day14_Primary_AvM', 'Day21_Primary_AvM')) %>% 
+            filter(down == TRUE) %>% 
+            group_by(Row.names, down) %>%
+            summarise(Freq = n()) %>%
+            arrange(desc(Freq))
+DE_freq.downreg.sum <- DE_freq.downreg %>% group_by(Freq) %>% summarise(num.transcripts = n(),Direction = "downregulated")
+
+Constant.upreg.IDs <- DE_freq.upreg  %>%  dplyr::filter(Freq == 3)
+Constant.downreg.IDs <- DE_freq.downreg  %>%  dplyr::filter(Freq == 3)
+
+knitr::kable(Primary.DEGs.table, caption = "Primary Treatment DEGs [10 cpm in 50%; FDR 0.05; padj <0.05; LFC >1]")
+knitr::kable(rbind(DE_freq.downreg.sum, DE_freq.upreg.sum),caption = "Primary Treatment DEGs, occurances on days 7, 14, 21: (1 = unique; 2 = d days; 3 = all days)")
+
+write.csv((rbind(DE_freq.downreg, DE_freq.upreg)), "../Output/DESeq2/5cpm/Summary_Primary_DEGs_occurances_5cpm.csv")
+write.csv((rbind(Constant.downreg.IDs, Constant.upreg.IDs)), "../Output/DESeq2/5cpm/Summary_Primary_DEGs_occurances_5cpm_GeneIDs.csv")
+write.csv(Primary.DEGs.table, "../Output/DESeq2/5cpm/Summary_Primary_DEGs_5cpm.csv")
+```
+
+
+# Interaction terms: 
+For loops using ~group -1 dds design to constrast all pairwise interaction terms: padj < 0.05; FDR 5%; LFC >1 (<-1) 
+```{r GROUP_Day 7, 14, and 21}
+# Day 7: ALL PAIRWISE COMPARISONS
+d7.GROUP.DEGs_table = data.frame() # start a data frame
+df_d7_group<- data.frame(resultsNames(dds.d7.group))
+unique.vars <- df_d7_group[1,]
+for(i in 1:nrow(df_d7_group)) {
+  
+      var <- df_d7_group[i,]
+      T_F <- (df_d7_group[,1]!=c(unique.vars,var))
+      df_d7_group_2 <- data.frame(df_d7_group[T_F,])
+
+      for(j in 1:nrow(df_d7_group_2)) {
+          
+          var2 <- df_d7_group_2[j,]
+          res <- results(dds.d7.group, contrast = list((var),(var2)),  alpha= 0.05) 
+          res.table<-as.data.frame(table(res$padj<0.05))
+          DEGs_total <- res.table[2,2]
+          DEGs_total[is.na(DEGs_total)] <- 0
+          DEGs.table <- data.frame(matrix(nrow = 1, ncol = 6)) # create a new data table
+          colnames(DEGs.table)<-c('Day', 'Treatment', 'Pairwise.compare', 'DEGs_total', 'DEGs_UP', 'DEGs_DOWN') 
+          res.order <- res[order(res$padj), ] ## Order by adjusted p-value
+          DEGs.table$Day <- "7"
+          DEGs.table$Treatment <- "full_interaction"
+          DEGs.table$Pairwise.compare <- paste((substr(var, 14,15)), (substr(var2, 14,15)), sep = "_")
+          DEGs.table$DEGs_total <- DEGs_total
+          DEGs.table$DEGs_UP <- sum((res.order$log2FoldChange[1:(DEGs_total)] > 0) == TRUE) 
+          DEGs.table$DEGs_DOWN <- sum((res.order$log2FoldChange[1:(DEGs_total)] < 0) == TRUE) 
+          df.group <- data.frame(DEGs.table) # name dataframe for this single row
+          d7.GROUP.DEGs_table <- rbind(d7.GROUP.DEGs_table, df.group) # bind to a cumulative list dataframe
+          unique.vars <- unique((substr(d7.GROUP.DEGs_table$Pairwise.compare,1,2)))
+      } 
+}
+d7.full.interaction.DEGs <- d7.GROUP.DEGs_table[-grep("MM_A|MA_A|MS_A|MM_M|MS_MA|AM_AA|AS_AA", d7.GROUP.DEGs_table$Pairwise.compare),] # ommit redundant pairwise results - same pairwise in opposite direaction
+
+# Day 14: ALL PAIRWISE COMPARISONS
+d14.GROUP.DEGs_table = data.frame() # start a data frame
+df_d14_group<- data.frame(resultsNames(dds.d14.group))
+unique.vars <- df_d14_group[1,]
+for(i in 1:nrow(df_d14_group)) {
+  
+      var <- df_d14_group[i,]
+      T_F <- (df_d14_group[,1]!=c(unique.vars,var))
+      df_d14_group_2 <- data.frame(df_d14_group[T_F,])
+
+      for(j in 1:nrow(df_d14_group_2)) {
+          
+          var2 <- df_d14_group_2[j,]
+          res <- results(dds.d14.group, contrast = list((var),(var2)),  alpha= 0.05) 
+          res.table<-as.data.frame(table(res$padj<0.05))
+          DEGs_total <- res.table[2,2]
+          DEGs_total[is.na(DEGs_total)] <- 0
+          DEGs.table <- data.frame(matrix(nrow = 1, ncol = 6)) # create a new data table
+          colnames(DEGs.table)<-c('Day', 'Treatment', 'Pairwise.compare', 'DEGs_total', 'DEGs_UP', 'DEGs_DOWN') 
+          res.order <- res[order(res$padj), ] ## Order by adjusted p-value
+          DEGs.table$Day <- "14"
+          DEGs.table$Treatment <- "full_interaction"
+          DEGs.table$Pairwise.compare <- paste((substr(var, 14,15)), (substr(var2, 14,15)), sep = "_")
+          DEGs.table$DEGs_total <- DEGs_total
+          DEGs.table$DEGs_UP <- sum((res.order$log2FoldChange[1:(DEGs_total)] > 0) == TRUE) 
+          DEGs.table$DEGs_DOWN <- sum((res.order$log2FoldChange[1:(DEGs_total)] < 0) == TRUE) 
+          df.group <- data.frame(DEGs.table) # name dataframe for this single row
+          d14.GROUP.DEGs_table <- rbind(d14.GROUP.DEGs_table, df.group) # bind to a cumulative list dataframe
+          unique.vars <- unique((substr(d14.GROUP.DEGs_table$Pairwise.compare,1,2)))
+      } 
+}
+d14.full.interaction.DEGs <- d14.GROUP.DEGs_table[-grep("MM_A|MA_A|MS_A|MM_M|MS_MA|AM_AA|AS_AA", d14.GROUP.DEGs_table$Pairwise.compare),] # ommit redundant pairwise results - same pairwise in opposite direaction
+
+
+# Day 21: ALL PAIRWISE COMPARISONS
+d21.GROUP.DEGs_table = data.frame() # start a data frame
+df_d21_group<- data.frame(resultsNames(dds.d21.group))
+unique.vars <- df_d21_group[1,]
+for(i in 1:nrow(df_d21_group)) {
+  
+      var <- df_d21_group[i,]
+      T_F <- (df_d21_group[,1]!=c(unique.vars,var))
+      df_d21_group_2 <- data.frame(df_d21_group[T_F,])
+
+      for(j in 1:nrow(df_d21_group_2)) {
+          
+          var2 <- df_d21_group_2[j,]
+          res <- results(dds.d21.group, contrast = list((var),(var2)),  alpha= 0.05) 
+          res.table<-as.data.frame(table(res$padj<0.05))
+          DEGs_total <- res.table[2,2]
+          DEGs_total[is.na(DEGs_total)] <- 0
+          DEGs.table <- data.frame(matrix(nrow = 1, ncol = 6)) # create a new data table
+          colnames(DEGs.table)<-c('Day', 'Treatment', 'Pairwise.compare', 'DEGs_total', 'DEGs_UP', 'DEGs_DOWN') 
+          res.order <- res[order(res$padj), ] ## Order by adjusted p-value
+          DEGs.table$Day <- "21"
+          DEGs.table$Treatment <- "full_interaction"
+          DEGs.table$Pairwise.compare <- paste((substr(var, 14,16)), (substr(var2, 14,16)), sep = "_")
+          DEGs.table$DEGs_total <- DEGs_total
+          DEGs.table$DEGs_UP <- sum((res.order$log2FoldChange[1:(DEGs_total)] > 0) == TRUE) 
+          DEGs.table$DEGs_DOWN <- sum((res.order$log2FoldChange[1:(DEGs_total)] < 0) == TRUE) 
+          df.group <- data.frame(DEGs.table) # name dataframe for this single row
+          d21.GROUP.DEGs_table <- rbind(d21.GROUP.DEGs_table, df.group) # bind to a cumulative list dataframe
+          unique.vars <- unique((substr(d21.GROUP.DEGs_table$Pairwise.compare,1,3)))
+      } 
+}
+View(d21.GROUP.DEGs_table)
+d21.full.interaction.DEGs <- d21.GROUP.DEGs_table[-grep("MAA_A|MAM_A|MMA_A|MMM_A|MSA_A|MSM_A|MMA_MA|MMM_M|MSA_MA|MSM_MA|MAM_MAA", d21.GROUP.DEGs_table$Pairwise.compare),] # ommit redundant pairwise results - same pairwise in opposite direaction
+View(d21.full.interaction.DEGs)
+# knitr table
+knitr::kable(rbind(d7.full.interaction.DEGs, d14.full.interaction.DEGs, d21.full.interaction.DEGs), caption = "All pairwise DEGs in 'group' DESeq2 model")
+Summary_group_interactions <- rbind(d7.full.interaction.DEGs, d14.full.interaction.DEGs, d21.full.interaction.DEGs)
+# Write csv 
+write.csv(Summary_group_interactions, "../Output/DESeq2/5cpm/Summary_group_interactions.csv")
+```
+
+# Summary Table 
+compile the Main Effects & Interaction terms for a summary table of all pariwise results 
+```{r FinalTable}
+Primary.DEGs.table # primary results only 
+Summary_group_interactions # all the group interactions 
+```
