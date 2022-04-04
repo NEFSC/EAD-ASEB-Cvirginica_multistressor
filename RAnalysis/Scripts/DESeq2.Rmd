@@ -17,9 +17,7 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, cache = TRU
 ### Load libraries
 ```{r load_libraries, include = TRUE}
 # load libraries - notes show the install command needed to install (pre installed)
-library(DESeq2) # note: this was previously installed with the command `BiocManager::install("DESeq2")`
-library(edgeR)
-library(goseq)
+install.packages("calibrate")
 library(dplyr)
 library(GenomicFeatures)
 library(data.table)
@@ -34,6 +32,10 @@ library(RColorBrewer)
 library(pcaExplorer) 
 
 #BiocManager::install for these packages
+BiocManager::install("pcaExplorer")
+library(DESeq2) # note: this was previously installed with the command `BiocManager::install("DESeq2")`
+library(edgeR)
+library(goseq)
 library(affycoretools) 
 library(vsn)
 library(tidybulk)
@@ -46,9 +48,9 @@ library(pcaExplorer)
 ```{r set_wd, include = TRUE}
 
 # SET WORKING DIRECTORY AND LOAD DATA
-setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/")
+setwd("C:/Users/samuel.gurr/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/")
 getwd()
-path = 'C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Output/DESeq2/' # personnal computer
+path = 'C:/Users/samuel.gurr/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Output/DESeq2/' # personnal computer
 ```
 
 
@@ -555,6 +557,30 @@ ggplot(pcaData_d2, aes(x = PC1, y = PC2,  alpha = OA, shape = Salinity, color = 
   coord_fixed()
 dev.off()
 
+iris
+
+dat <- as.data.frame(assay(rlog.d2)[,c(1:(ncol(assay(rlog.d2))))])
+head(dat)
+assay(rlog.d2)
+d2.exp_data_rename <- d2.exp_data %>% dplyr::rename('Sample.ID' = 'SapleName_readmatrix')
+samp.with.rownames <- as.data.frame(t(dat)) %>% 
+  tibble::rownames_to_column("Sample.ID")
+ncol(samp.with.rownames)
+samp.with.rownamesMERGED <- merge(samp.with.rownames, d2.exp_data_rename)
+ncol(samp.with.rownamesMERGED)
+
+iris
+pca = prcomp(samp.with.rownamesMERGED[,c(2:4821)]) 
+ggbiplot(pca,groups = samp.with.rownamesMERGED$Salinity,ellipse = T,ellipse.prob = .95)
+theme(axis.text=element_text(size=8),
+theme(axis.text=element_text(size=8),
+theme(axis.text=element_text(size=8),
+theme(axis.text=element_text(size=8),
+theme(axis.text=element_text(size=8),
+theme(axis.text=element_text(size=8),
+
+      
+      
 
 # Plot heatmap map rlog ::::::::::::::::::::::::::::::
 # save heatmap fxn
