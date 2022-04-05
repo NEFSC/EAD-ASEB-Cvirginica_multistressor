@@ -40,8 +40,9 @@ Set working directory and outpath
 ```{r set_wd, include = TRUE}
 
 # SET WORKING DIRECTORY AND LOAD DATA
-setwd("C:/Users/samjg/Documents/Github_repositories/Pgenerosa_TagSeq_Metabolomics/TagSeq/Analysis/")
-path_out='C:/Users/samjg/Documents/Github_repositories/Pgenerosa_TagSeq_Metabolomics/TagSeq/Analysis/Output/GO/'
+setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/")
+path_out = 'C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Output/DESeq2/' # personnal computer
+
 ```
 
 LOAD DATA:
@@ -53,45 +54,37 @@ Geoduck_annotation <- read.delim2(file="C:/Users/samjg/Documents/Github_reposito
 # DE files - all genes and filtered raw counts
 #  contains boolean for upregulated and downregulated DEGs
 # DEGs: Primary Effect  - Ambient_v_Moderate
-DE_d0.primary <- read.csv(file="C:/Users/samjg/Documents/Github_repositories/Pgenerosa_TagSeq_Metabolomics/TagSeq/Analysis/Output/DESeq2/10cpm/Day0/DE_Day0_Primary.csv", sep=',', header=TRUE)
-colnames(DE_d0.primary)[2] <- "gene.ID" # rename Pgen gene ID column
+DE_d2.Temperature <- read.csv(file="C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Output/DESeq2/Day2_larva/DEG_data/Day2.Temperature_DESeq2results.csv", sep=',', header=TRUE)
+DE_d2.Salinity    <- read.csv(file="C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Output/DESeq2/Day2_larva/DEG_data/Day2.Salinity_DESeq2results.csv", sep=',', header=TRUE)
+DE_d2.OA          <- read.csv(file="C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Output/DESeq2/Day2_larva/DEG_data/Day2.OA_DESeq2results.csv", sep=',', header=TRUE)
+colnames(DE_d2.Temperature)[2]  == "TranscriptID" # TRUE
+colnames(DE_d2.Salinity)[2]     == "TranscriptID" # TRUE
+colnames(DE_d2.OA)[2]           == "TranscriptID" # TRUE
+
+DE_d18.Salinity    <- read.csv(file="C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Output/DESeq2/Day18_spat/DEG_data/Day18.salinity_DESeq2results.csv", sep=',', header=TRUE)
+DE_d18.OA          <- read.csv(file="C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Output/DESeq2/Day18_spat/DEG_data/Day18.OA_DESeq2results.csv", sep=',', header=TRUE)
+colnames(DE_d18.Salinity)[2]     == "TranscriptID" # TRUE
+colnames(DE_d18.OA)[2]           == "TranscriptID" # TRUE
+
 
 DE_d7.primary <- read.csv(file="C:/Users/samjg/Documents/Github_repositories/Pgenerosa_TagSeq_Metabolomics/TagSeq/Analysis/Output/DESeq2/10cpm/Day7/DE_Day7_Primary.csv", sep=',', header=TRUE) 
 colnames(DE_d7.primary)[2] <- "gene.ID"# rename Pgen gene ID column
 
-DE_d7.second <- read.csv(file="C:/Users/samjg/Documents/Github_repositories/Pgenerosa_TagSeq_Metabolomics/TagSeq/Analysis/Output/DESeq2/10cpm/Day7/DE_Day7_Second.csv", sep=',', header=TRUE) 
-colnames(DE_d7.second)[2] <- "gene.ID"# rename Pgen gene ID column
-
-DE_d7.MA_AM <- read.csv(file="C:/Users/samjg/Documents/Github_repositories/Pgenerosa_TagSeq_Metabolomics/TagSeq/Analysis/Output/DESeq2/10cpm/Day7/DE_Day7_MA_AM.csv", sep=',', header=TRUE) 
-colnames(DE_d7.MA_AM)[2] <- "gene.ID"# rename Pgen gene ID column
-
-
-
-DE_d14.primary <- read.csv(file="C:/Users/samjg/Documents/Github_repositories/Pgenerosa_TagSeq_Metabolomics/TagSeq/Analysis/Output/DESeq2/10cpm/Day14/DE_Day14_Primary.csv", sep=',', header=TRUE) 
-colnames(DE_d14.primary)[2] <- "gene.ID"# rename Pgen gene ID column
-
-DE_d21.primary <- read.csv(file="C:/Users/samjg/Documents/Github_repositories/Pgenerosa_TagSeq_Metabolomics/TagSeq/Analysis/Output/DESeq2/10cpm/Day21/DE_Day21_Primary.csv", sep=',', header=TRUE) 
-colnames(DE_d21.primary)[2] <- "gene.ID"# rename Pgen gene ID column
-
 #  mapped read counts for each Day (addressed separately in DESeq2)
 # day0 filtered 10cpm in 50% samples
-Day0_all.counts <- read.csv(file="C:/Users/samjg/Documents/Github_repositories/Pgenerosa_TagSeq_Metabolomics/TagSeq/Analysis/Data/Filtered_Counts/10cpm_50perc/day0.counts.filtered_10cpm50perc.csv", sep=',', header=TRUE) 
-colnames(Day0_all.counts)[1] <- "gene.ID"# rename Pgen gene ID column
+d2.counts   <- read.csv(file="../Data/TagSeq/Filtered_counts/filtered_counts_5cpm_50perc/day2.filtered_5cpm50perc.csv", sep=',', header=TRUE) %>% dplyr::rename("TranscriptID" = "X")
+d18.counts  <- read.csv(file="../Data/TagSeq/Filtered_counts/filtered_counts_5cpm_50perc/day18.counts.filtered_5cpm50perc.csv", sep=',', header=TRUE) %>% dplyr::rename("TranscriptID" = "X")
 
-# day7 filtered 10cpm in 50% samples
-Day7_all.counts <- read.csv(file="C:/Users/samjg/Documents/Github_repositories/Pgenerosa_TagSeq_Metabolomics/TagSeq/Analysis/Data/Filtered_Counts/10cpm_50perc/day7.counts.filtered_10cpm50perc.csv", sep=',', header=TRUE) 
-colnames(Day7_all.counts)[1] <- "gene.ID"# rename Pgen gene ID column
-
-# day14 filtered 10cpm in 50% samples
-Day14_all.counts <- read.csv(file="C:/Users/samjg/Documents/Github_repositories/Pgenerosa_TagSeq_Metabolomics/TagSeq/Analysis/Data/Filtered_Counts/10cpm_50perc/day14.counts.filtered_10cpm50perc.csv", sep=',', header=TRUE) 
-colnames(Day14_all.counts)[1] <- "gene.ID"# rename Pgen gene ID column
-
-# day21 filtered 10cpm in 50% samples
-Day21_all.counts <- read.csv(file="C:/Users/samjg/Documents/Github_repositories/Pgenerosa_TagSeq_Metabolomics/TagSeq/Analysis/Data/Filtered_Counts/10cpm_50perc/day21.counts.filtered_10cpm50perc.csv", sep=',', header=TRUE) 
-colnames(Day21_all.counts)[1] <- "gene.ID"# rename Pgen gene ID column
-
-All_DEGs_Primary.Ambieant_v_Moderate<-read.csv("C:/Users/samjg/Documents/Github_repositories/Pgenerosa_TagSeq_Metabolomics/TagSeq/Analysis/Output/DESeq2/10cpm/DE_PrimaryTreatment.All.csv")
-
+# annotation master data 
+# first the crassotrea virginica reference - containing the transcript IDs and functional annotation (nOTE: no KEGG or GO term-level annotation in this file!)
+Cvirginica_annot_reference  <- read.csv(file="../Data/TagSeq/Seq_details/seq_id_master.csv", sep=',', header=TRUE) %>% 
+                                dplyr::select(!X)
+# upload the Crrassostrea gigas (Pacific oyster) KEGG reference 
+Cgigas_KEGGIDs <-as.data.frame(read.delim2(file = "C:/Users/samjg/Documents/Bioinformatics/refs/Cgigas/T03920_(2021_06_23 21_09_09 UTC).nuc", header=FALSE)) %>% 
+                      filter(grepl(">crg:", V1)) %>% 
+                      dplyr::mutate(KEGG_ID = gsub("\\s.*|>", "",V1)) %>% 
+                      dplyr::mutate(Function = gsub("\\sLOC105.*|*.;", "", substring(V1, 16))) %>% 
+                      dplyr::select(!V1)
 
 # GOslim
 slim <- getOBOCollection("http://current.geneontology.org/ontology/subsets/goslim_generic.obo") #get GO database - # call goslim_generic.obo terms as 'slim'
@@ -99,67 +92,108 @@ slim <- getOBOCollection("http://current.geneontology.org/ontology/subsets/gosli
 ```
 
 ```{r }
-
+library(magrittr)
 # create a referecne from the Geoduck annotation file to merge with the DE sumamry lists 
-ref <- Geoduck_annotation[,c(1,7)]
-colnames(ref) <- c("gene.ID", "gene.annotation")
+ref           <- Cvirginica_annot_reference[,c(2:3)] %>%
+                 dplyr::mutate(Function = gsub("\\s\\(LOC.*|\\sLOC111.*", "", perl=TRUE, Function))
 
-# Day 0 primary 
-DE_d0.primary_SHORT <- DE_d0.primary %>% dplyr::select("gene.ID", 'log2FoldChange', 'up', 'down') %>% mutate(Effect = "Day0_primary")
-# Day 7 primary 
-DE_d7.primary_SHORT <- DE_d7.primary %>% dplyr::select("gene.ID", 'log2FoldChange', 'up', 'down') %>% mutate(Effect = "Day7_primary")
-# Day 7 second 
-DE_d7.second_SHORT <- DE_d7.second%>% dplyr::select("gene.ID", 'log2FoldChange', 'up', 'down') %>% mutate(Effect = "Day7_second")
-# Day 7 MA versus AM
-DE_d7.MAversusAM_SHORT <- DE_d7.MA_AM %>% dplyr::select("gene.ID", 'log2FoldChange', 'up', 'down') %>% mutate(Effect = "Day7_MAversusAM")
-# Day 14 primary 
-DE_d14.primary_SHORT <- DE_d14.primary %>% dplyr::select("gene.ID", 'log2FoldChange', 'up', 'down') %>% mutate(Effect = "Day14_primary")
-# Day 21 primary 
-DE_d21.primary_SHORT <- DE_d21.primary %>% dplyr::select("gene.ID", 'log2FoldChange', 'up', 'down') %>% mutate(Effect = "Day21_primary")
+nrow(ref)
+
+ref_withCgigasKEGG <- merge(ref, Cgigas_KEGGIDs)
+
+# ref$Function # View the new column Function
 
 
-DE_Master <- rbind(DE_d0.primary_SHORT, DE_d7.primary_SHORT, DE_d7.second_SHORT, DE_d7.MAversusAM_SHORT, DE_d14.primary_SHORT, DE_d21.primary_SHORT)
+# Day 2 larva temperature pairwise main effect (high v. low)
+DE_d2.Temperaturey_SHORT <- DE_d2.Temperature %>% 
+                              dplyr::select("TranscriptID", 'log2FoldChange', 'padj') %>% 
+                              dplyr::filter(!padj > 0.05) %>% 
+                              dplyr::mutate(Dir = case_when(log2FoldChange > 0 ~ "up", log2FoldChange < 0 ~ "down")) %>%  
+                              dplyr::mutate(Effect = "Day2_Temperature") %>% 
+                              dplyr::mutate(time = "d2_larva")
+# Day 2 larva Salinity pairwise main effect (high v. low)
+DE_d2.Salinity_SHORT     <- DE_d2.Salinity %>% 
+                              dplyr::select("TranscriptID", 'log2FoldChange', 'padj') %>% 
+                              dplyr::filter(!padj > 0.05) %>% 
+                              dplyr::mutate(Dir = case_when(log2FoldChange > 0 ~ "up", log2FoldChange < 0 ~ "down")) %>%  
+                              dplyr::mutate(Effect = "Day2_Salinity") %>% 
+                              dplyr::mutate(time = "d2_larva")
+# Day 2 larva OA pairwise main effect (high v. low)
+DE_d2.OA_SHORT           <- DE_d2.OA %>% 
+                              dplyr::select("TranscriptID", 'log2FoldChange', 'padj') %>% 
+                              dplyr::filter(!padj > 0.05) %>% 
+                              dplyr::mutate(Dir = case_when(log2FoldChange > 0 ~ "up", log2FoldChange < 0 ~ "down")) %>%  
+                              dplyr::mutate(Effect = "Day2_OA") %>% 
+                              dplyr::mutate(time = "d2_larva")
 
-DE_Master_with_annotation <- merge(DE_Master, ref, by="gene.ID")
 
-write.csv(DE_Master_with_annotation, file = "../Output/DESeq2/10cpm/DE_All_Annotation.csv", row.names = FALSE)
+# Day 18 larva Salinity pairwise main effect (high v. low)
+DE_d18.Salinity_SHORT     <- DE_d18.Salinity %>% 
+                              dplyr::select("TranscriptID", 'log2FoldChange', 'padj') %>% 
+                              dplyr::filter(!padj > 0.05) %>% 
+                              dplyr::mutate(Dir = case_when(log2FoldChange > 0 ~ "up", log2FoldChange < 0 ~ "down")) %>%  
+                              dplyr::mutate(Effect = "Day18_Salinity") %>% 
+                              dplyr::mutate(time = "d18_spat")
+# Day 18 larva OA pairwise main effect (high v. low)
+DE_d18.OA_SHORT           <- DE_d18.OA %>% 
+                              dplyr::select("TranscriptID", 'log2FoldChange', 'padj') %>% 
+                              dplyr::filter(!padj > 0.05) %>% 
+                              dplyr::mutate(Dir = case_when(log2FoldChange > 0 ~ "up", log2FoldChange < 0 ~ "down")) %>%  
+                              dplyr::mutate(Effect = "Day18_OA") %>% 
+                              dplyr::mutate(time = "d18_spat")
+
+# merge to a master file
+DE_Master <- rbind(DE_d2.Temperaturey_SHORT, DE_d2.Salinity_SHORT, DE_d2.OA_SHORT, 
+                   DE_d18.Salinity_SHORT, DE_d18.OA_SHORT)
+
+DE_Master_with_annotation <- merge(DE_Master, ref, by="TranscriptID")
+
+write.csv(DE_Master_with_annotation, file = "../Output/DESeq2/DE_All_Annotation.csv", row.names = FALSE)
+
 ```
 Prep Differential Expression data (from DESeq2) by Date and direction of DE 
+
+
 ```{r}
+
+DE_Master_with_annotation <- read.csv(file="C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Output/DESeq2/DE_All_Annotation.csv", sep=',', header=TRUE)
+
 # Objective here is to call the DE genes (up and down) 
-# DAY 0 ------------------------------------------- #
-dim(DE_d0.primary) # day0 - should be 14
-DE_d0.primary.UPREG  <- DE_d0.primary %>% dplyr::filter(up %in% TRUE)               # UPREG call
-DE_d0.primary.DWNREG <- DE_d0.primary %>% dplyr::filter(down %in% TRUE)             # DWNREG call
-# DAY 7 ------------------------------------------- #
-dim(DE_d7.primary) # day7 - should be 108
-DE_d7.primary.UPREG  <- DE_d7.primary %>% dplyr::filter(up %in% TRUE)               # UPREG call
-DE_d7.primary.DWNREG <- DE_d7.primary %>% dplyr::filter(down %in% TRUE)             # DWNREG call
-
-dim(DE_d7.second) # day7 - should be 106
-DE_d7.second.UPREG  <- DE_d7.second %>% dplyr::filter(up %in% TRUE)               # UPREG call
-DE_d7.second.DWNREG <- DE_d7.second %>% dplyr::filter(down %in% TRUE)             # DWNREG call
-
-dim(DE_d7.MA_AM) # day7 - should be 168
-DE_d7.MA_AM.UPREG  <- DE_d7.MA_AM %>% dplyr::filter(up %in% TRUE)               # UPREG call
-DE_d7.MA_AM.DWNREG <- DE_d7.MA_AM %>% dplyr::filter(down %in% TRUE)             # DWNREG call
+# DAY 2 Temperature------------------------------------------- #
+DE_d2.Temperature.UPREG  <- DE_Master_with_annotation %>% dplyr::filter(Effect %in% "Day2_Temperature") %>% dplyr::filter(Dir %in% 'up')               # UPREG call
+DE_d2.Temperature.DWNREG <- DE_Master_with_annotation %>% dplyr::filter(Effect %in% "Day2_Temperature") %>% dplyr::filter(Dir %in% 'down')             # DWNREG call
+# DAY 2 Salinity   ------------------------------------------- #
+DE_d2.Salinity.UPREG     <- DE_Master_with_annotation %>% dplyr::filter(Effect %in% "Day2_Salinity") %>% dplyr::filter(Dir %in% 'up')               # UPREG call
+DE_d2.Salinity.DWNREG    <- DE_Master_with_annotation %>% dplyr::filter(Effect %in% "Day2_Salinity") %>% dplyr::filter(Dir %in% 'down')             # DWNREG call
+# DAY 2 OA         ------------------------------------------- #
+DE_d2.OA.UPREG           <- DE_Master_with_annotation %>% dplyr::filter(Effect %in% "Day2_OA") %>% dplyr::filter(Dir %in% 'up')               # UPREG call
+DE_d2.OA.DWNREG          <- DE_Master_with_annotation %>% dplyr::filter(Effect %in% "Day2_OA") %>% dplyr::filter(Dir %in% 'down')             # DWNREG call
 
 
-# DAY 14 ------------------------------------------- #
-dim(DE_d14.primary) # day14 - should be 429
-DE_d14.primary.UPREG  <- DE_d14.primary %>% dplyr::filter(up %in% TRUE)             # UPREG call
-DE_d14.primary.DWNREG <- DE_d14.primary %>% dplyr::filter(down %in% TRUE)           # DWNREG call
-# DAY 21 ------------------------------------------- #
-dim(DE_d21.primary) # day21 - should be 155
-DE_d21.primary.UPREG  <- DE_d21.primary %>% dplyr::filter(up %in% TRUE)             # UPREG call
-DE_d21.primary.DWNREG <- DE_d21.primary %>% dplyr::filter(down %in% TRUE)           # DWNREG call
+# Day 18 Salinity   ------------------------------------------- #
+DE_d18.Salinity.UPREG    <- DE_Master_with_annotation %>% dplyr::filter(Effect %in% "Day18_Salinity") %>% dplyr::filter(Dir %in% 'up')               # UPREG call
+DE_d18.Salinity.DWNREG   <- DE_Master_with_annotation %>% dplyr::filter(Effect %in% "Day18_Salinity") %>% dplyr::filter(Dir %in% 'down')             # DWNREG call
+# Day 18 OA         ------------------------------------------- #
+DE_d18.OA.UPREG          <- DE_Master_with_annotation %>% dplyr::filter(Effect %in% "Day18_OA") %>% dplyr::filter(Dir %in% 'up')               # UPREG call
+DE_d18.OA.DWNREG         <- DE_Master_with_annotation %>% dplyr::filter(Effect %in% "Day18_OA") %>% dplyr::filter(Dir %in% 'down')             # DWNREG call
 
-# All genes  ------------------------------------------- #
-dim(All_DEGs_Primary.Ambieant_v_Moderate) # day21 - should be 155
-All.primary.UPREG  <- All_DEGs_Primary.Ambieant_v_Moderate %>% dplyr::filter(up %in% TRUE)             # UPREG call
-All.primary.DWNREG <- All_DEGs_Primary.Ambieant_v_Moderate %>% dplyr::filter(down %in% TRUE)           # DWNREG call
-nrow(All.primary.DWNREG) ==sum( (nrow(DE_d21.primary.DWNREG)) , (nrow(DE_d14.primary.DWNREG)) , (nrow(DE_d7.primary.DWNREG)), (nrow(DE_d0.primary.DWNREG))) # SHOULD BE TRUE
-nrow(All.primary.UPREG) ==sum( (nrow(DE_d21.primary.UPREG)) , (nrow(DE_d14.primary.UPREG)) , (nrow(DE_d7.primary.UPREG)), (nrow(DE_d0.primary.UPREG))) # SHOULD BE TRUE
+
+
+# All genes - and all by common abiotic challenge  (----------------------------)not including uncharacterized annotations)  -------------------------------------------------------- #
+All.Salinity.UPREG        <- rbind(DE_d2.Salinity.UPREG,DE_d18.Salinity.UPREG) %>% add_count(TranscriptID)# UPREG call
+Constant_UPREG_Salinity   <- unique(All.Salinity.UPREG %>% dplyr::filter(n %in% 2) %>%  dplyr::select(c('Function','TranscriptID')) %>% dplyr::filter(!Function %in% " uncharacterized")  )
+
+All.Salinity.DWNREG       <- rbind(DE_d2.Salinity.DWNREG,DE_d18.Salinity.DWNREG) %>% add_count(TranscriptID)# UPREG call
+Constant_DWNREG_Salinity  <- unique(All.Salinity.DWNREG %>% dplyr::filter(n %in% 2) %>%  dplyr::select(c('Function','TranscriptID')) %>% dplyr::filter(!Function %in% " uncharacterized")  )
+
+
+All.OA.UPREG              <- rbind(DE_d2.OA.UPREG,DE_d18.OA.UPREG) %>% add_count(TranscriptID)# UPREG call
+Constant_UPREG_OA         <- unique(All.OA.UPREG %>% dplyr::filter(n %in% 2) %>%  dplyr::select(c('Function','TranscriptID')) %>% dplyr::filter(!Function %in% " uncharacterized")  )
+
+All.OA.DWNREG             <- rbind(DE_d2.OA.DWNREG,DE_d18.OA.DWNREG) %>% add_count(TranscriptID)# UPREG call
+Constant_DWNREG_OA        <- unique(All.OA.DWNREG %>% dplyr::filter(n %in% 2) %>%  dplyr::select(c('Function','TranscriptID')) %>% dplyr::filter(!Function %in% " uncharacterized")  )
+
+
 
 
 ```
@@ -243,10 +277,10 @@ Prepare dataframe(s) and vectors for goseq
 (1) Format 'GO.term' for goseq from the P.generosa annotation .fna file 'Geoduck_annotation'
 ```{r GO.terms_data}
 # call the GO terms
-Geoduck_GOterms <- as.data.frame(Geoduck_annotation) %>% dplyr::select(c('V1','V8'))
+Geoduck_GOterms                <- as.data.frame(Geoduck_annotation) %>% dplyr::select(c('V1','V8'))
 colnames(Geoduck_GOterms)[1:2] <- c('transcript.ID', 'GO.terms') # call gene name and the GO terms - (Uniprot ID 'V5')
-splitted <- strsplit(as.character(Geoduck_GOterms$GO.terms), "; ") #slit into multiple GO ids by delimiter'; ' remember the space after ; is needed here! without this you will only call the first listed GO term for each gene!
-GO.terms <- data.frame(v1 = rep.int(Geoduck_GOterms$transcript.ID, sapply(splitted, length)), v2 = unlist(splitted)) #list all genes with each of their GO terms in a single row
+splitted                       <- strsplit(as.character(Geoduck_GOterms$GO.terms), "; ") #slit into multiple GO ids by delimiter'; ' remember the space after ; is needed here! without this you will only call the first listed GO term for each gene!
+GO.terms                       <- data.frame(v1 = rep.int(Geoduck_GOterms$transcript.ID, sapply(splitted, length)), v2 = unlist(splitted)) #list all genes with each of their GO terms in a single row
 ```
 
 
