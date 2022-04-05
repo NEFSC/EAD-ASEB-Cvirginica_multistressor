@@ -85,7 +85,11 @@ nrow(Cvirginica_annot_reference) #66625 including all genes
 nrow(Cvirginica_annot_reference %>% dplyr::filter(grepl('uncharacterized', Function))) #27164 EXCLUDING those labeled  as 'uncharacterized'
 
 # GO terms: upload the Crassostrea gigas (Pacific oyster) data downloaded from Uniprot (contains GO term annotation!)
-Cgigas_GOterms  <- read_excel("../Data/TagSeq/Seq_details/uniprot_Crassostrea_gigas") 
+Cgigas_GOterms  <- read.csv(file="../Data/TagSeq/Seq_details/uniprot_Crassostrea_gigas.csv", sep=',', header=TRUE) %>% 
+                      dplyr::select(c('','','','','Protein.names','Gene.ontology.IDs'))
+  
+  
+  read_excel("../Data/TagSeq/Seq_details/uniprot_Crassostrea_gigas") 
 read.table(readLines("../Data/TagSeq/Seq_details/uniprot_Crassostrea_gigas.xlsx", warn = FALSE), sep = "\t", header=TRUE)
 # KEGG IDs: upload the Crassostrea gigas (Pacific oyster) KEGG reference 
 Cgigas_KEGGIDs <-as.data.frame(read.delim2(file = "C:/Users/samjg/Documents/Bioinformatics/refs/Cgigas/T03920_(2021_06_23 21_09_09 UTC).nuc", header=FALSE)) %>% 
