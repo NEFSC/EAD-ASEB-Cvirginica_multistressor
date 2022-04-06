@@ -2,7 +2,13 @@
 
 # ------------------ new notes to add
 blast using diamond 
-import the KEGG fasta fle for C gigas to SEDNA 
+
+first translate the KEGG cigas nucleotide to protein using the site https://www.bioinformatics.org/sms2/translate.html
+make sure to omit the top line in the output and save a sa .fasta file (top line reads 'Translated..' from the webite output txt
+import the KEGG protein fasta fle for C gigas to SEDNA - we will make this into a database and use diamond blastx 
+
+
+
 syntax below: 
 cd # run from home dir
 scp C:/Users/samuel.gurr/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Data/TagSeq/Seq_details/Cgigas_refs/KEGG_Crassostrea_gigas.fasta sgurr@sedna.nwfsc2.noaa.gov:refs/
