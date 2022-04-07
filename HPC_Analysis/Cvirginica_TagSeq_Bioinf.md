@@ -1,66 +1,6 @@
 # Eastern oyster (*C. virginica*) TagSeq Bioinformatics
 
-# ------------------ new notes to add
-blast using diamond 
-
-first translate the KEGG cigas nucleotide to protein using the site https://www.bioinformatics.org/sms2/translate.html
-make sure to omit the top line in the output and save a sa .fasta file (top line reads 'Translated..' from the webite output txt
-import the KEGG protein fasta fle for C gigas to SEDNA - we will make this into a database and use diamond blastx 
-
-
-
-syntax below: 
-cd # run from home dir
-scp C:/Users/samuel.gurr/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Data/TagSeq/Seq_details/Cgigas_refs/KEGG_Crassostrea_gigas.fasta sgurr@sedna.nwfsc2.noaa.gov:refs/
-
-Run this script..
-```
-#!/bin/bash
-#SBATCH -t 100:00:00
-#SBATCH --nodes=1 --ntasks-per-node=20
-#SBATCH --mem=200GB
-#SBATCH --account=putnamlab
-#SBATCH --mail-type=BEGIN,END,FAIL
-#SBATCH --mail-user=samuel_gurr@uri.edu
-#SBATCH --output="%x_out.%j"
-#SBATCH --error="%x_err.%j"
-#SBATCH -D /data/putnamlab/sgurr/refs
-
-date
-
-# Note: diamond is an alternative and more efficient module for blastx
-# module load BLAST+/2.7.1-foss-2018a
-module load DIAMOND/2.0.0-GCC-8.3.0
-
-# Pass the database you want as the first argument
-# Pass the query you want as the second argument
-
-database=$1
-query=$2
-
-mkdir ./Cgigasdb/
-
-# Make the database - note build a protein database and follow with blastx (nucl query w/ protein database)
-diamond makedb --in $1 -d ./Cgigasdb/Cgigas_db
-
-
-# runs blast on the P generosa gene fasta against the Pacific oyster protein database we created above
-# --very sensitive finds hits with best sensitivity <40% identity 
-
-diamond blastx -d ./Cgigasdb/Cgigas_db.dmnd -q $2 -o ./crgKEGG_diamond_out --outfmt 6 
-
-# qseqid sseqid pident evalue length qlen slen qstart qend sstart send sseq
-
-echo "Done"
-date
-```
-
-
 # -----------------------
-
-
-
-
 
 ## <span style="color:blue">**Table of Contents**</span>
   - [Upon upload to HPC...](#Initial-diagnostics-upon-sequence-upload-to-HPC)
@@ -180,7 +120,7 @@ deactivate
 ```
 
 
-# shell script: <span style="color:green">**raw_multiQC,sh**<span>
+# shell script: <span style="color:green">**raw_multiQC.sh**<span>
 ```
 #!/bin/bash
 #SBATCH --job-name="multiQC_raw_reads"
@@ -235,8 +175,9 @@ sbatch raw_multiQC
 
 *exit bluewaves and run from terminal*
 - save to gitrepo as multiqc_clean.html
+
 ```
-scp samuel_gurr@bluewaves.uri.edu:/data/putnamlab/sgurr/Geoduck_TagSeq/output/fastp_mutliQC/multiqc_report.html  C:/Users/samjg/Documents/My_Projects/Pgenerosa_TagSeq_Metabolomics/TagSeq/HPC_work/Output
+scp sgurr@sedna.nwfsc2.noaa.gov:Cvirginica_multistressor/scripts/raw_multiQC.sh C:/Users/samuel.gurr/Documents/Github_repositories/Cvirginica_multistressor/HPC_Analysis/Scripts/  
 ```
 
 ### IMPORTANT! Quality check multiqc.html before you proceed!
@@ -356,17 +297,23 @@ echo "Cleaned MultiQC report generated." $(date)
 - save to gitrepo  and rename as multiqc_report_adapter_trim_only.html
 
 ```
-scp samuel_gurr@bluewaves.uri.edu:/data/putnamlab/sgurr/Geoduck_TagSeq/output/clean/multiqc_report.html  C:/Users/samjg/Documents/My_Projects/Pgenerosa_TagSeq_Metabolomics
+scp sgurr@sedna.nwfsc2.noaa.gov:Cvirginica_multistressor/output/multiqc_report_adapter_trim_only.html C:/Users/samuel.gurr/Documents/Github_repositories/Cvirginica_multistressor/HPC_Analysis/Output/  
 
 ```
 
-
 ### <span style="color:red">*report indicated further processing WAS needed...*
 
-
-
 # 'Clean' trim (adapters + others)
-# shell script: <span style="color:green">**fastp_multiQC_adapters_only**<span>
+
+#### added calls
+```
+--trim_poly_x 6 -q 30 -y -Y 50
+```
+* trim poly removes the lingering polyA tail, you can diagnose this need from the GC content in the adapter only fastp output  
+
+* -y -Y 50 applies a more conservative complexity filter (default as 30 w/o this call) - this cleans up the seq data of continuous monoblase calls (bad reads) that can be the result of the illumina read call error and lingering polyA
+
+# shell script: <span style="color:green">**fastp_multiQC.sh**<span>
 
 ```
 #!/bin/bash
@@ -410,37 +357,26 @@ source ../../../python_venv/bin/activate # from the current directory, activates
 multiqc ./clean -o ./clean #Compile MultiQC report from FastQC files - output .html in current directory ( fast_muiltiQC folder)
 
 echo "Cleaned MultiQC report generated." $(date)
-
 ```
 
-### EXPORT MUTLIQC REPORT
+#### EXPORT MUTLIQC REPORT
 
 *exit sedna and run from terminal*
 
-- save to gitrepo and rename as multiqc_report_clean.html
+- save to gitrepo  and rename as multiqc_report_adapter_trim_only.html
 
 ```
-scp samuel_gurr@bluewaves.uri.edu:/data/putnamlab/sgurr/Geoduck_TagSeq/output/clean/multiqc_report.html  C:/Users/samjg/Documents/My_Projects/Pgenerosa_TagSeq_Metabolomics
+scp sgurr@sedna.nwfsc2.noaa.gov:Cvirginica_multistressor/output/multiqc_report.html C:/Users/samuel.gurr/Documents/Github_repositories/Cvirginica_multistressor/HPC_Analysis/Output/  
 
 ```
-
 
 ## we now have **'clean' fastq files** after processing with fastp! Use these in the following...
 
 
 
 
-
-
-
-
-
 # Alignment of cleaned reads to reference
 -------------------------------------------
-
-
-
-
 
 
 
@@ -456,6 +392,10 @@ scp samuel_gurr@bluewaves.uri.edu:/data/putnamlab/sgurr/Geoduck_TagSeq/output/cl
 * anotation (.gff)   
 
 ### import species refs to the HPC
+
+
+* Upload annotation reference .gff or .gff3 to HPC
+
 
 Below is the scp calling each reference .gz file based on common GCF filename header - import to the HPC
 
@@ -681,27 +621,6 @@ for i in `cat ./ID`;
 # Assembly and quantification
 -----------------------------------------------------------------
 
-### Upload annotation reference .gff or .gff3 to HPC
-
-- Sam White and Steven Roberts completed the annotation with open resources available for download
-
-*exit bluewaves and run from terminal*
-
-- "one file to rule them all" (- Sam W.) with the CDS, mRNA, exon, and genes
-```
-scp C:/Users/samjg/Documents/Bioinformatics/genomes/Pgenerosa_annotations/Panopea-generosa-vv0.74.a3-merged-2019-09-03-6-14-33.gff3 samuel_gurr@bluewaves.uri.edu:/data/putnamlab/sgurr/refs/
-```
-
-- mRNA only
-```
-scp C:/Users/samjg/Documents/Bioinformatics/genomes/Pgenerosa_annotations/Panopea-generosa-v1.0.a4.gene.gff3 samuel_gurr@bluewaves.uri.edu:/data/putnamlab/sgurr/refs/
-```
-
-- mRNA annotation with 'm01, m02, m03, m04... m10' removed from gene.ID to match IDs
-
-```
-scp C:/Users/samjg/Documents/Bioinformatics/genomes/Pgenerosa_annotations/Panopea-generosa-v1.0.a4.mRNA_SJG.gff3 samuel_gurr@bluewaves.uri.edu:/data/putnamlab/sgurr/refs/
-```
 
 ## StringTie
 -----------------------------------------
@@ -780,7 +699,7 @@ GTF file on each line (default '.' meaning the working directory is the subdirec
 Alternatively call a **listGTF.txt** file... this file has two columns with the sample ID and the <Path to sample> for the .gtf files
 run the following:
 
-* move prepDE.py (downloaded onlne) to the ssh 
+* move prepDE.py (downloaded onlne) to the ssh
 
 ```
 scp C:/Users/samuel.gurr/Documents/Github_repositories/Cvriginica_multistressor/HPC_Analysis/Scripts/ prepDE.py sgurr@sedna.nwfsc2.noaa.gov:Cvirginica_multistressor_TagSeq/scripts/
@@ -822,7 +741,7 @@ cd Cvirginica_multistressor_TagSeq/output/stringtie2 #nav back to target directo
 
 array=($(ls ../hisat2/merged/*.bam)) #Make an array of sequences to assemble
 
-# awk example: file name clean.C9-larva-22_S77.bam - use awk to get sample name w/o .bam using . as delimiter 
+# awk example: file name clean.C9-larva-22_S77.bam - use awk to get sample name w/o .bam using . as delimiter
 # run strnigtie on the array and output to the stringtie2 directory
 for i in ${array[@]}; do #Running with the -e option to compare output to exclude novel genes. Also output a file with the gene abundances
         sample_name=`echo $i| awk -F [.] '{print $1"_"$2}'`
@@ -842,7 +761,7 @@ echo "StringTie assembly COMPLETE, starting assembly analysis" $(date)
 
 - NOTE: you will need the files **gtf_list.txt** and **listGTF.txt** to in your -D working directory (i.e. output/stringtie) to run this job (described above)
 
-# shell script: <span style="color:green">**stringtie2_merge_prepDEpy.sh**<span>
+# shell script: <span style="color:green">**mergeStringtie2_gffcompare_prepDE.sh**<span>
 ```
 #!/bin/bash
 #SBATCH -t 120:00:00
@@ -854,7 +773,7 @@ echo "StringTie assembly COMPLETE, starting assembly analysis" $(date)
 #SBATCH --mail-user=samuel_gurr@uri.edu
 #SBATCH --output="%x_out.%j"
 #SBATCH --error="%x_err.%j"
-#SBATCH -D /data/putnamlab/sgurr/Geoduck_TagSeq/output/stringtie
+#SBATCH -D /data/putnamlab/sgurr/Geoduck_TagSeq/output/Stringtie2
 
 #load packages
 module load Python/2.7.15-foss-2018b #Python
@@ -869,10 +788,69 @@ echo "GFFcompare complete, Starting gene count matrix assembly..." $(date)
 
 python ../../scripts/prepDE.py -g Pgenerosa_gene_count_matrix.csv -i listGTF.txt #Compile the gene count matrix
 echo "Gene count matrix compiled." $(date)
+
+
 ```
 *exit bluewaves and run from terminal*
 
 - save the read count matrix to local pc
 ```
 scp  samuel_gurr@bluewaves.uri.edu:/data/putnamlab/sgurr/Geoduck_TagSeq/output/stringtie/lanes_merged/transcript_count_matrix.csv C:/Users/samjg/Documents/My_Projects/Pgenerosa_TagSeq_Metabolomics/TagSeq/HPC_Bioinf
+```
+
+
+
+# ------------------ new notes to add
+blast using diamond
+
+first translate the KEGG cigas nucleotide to protein using the site https://www.bioinformatics.org/sms2/translate.html
+make sure to omit the top line in the output and save a sa .fasta file (top line reads 'Translated..' from the webite output txt
+import the KEGG protein fasta fle for C gigas to SEDNA - we will make this into a database and use diamond blastx
+
+
+
+syntax below:
+cd # run from home dir
+```scp C:/Users/samuel.gurr/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Data/TagSeq/Seq_details/Cgigas_refs/KEGG_Crassostrea_gigas.fasta sgurr@sedna.nwfsc2.noaa.gov:refs/```
+
+Run this script..
+```
+#!/bin/bash
+#SBATCH -t 100:00:00
+#SBATCH --nodes=1 --ntasks-per-node=20
+#SBATCH --mem=200GB
+#SBATCH --account=putnamlab
+#SBATCH --mail-type=BEGIN,END,FAIL
+#SBATCH --mail-user=samuel_gurr@uri.edu
+#SBATCH --output="%x_out.%j"
+#SBATCH --error="%x_err.%j"
+#SBATCH -D /data/putnamlab/sgurr/refs
+
+date
+
+# Note: diamond is an alternative and more efficient module for blastx
+# module load BLAST+/2.7.1-foss-2018a
+module load DIAMOND/2.0.0-GCC-8.3.0
+
+# Pass the database you want as the first argument
+# Pass the query you want as the second argument
+
+database=$1
+query=$2
+
+mkdir ./Cgigasdb/
+
+# Make the database - note build a protein database and follow with blastx (nucl query w/ protein database)
+diamond makedb --in $1 -d ./Cgigasdb/Cgigas_db
+
+
+# runs blast on the P generosa gene fasta against the Pacific oyster protein database we created above
+# --very sensitive finds hits with best sensitivity <40% identity
+
+diamond blastx -d ./Cgigasdb/Cgigas_db.dmnd -q $2 -o ./crgKEGG_diamond_out --outfmt 6
+
+# qseqid sseqid pident evalue length qlen slen qstart qend sstart send sseq
+
+echo "Done"
+date
 ```

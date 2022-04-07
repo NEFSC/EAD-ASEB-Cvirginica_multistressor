@@ -32,7 +32,6 @@ library(RColorBrewer)
 library(pcaExplorer) 
 
 #BiocManager::install for these packages
-BiocManager::install("pcaExplorer")
 library(DESeq2) # note: this was previously installed with the command `BiocManager::install("DESeq2")`
 library(edgeR)
 library(goseq)
@@ -48,9 +47,9 @@ library(pcaExplorer)
 ```{r set_wd, include = TRUE}
 
 # SET WORKING DIRECTORY AND LOAD DATA
-setwd("C:/Users/samuel.gurr/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/")
+setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/")
 getwd()
-path = 'C:/Users/samuel.gurr/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Output/DESeq2/' # personnal computer
+path = 'C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Output/DESeq2/' # personnal computer
 ```
 
 
@@ -265,7 +264,6 @@ dds.d18       <- DESeq(dds.d18) #  full model             wait for this to compl
 dds.d18.group <- DESeq(dds.d18.group) # group model       wait for this to complete.... 
 dds.d18.main  <- DESeq(dds.d18.main) # main effect model wait for this to complete....     
 
-
 ```
 
 # Analysis (DEG tables)
@@ -325,13 +323,13 @@ res.d2_temperature.group     <- results(dds.d2.group,
 table(res.d2_temperature.group$padj<0.05) # 637 DEGs
 d2.numDEGs_padj_temperature  <- data.frame(table(res.d2_temperature.group$padj<0.05))[2,2] # DEGs - NOT considering LFC - just p adj == 637
 resd2.temperature.ordered    <- res.d2_temperature.group[order(res.d2_temperature.group$padj), ] # Order by adjusted p-value
-d2.num.DownReg_temperature   <- sum((res.d2_temperature.group$log2FoldChange[1:d2.numDEGs_padj_temperature] > 1) == TRUE) #  LFC >= 1 == 137
-d2.num.UpReg_temperature     <- sum((res.d2_temperature.group$log2FoldChange[1:d2.numDEGs_padj_temperature] < 1) == TRUE) # LFC >= 1  == 500
+d2.num.UpReg_temperature   <- sum((resd2.temperature.ordered$log2FoldChange[1:d2.numDEGs_padj_temperature] > 1) == TRUE) #  LFC >= 1 == 137
+d2.num.DownReg_temperature     <- sum((resd2.temperature.ordered$log2FoldChange[1:d2.numDEGs_padj_temperature] < 1) == TRUE) # LFC >= 1  == 500
 d2.total_temperature         <- sum(d2.num.DownReg_temperature,d2.num.UpReg_temperature) # sum of DEGs with the criteria pdj < 0.05 + LFC>1 (< -1)
 # 637 total DEGs
 # with an LFC of 1..
-# 137 upregualted
-# 500 downregulated 
+# 359 upregualted
+# 278 downregulated 
 # Overall... LPC threshold DID NOT alter the padj DEGs
 # plot histogram   ::::::::::::::::::::::::::::::::::
 png("../Output/DESeq2/Day2_larva/plots/FDR_histograms/Day2.FDR_hist_temperature.png", 1000, 1000, pointsize=20)
@@ -392,13 +390,13 @@ table(res.d2_OA.group$padj<0.05) # 165 DEGs
 table(res.d2_OA.group$padj<0.05) # 637 165
 d2.numDEGs_padj_OA  <- data.frame(table(res.d2_OA.group$padj<0.05))[2,2] # DEGs - NOT considering LFC - just p adj == 165
 resd2.OA.ordered    <- res.d2_OA.group[order(res.d2_OA.group$padj), ] # Order by adjusted p-value
-d2.num.DownReg_OA   <- sum((res.d2_OA.group$log2FoldChange[1:d2.numDEGs_padj_OA] > 1) == TRUE) #  LFC >= 1 == 38
-d2.num.UpReg_OA     <- sum((res.d2_OA.group$log2FoldChange[1:d2.numDEGs_padj_OA] < 1) == TRUE) # LFC >= 1  == 127
+d2.num.UpReg_OA   <- sum((resd2.OA.ordered$log2FoldChange[1:d2.numDEGs_padj_OA] > 1) == TRUE) #  LFC >= 1 == 38
+d2.num.DownReg_OA     <- sum((resd2.OA.ordered$log2FoldChange[1:d2.numDEGs_padj_OA] < 1) == TRUE) # LFC >= 1  == 127
 d2.total_OA         <- sum(d2.num.DownReg_OA,d2.num.UpReg_OA) # sum of DEGs with the criteria pdj < 0.05 + LFC>1 (< -1)
 # 165 total DEGs
 # with an LFC of 1..
-# 38 upregualted
-# 127 downregulated 
+# 82 upregualted
+# 83 downregulated 
 # Overall... LPC threshold DID NOT alter the padj DEGs
 # plot histogram   ::::::::::::::::::::::::::::::::::
 png("../Output/DESeq2/Day2_larva/plots/FDR_histograms/Day2.FDR_hist_OA.png", 1000, 1000, pointsize=20)
@@ -408,7 +406,9 @@ abline(h=c( (nrow(res.d2_OA.group)*0.05),
             ((table(res.d2_OA.group$padj < 0.05)[2]) + (nrow(res.d2_OA.group)*0.05)) ),
                   col=c("blue", "red", "red"), lty=c(1,2,1), lwd=c(1, 3, 1)) # add line at 
 dev.off()
+
 # Write results  ::::::::::::::::::::::::::::::::::::
+
 resdata.d2.OA           <- merge(as.data.frame(resd2.OA.ordered), as.data.frame(counts(dds.d2, normalized=TRUE)), by="row.names", sort=FALSE) %>% 
                                         dplyr::rename("TranscriptID" = "Row.names") %>% 
                                         dplyr::mutate(TranscriptID = as.character(TranscriptID))
@@ -461,13 +461,13 @@ table(res.d2_salinity.group$padj<0.05) # 719 DEGs
 table(res.d2_salinity.group$padj<0.05) # 719 165
 d2.numDEGs_padj_salinity  <- data.frame(table(res.d2_salinity.group$padj<0.05))[2,2] # DEGs - NOT considering LFC - just p adj == 719
 resd2.salinity.ordered    <- res.d2_salinity.group[order(res.d2_salinity.group$padj), ] # Order by adjusted p-value
-d2.num.DownReg_salinity   <- sum((res.d2_salinity.group$log2FoldChange[1:d2.numDEGs_padj_salinity] > 1) == TRUE) #  LFC >= 1 == 185
-d2.num.UpReg_salinity     <- sum((res.d2_salinity.group$log2FoldChange[1:d2.numDEGs_padj_salinity] < 1) == TRUE) # LFC >= 1  == 534
+d2.num.UpReg_salinity   <- sum((resd2.salinity.ordered$log2FoldChange[1:d2.numDEGs_padj_salinity] > 1) == TRUE) #  LFC >= 1 == 185
+d2.num.DownReg_salinity     <- sum((resd2.salinity.ordered$log2FoldChange[1:d2.numDEGs_padj_salinity] < 1) == TRUE) # LFC >= 1  == 534
 d2.total_salinity         <- sum(d2.num.DownReg_salinity,d2.num.UpReg_salinity) # sum of DEGs with the criteria pdj < 0.05 + LFC>1 (< -1)
 # 719 total DEGs
 # with an LFC of 1..
-# 534 upregualted
-# 185 downregulated 
+# 312 upregualted
+# 407 downregulated 
 # Overall... LPC threshold DID NOT alter the padj DEGs
 # plot histogram   ::::::::::::::::::::::::::::::::::
 png("../Output/DESeq2/Day2_larva/plots/FDR_histograms/Day2.FDR_hist_salinity.png", 1000, 1000, pointsize=20)
@@ -559,25 +559,26 @@ dev.off()
 
 iris
 
-dat <- as.data.frame(assay(rlog.d2)[,c(1:(ncol(assay(rlog.d2))))])
-head(dat)
-assay(rlog.d2)
-d2.exp_data_rename <- d2.exp_data %>% dplyr::rename('Sample.ID' = 'SapleName_readmatrix')
-samp.with.rownames <- as.data.frame(t(dat)) %>% 
-  tibble::rownames_to_column("Sample.ID")
-ncol(samp.with.rownames)
-samp.with.rownamesMERGED <- merge(samp.with.rownames, d2.exp_data_rename)
-ncol(samp.with.rownamesMERGED)
-
-iris
-pca = prcomp(samp.with.rownamesMERGED[,c(2:4821)]) 
-ggbiplot(pca,groups = samp.with.rownamesMERGED$Salinity,ellipse = T,ellipse.prob = .95)
-theme(axis.text=element_text(size=8),
-theme(axis.text=element_text(size=8),
-theme(axis.text=element_text(size=8),
-theme(axis.text=element_text(size=8),
-theme(axis.text=element_text(size=8),
-theme(axis.text=element_text(size=8),
+# dat <- as.data.frame(assay(rlog.d2)[,c(1:(ncol(assay(rlog.d2))))])
+# head(dat)
+# assay(rlog.d2)
+# d2.exp_data_rename <- d2.exp_data %>% dplyr::rename('Sample.ID' = 'SapleName_readmatrix')
+# samp.with.rownames <- as.data.frame(t(dat)) %>% 
+#   tibble::rownames_to_column("Sample.ID")
+# ncol(samp.with.rownames)
+# samp.with.rownamesMERGED <- merge(samp.with.rownames, d2.exp_data_rename)
+# ncol(samp.with.rownamesMERGED)
+# 
+# 
+# 
+# pca = prcomp(samp.with.rownamesMERGED[,c(2:4821)]) 
+# ggbiplot(pca,groups = samp.with.rownamesMERGED$Salinity,ellipse = T,ellipse.prob = .95)
+# theme(axis.text=element_text(size=8),
+# theme(axis.text=element_text(size=8),
+# theme(axis.text=element_text(size=8),
+# theme(axis.text=element_text(size=8),
+# theme(axis.text=element_text(size=8),
+# theme(axis.text=element_text(size=8))))))))
 
       
       
@@ -694,13 +695,13 @@ table(res.d18_OA.group$padj<0.05) # 376 DEGs
 table(res.d18_OA.group$padj<0.05) # 637 376
 d18.numDEGs_padj_OA  <- data.frame(table(res.d18_OA.group$padj<0.05))[2,2] # DEGs - NOT considering LFC - just p adj == 376
 resd18.OA.ordered    <- res.d18_OA.group[order(res.d18_OA.group$padj), ] # Order by adjusted p-value
-d18.num.DownReg_OA   <- sum((res.d18_OA.group$log2FoldChange[1:d18.numDEGs_padj_OA] > 1) == TRUE) #  LFC >= 1 == 104
-d18.num.UpReg_OA     <- sum((res.d18_OA.group$log2FoldChange[1:d18.numDEGs_padj_OA] < 1) == TRUE) # LFC >= 1  == 272
+d18.num.UpReg_OA   <- sum((resd18.OA.ordered$log2FoldChange[1:d18.numDEGs_padj_OA] > 1) == TRUE) #  LFC >= 1 == 104
+d18.num.DownReg_OA     <- sum((resd18.OA.ordered$log2FoldChange[1:d18.numDEGs_padj_OA] < 1) == TRUE) # LFC >= 1  == 272
 d18.total_OA         <- sum(d18.num.DownReg_OA,d18.num.UpReg_OA) # sum of DEGs with the criteria pdj < 0.05 + LFC>1 (< -1)
 # 376 total DEGs
 # with an LFC of 1..
-# 272 upregualted
-# 104 downregulated 
+# 148 upregualted
+# 228 downregulated 
 # Overall... LPC threshold DID NOT alter the padj DEGs
 # plot histogram   ::::::::::::::::::::::::::::::::::
 png("../Output/DESeq2/Day18_spat/plots/FDR_histograms/Day18.FDR_hist_OA.png", 1000, 1000, pointsize=20)
@@ -763,13 +764,13 @@ table(res.d18_salinity.group$padj<0.05) # 1068 DEGs
 table(res.d18_salinity.group$padj<0.05) # 1068 165
 d18.numDEGs_padj_salinity  <- data.frame(table(res.d18_salinity.group$padj<0.05))[2,2] # DEGs - NOT considering LFC - just p adj == 1068
 resd18.salinity.ordered    <- res.d18_salinity.group[order(res.d18_salinity.group$padj), ] # Order by adjusted p-value
-d18.num.DownReg_salinity   <- sum((res.d18_salinity.group$log2FoldChange[1:d18.numDEGs_padj_salinity] > 1) == TRUE) #  LFC >= 1 == 295
-d18.num.UpReg_salinity     <- sum((res.d18_salinity.group$log2FoldChange[1:d18.numDEGs_padj_salinity] < 1) == TRUE) # LFC >= 1  == 773
+d18.num.UpReg_salinity   <- sum((resd18.salinity.ordered$log2FoldChange[1:d18.numDEGs_padj_salinity] > 1) == TRUE) #  LFC >= 1 == 295
+d18.num.DownReg_salinity     <- sum((resd18.salinity.ordered$log2FoldChange[1:d18.numDEGs_padj_salinity] < 1) == TRUE) # LFC >= 1  == 773
 d18.total_salinity         <- sum(d18.num.DownReg_salinity,d18.num.UpReg_salinity) # sum of DEGs with the criteria pdj < 0.05 + LFC>1 (< -1)
 # 1068 total DEGs
 # with an LFC of 1..
-# 773 upregualted
-# 295 downregulated 
+# 483 upregualted
+# 585 downregulated 
 # Overall... LPC threshold DID NOT alter the padj DEGs
 # plot histogram   ::::::::::::::::::::::::::::::::::
 png("../Output/DESeq2/Day18_spat/plots/FDR_histograms/Day18.FDR_hist_salinity.png", 1000, 1000, pointsize=20)
