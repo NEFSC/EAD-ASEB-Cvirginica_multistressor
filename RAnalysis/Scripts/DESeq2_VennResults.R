@@ -10,22 +10,22 @@ library(VennDiagram)
 library("ggVennDiagram")
 library(ggvenn)
 library(gridExtra)
-
+install.packages("ggVennDiagram")
 #set working directory--------------------------------------------------------------------------------------------------
 # SET WORKING DIRECTORY AND LOAD DATA
-setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/")
+setwd("C:/Users/samuel.gurr/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/")
 
 # upload data
 ## main pairwise effect DEGs (salinity, temperature, OA - high vs. low for each)
-DE_d2.Temperature <- read.csv(file="C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Output/DESeq2/Day2_larva/DEG_data/Day2.Temperature_DESeq2results.csv", sep=',', header=TRUE)
-DE_d2.Salinity    <- read.csv(file="C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Output/DESeq2/Day2_larva/DEG_data/Day2.Salinity_DESeq2results.csv", sep=',', header=TRUE)
-DE_d2.OA          <- read.csv(file="C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Output/DESeq2/Day2_larva/DEG_data/Day2.OA_DESeq2results.csv", sep=',', header=TRUE)
+DE_d2.Temperature <- read.csv(file="C:/Users/samuel.gurr/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Data/TagSeq/DESeq2/Day2_larva/Day2.Temperature_DESeq2results.csv", sep=',', header=TRUE)
+DE_d2.Salinity    <- read.csv(file="C:/Users/samuel.gurr/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Data/TagSeq/DESeq2/Day2_larva/Day2.Salinity_DESeq2results.csv", sep=',', header=TRUE)
+DE_d2.OA          <- read.csv(file="C:/Users/samuel.gurr/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Data/TagSeq/DESeq2/Day2_larva/Day2.OA_DESeq2results.csv", sep=',', header=TRUE)
 colnames(DE_d2.Temperature)[2]  == "TranscriptID" # TRUE
 colnames(DE_d2.Salinity)[2]     == "TranscriptID" # TRUE
 colnames(DE_d2.OA)[2]           == "TranscriptID" # TRUE
 
-DE_d18.Salinity    <- read.csv(file="C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Output/DESeq2/Day18_spat/DEG_data/Day18.salinity_DESeq2results.csv", sep=',', header=TRUE)
-DE_d18.OA          <- read.csv(file="C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Output/DESeq2/Day18_spat/DEG_data/Day18.OA_DESeq2results.csv", sep=',', header=TRUE)
+DE_d18.Salinity    <- read.csv(file="C:/Users/samuel.gurr/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Data/TagSeq/DESeq2/Day18_spat/Day18.salinity_DESeq2results.csv", sep=',', header=TRUE)
+DE_d18.OA          <- read.csv(file="C:/Users/samuel.gurr/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Data/TagSeq/DESeq2/Day18_spat/Day18.OA_DESeq2results.csv", sep=',', header=TRUE)
 colnames(DE_d18.Salinity)[2]     == "TranscriptID" # TRUE
 colnames(DE_d18.OA)[2]           == "TranscriptID" # TRUE
 
@@ -103,6 +103,20 @@ nrow(DE_d18.OA_DOWN) # 228
 # all Primary treatement effects in the GROUP MOD  ------------------------------------------------------------------------ #
 
 
+# OA time- up and downregulated genes
+Day2_larvae_all <- list(
+  OA.UP        = DE_d2.OA_UP$TranscriptID, 
+  OA.DOWN      = DE_d2.OA_DOWN$TranscriptID, 
+  
+  Temp.UP      = DE_d2.Temperature_UP$TranscriptID, 
+  Temp.DOWN    = DE_d2.Temperature_DOWN$TranscriptID, 
+  
+  Sal.UP       = DE_d2.Salinity_UP$TranscriptID, 
+  Sal.DOWN     = DE_d2.Salinity_DOWN$TranscriptID 
+)
+
+
+
 
 # OA time- up and downregulated genes
 OA_ALL <- list(
@@ -121,20 +135,35 @@ Salinity_ALL <- list(
   Day18.DOWN   = DE_d18.Salinity_DOWN$TranscriptID
 )
 
+
+# Venn diagram - OA all time
+venn.d_larvae <- ggVennDiagram(Day2_larvae_all, 
+                        label_alpha = 2)
+venn.d_larvae <- venn.d_larvae + ggtitle("Day2 larvae: all DEGs")
+
+
+
+
 # Venn diagram - OA all time
 vennOA <- ggVennDiagram(OA_ALL, 
               label_alpha = 2)
 VennOA <- vennOA + ggtitle("OA all DEGs")
+
+
+
 
 # Venn diagram - SALINITY all time
 vennSalinity <- ggVennDiagram(Salinity_ALL, 
                         label_alpha = 2)
 VennSalinity <- vennSalinity + ggtitle("Salinity all DEGs")
 
+
+
+
 #  grid
 grid.arrange(VennOA, VennSalinity, ncol=1, nrow=2, clip="off")
 
-pdf("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Output/DESeq2/Venn_OA_Salinity.pdf")
+pdf("C:/Users/samuel.gurr/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Output/DESeq2/Venn_OA_Salinity.pdf")
 grid.arrange(VennOA, VennSalinity, ncol=1, nrow=2, clip="off")
 dev.off()
 
