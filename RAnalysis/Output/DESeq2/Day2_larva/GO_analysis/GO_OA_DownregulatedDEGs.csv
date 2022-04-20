@@ -1,0 +1,8 @@
+"category","over_represented_pvalue","under_represented_pvalue","numDEInCat","numInCat","term","ontology"
+"GO:0007568",2.42572126130189e-05,0.999999968104029,2,4,"aging","BP"
+"GO:0007155",0.00109125955750126,0.999909262402656,4,520,"cell adhesion","BP"
+"GO:0042592",0.0291642142021443,0.997560657456459,2,251,"homeostatic process","BP"
+"GO:0005576",0.00021404234990286,0.999982412304157,5,405,"extracellular region","CC"
+"GO:0005622",0.0011428576308388,0.999827137498519,6,1052,"intracellular anatomical structure","CC"
+"GO:0005856",0.0448370135885509,0.991823210960553,3,959,"cytoskeleton","CC"
+"GO:0030234",1.79246639059927e-05,0.999998371952971,7,669,"enzyme regulator activity","MF"

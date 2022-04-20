@@ -10,7 +10,7 @@ library(VennDiagram)
 library("ggVennDiagram")
 library(ggvenn)
 library(gridExtra)
-install.packages("ggVennDiagram")
+install.packages('ggvenn')
 #set working directory--------------------------------------------------------------------------------------------------
 # SET WORKING DIRECTORY AND LOAD DATA
 setwd("C:/Users/samuel.gurr/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/")
@@ -103,11 +103,7 @@ nrow(DE_d18.OA_DOWN) # 228
 # all Primary treatement effects in the GROUP MOD  ------------------------------------------------------------------------ #
 
 
-# OA time- up and downregulated genes
-Day2_larvae_all <- list(
-  OA.UP        = DE_d2.OA_UP$TranscriptID, 
-  OA.DOWN      = DE_d2.OA_DOWN$TranscriptID, 
-  
+Day2_larvae_TempSal <- list(
   Temp.UP      = DE_d2.Temperature_UP$TranscriptID, 
   Temp.DOWN    = DE_d2.Temperature_DOWN$TranscriptID, 
   
@@ -115,7 +111,30 @@ Day2_larvae_all <- list(
   Sal.DOWN     = DE_d2.Salinity_DOWN$TranscriptID 
 )
 
+Day2_larvae_TempOA <- list(
+  Temp.UP      = DE_d2.Temperature_UP$TranscriptID, 
+  Temp.DOWN    = DE_d2.Temperature_DOWN$TranscriptID, 
+  
+  OA.UP       = DE_d2.OA_UP$TranscriptID, 
+  OA.DOWN     = DE_d2.OA_DOWN$TranscriptID 
+)
 
+
+Day2_larvae_OASal <- list(
+  Sal.UP       = DE_d2.Salinity_UP$TranscriptID, 
+  Sal.DOWN     = DE_d2.Salinity_DOWN$TranscriptID, 
+  
+  OA.UP       = DE_d2.OA_UP$TranscriptID, 
+  OA.DOWN     = DE_d2.OA_DOWN$TranscriptID 
+)
+
+Day18_larvae_OASal <- list(
+  Sal.UP       = DE_d18.Salinity_UP$TranscriptID, 
+  Sal.DOWN     = DE_d18.Salinity_DOWN$TranscriptID, 
+  
+  OA.UP       = DE_d18.OA_UP$TranscriptID, 
+  OA.DOWN     = DE_d18.OA_DOWN$TranscriptID 
+)
 
 
 # OA time- up and downregulated genes
@@ -136,13 +155,39 @@ Salinity_ALL <- list(
 )
 
 
+
+
 # Venn diagram - OA all time
-venn.d_larvae <- ggVennDiagram(Day2_larvae_all, 
-                        label_alpha = 2)
-venn.d_larvae <- venn.d_larvae + ggtitle("Day2 larvae: all DEGs")
+venn.d2_larvae_TempSal <- ggVennDiagram(Day2_larvae_TempSal, color = 1, lwd = 0.7, label = "count")  + 
+  scale_fill_gradient(low = "white", high = "#4981BF")  + ggtitle("Day2 larvae: Temp v. Salinity") +
+  theme(legend.position = "none")
+
+
+venn.d2_larvae_TempOA <- ggVennDiagram(Day2_larvae_TempOA, color = 1, lwd = 0.7, label = "count")  + 
+  scale_fill_gradient(low = "white", high = "#4981BF")  + ggtitle("Day2 larvae: Temp v. OA") +
+  theme(legend.position = "none")
+
+venn.d2_larvae_OASal <- ggVennDiagram(Day2_larvae_OASal, color = 1, lwd = 0.7, label = "count")  + 
+  scale_fill_gradient(low = "white", high = "#4981BF")  + ggtitle("Day2 larvae: OA v. Salinity") +
+  theme(legend.position = "none")
 
 
 
+venn.d18_larvae_OASal <- ggVennDiagram(Day18_larvae_OASal, color = 1, lwd = 0.7, label = "count")  + 
+  scale_fill_gradient(low = "white", high = "#4981BF")  + ggtitle("Day18 spat: OA v. Salinity") +
+  theme(legend.position = "none")
+
+
+#  grid
+
+pdf("C:/Users/samuel.gurr/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Output/DESeq2/Venn_d2_all.pdf", width=12, height=8)
+grid.arrange(venn.d2_larvae_TempSal, venn.d2_larvae_TempOA, venn.d2_larvae_OASal, ncol=2, nrow=2, clip="off")
+dev.off()
+
+pdf("C:/Users/samuel.gurr/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Output/DESeq2/Venn_d18_all.pdf", width=6, height=5)
+print(venn.d18_larvae_OASal)
+dev.off()
+# List of items
 
 # Venn diagram - OA all time
 vennOA <- ggVennDiagram(OA_ALL, 
