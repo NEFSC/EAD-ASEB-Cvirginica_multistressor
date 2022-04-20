@@ -1,0 +1,472 @@
+---
+title: "DESeq2_5cpm"
+author: "Samuel Gurr"
+date: "March 29, 2021"
+output:
+html_document:
+toc: true
+toc_float: true
+---
+
+# Setup: 
+
+```{r setup, include=TRUE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, cache = TRUE)
+```
+
+### Load libraries
+```{r load_libraries, include = TRUE}
+# load libraries - notes show the install command needed to install (pre installed)
+install.packages("calibrate")
+library(dplyr)
+library(GenomicFeatures)
+library(data.table)
+library(calibrate)
+library(data.table)
+# Plotting
+library(ggplot2)
+library(cowplot)
+library(pheatmap)
+library(gplots)
+library(RColorBrewer)
+library(pcaExplorer) 
+
+#BiocManager::install for these packages
+library(DESeq2) # note: this was previously installed with the command `BiocManager::install("DESeq2")`
+library(edgeR)
+library(goseq)
+library(affycoretools) 
+library(vsn)
+library(tidybulk)
+library(EnhancedVolcano)  
+library(pcaExplorer) 
+
+```
+
+### Set working directory
+```{r set_wd, include = TRUE}
+
+# SET WORKING DIRECTORY AND LOAD DATA
+setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/")
+getwd()
+path = 'C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Output/DESeq2/' # personnal computer
+```
+
+
+
+# LOAD DATA: choose ONE of the counts clusters (filtered raw reads or unfiltered raw reads)
+
+
+
+### Gene count data - convert to matrix - NOTE ONLY RUN ONE (FILTERED  versus UNFILTERED)
+I include both filtered and unfiltered here to compare the results. 
+DESEq2 mentions that pre-filtering is not necessary however will reduce the memory/time to run dds and rlog of the models 
+Below are both RAW counts filtered and unfiltered to run DESeq2 
+
+# FILTERED COUNTS:  10 CPM (with edgeR) and 50% of samples in each day (days 0, 7, 14, 21)
+```{r FILTERED_count.data, include = TRUE}
+getwd()
+### filtered counts tables - format matrix after upload [from Count_Matrix_Stats.Filter.R] 
+d2.counts_matrix  <- read.csv(file="../Data/TagSeq/Filtered_counts/filtered_counts_5cpm_50perc/day2.filtered_5cpm50perc_hightemp.csv", sep=',', header=TRUE) 
+d2.counts_matrix  <- data.frame(d2.counts_matrix[,-1], row.names=d2.counts_matrix[,1]) 
+
+# annotation master data 
+Cvirginica_annot_reference  <- read.csv(file="../Data/TagSeq/Seq_details/seq_id_master.csv", sep=',', header=TRUE) %>% 
+                                dplyr::select(!X) %>% 
+                                dplyr::mutate(TranscriptID = gsub(" ", "", TranscriptID))
+
+```
+
+
+### Sample metadata - Experimental treatments/groups
+```{r experiment_data, include = TRUE}
+### experiment metadata [from Count_Matrix_Stats.Filter.R]  - convert characaters to factors for DESeq2
+d2.exp_data    <- read.csv(file="../Data/TagSeq/day2.exp.data.csv", sep=',', header=TRUE) %>%   mutate_if(is.character, as.factor)
+```
+
+
+
+# DESeq2 datasets
+
+
+
+### DEsign DESeqDatasets
+```{r build_dds_datasets}
+# ========================================================== 
+# DAY 2 FULL MODEL ==  design = ~ Temperature * OA * Salinity
+# ========================================================== #
+# build the metadata matrix ::::::::::::::::::::::::::::
+d2.metadata     <- d2.exp_data %>% 
+                    dplyr::select(c('SapleName_readmatrix', 'Temperature', 'OA', 'Salinity')) %>% # coondense dataset to build target matrix
+                    dplyr::rename("Sample.Name" = "SapleName_readmatrix") %>% 
+                    dplyr::mutate(All_Treatment = paste(Temperature, OA, Salinity, sep = '.'))
+d2.metadata     <- data.frame(d2.metadata[,-1], row.names=d2.metadata[,1]) # move Sample.Name column as row names  
+d2.metadata.mtx <- as.matrix(d2.metadata, row.names="Oyster.ID") # create matrix 
+# check for 'TRUE' in each - check before proceeding  design
+d2.metadata.mtx <- d2.metadata.mtx[match(colnames(d2.counts_matrix),rownames(d2.metadata.mtx)), ]
+# all(rownames(d2.metadata.mtx) %in% colnames(d2.counts_matrix)) # should be TRUE
+# all(rownames(d2.metadata.mtx) == colnames(d2.counts_matrix)) # should be TRUE
+# all(rownames(d2.metadata.mtx) == colnames(d2.counts_matrix))  # should be TRUE
+
+# build dds ::::::::::::::::::::::::::::::::::::::::::::
+# FULL MODEL
+dds.d2 <- DESeqDataSetFromMatrix(countData = d2.counts_matrix,
+                                        colData = d2.metadata.mtx,
+                                        design = ~ OA+
+                                                   Salinity+
+                                                   OA:Salinity)
+# GROUP MDOEL
+dds.d2.group <- DESeqDataSetFromMatrix(countData = d2.counts_matrix,
+                                        colData = d2.metadata.mtx,
+                                        design = ~ All_Treatment-1) 
+# ADDITIVE MODEL 
+dds.d2.main <- DESeqDataSetFromMatrix(countData = d2.counts_matrix,
+                                       colData = d2.metadata.mtx,
+                                      design = ~ OA+Salinity) 
+
+
+```
+
+### Plot reads per gene and reads per sample in each dds
+```{r ddsPlots_read.gene_reads.sample}
+# DAY 2 PLOT THE (1) READS PER SAMPLE (2) READS PER GENE - FOR EACH DDS
+d2.nsamples        <- ncol(counts(dds.d2)) # Number of samples - for the plot label
+d2.rps             <- qplot(colSums(counts(dds.d2))) +# reads of reads per sample 
+                        labs(x = "Mapped reads per sample", y = "Number of samples",
+                             title = "Day 2 (Larva): Mapped reads per sample") +
+                        geom_label(aes(x = 12e5, y = 1, label = paste(d2.nsamples, "samples")))
+d2.ngenes          <- nrow(counts(dds.d2)) # Number of genes
+d2.ngenes_min      <- min(rowSums(counts(dds.d2))) #  minimum reads
+d2.ngenes_mean.min <- min(rowMeans2(counts(dds.d2))) # minimum row mean
+d2.ngenes_max      <- max(rowSums(counts(dds.d2))) #  maximum reads
+d2.rpg             <- qplot(log10(rowSums(counts(dds.d2))), bins = 16) + # number of reads per gene
+                        labs(x = "log10(Mapped reads per gene)", y = "Number of genes",
+                             title = "Day 2 (Larva): Mapped reads per gene") +
+                        geom_label(aes(x = 4, y = 3000, label = paste(d2.ngenes, "total genes"))) +
+                        geom_label(aes(x = 4, y = 2700, label = paste("max count =", d2.ngenes_max))) +
+                        geom_label(aes(x = 4, y = 2400, label = paste("min count =", d2.ngenes_min))) +
+                        geom_label(aes(x = 4, y = 2100, label = paste("min mean =", d2.ngenes_mean.min))) +
+                        expand_limits(y=c(NA, 3250))
+d2.countfig        <- plot_grid(d2.rps, d2.rpg)
+
+
+png("../Data/TagSeq/DESeq2/dds_GeneCounts_5cpm_da2hightemp.png", 1000, 1000, pointsize=20)
+plot_grid(d2.countfig)
+dev.off()
+```
+
+### RUN DESEQ2 model - wait for this to complete...
+# NOTE: this will be longer dependent on filtered vs. unfiltered raw read count data for dds objects 
+```{r run_dds}
+# RUN DESEQ2 model - view all the pariwise comparisons
+dds.d2        <- DESeq(dds.d2) #  full model            wait for this to complete....
+dds.d2.group  <- DESeq(dds.d2.group) # group model      wait for this to complete....
+dds.d2.main   <- DESeq(dds.d2.main) # main effect model wait for this to complete....    
+
+```
+
+# Analysis (DEG tables)
+Rationale for thresholds in the following cluster:
+With the thousands of pairwise comparisons between genes, it is critical to acknowledge the prevalence of spurious discoveries that must be guarded against!
+In the following, I will run each model with 'alpha = 0.05' to assume a False Discovery Rate of 5%. I reinforce this thinking by graphing all pvalues 
+as a histogram to show the distrubution - abline(s) show the FDR cut-off and the true padj values at 0.05 and 0.1 thresholds. 
+
+Strader et al. 2018 - 48 total samples, genes with mean count <10 across all samples werre ommitted
+                    - rlog transformated (rlog fxn)
+                    - adonic and vegan package to assess multivariate analysis of variance 
+                    - Used a 10% false discovery rate threshold
+                    - GO enrichments performend using the stat value output from DESeq2 using Mann Whitney U test (here: https://github.com/z0on/ GO_MWU)
+Johnson and Kelly 2021 - 40 samples 
+                       - used edgeR to assess pairwise changes in gene expression between treatments
+                       - filtered genes with fewer than 3 CPM across 50%  *n=20_ of all samples
+                       used R program vegan to assess PCoA with Euclidean distances from log2+1 transformed normalized counts from cpm function in egde R
+                       - used Mann Whitney U test to identify enriched ontologies - than this also after identifying modules via WGCNA with physiological measurements
+
+
+NOTE: 
+Read 'Interactions' here 
+https://bioconductor.riken.jp/packages/3.8/bioc/vignettes/DESeq2/inst/doc/DESeq2.html#interactions
+When adding the interaction term x:y to a dds model, the main condition effect only represents the effect of that ccondition
+for the REFERENCe level in the other. Example: design = ~primary + second + primary:second
+levels = A M (primary) & A  M S (second)
+The main effect of primary as Primary_A_v_M in this model is ONLY in response to A (ref level) for the treatment 'second' 
+
+
+
+
+# Main Treatment effects: padj < 0.05; FDR 5%; LFC >1 (<-1)
+Primary: Ambient v Moderate; 
+Second:  Ambient v Moderate,  Ambient v Severe, & Moderate v Severe; 
+Third:   Ambient v Moderate
+
+#Day 2
+```{r Day2 dds model analysis}
+
+# DAY 2 - models using the dds.gorup
+resultsNames(dds.d2.group)
+
+
+#  :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+#  OA EFFECT         :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+#  :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+
+
+res.d2_OA.group <- results(dds.d2.group, 
+                                    contrast = list(c("All_TreatmentHigh.High.High", "All_TreatmentHigh.High.Low"), c("All_TreatmentHigh.Low.Low", "All_TreatmentHigh.Low.High")),  alpha= 0.1)
+table(res.d2_OA.group$padj<0.05) # 101 DEGs
+
+
+# stats on the model  ::::::::::::::::::::::::::::::
+table(res.d2_OA.group$padj<0.05) #  4498   101 
+d2.numDEGs_padj_OA  <- data.frame(table(res.d2_OA.group$padj<0.05))[2,2] # DEGs - NOT considering LFC - just p adj == 165
+resd2.OA.ordered    <- res.d2_OA.group[order(res.d2_OA.group$padj), ] # Order by adjusted p-value
+d2.num.UpReg_OA     <- sum((resd2.OA.ordered$log2FoldChange[1:d2.numDEGs_padj_OA] > 1) == TRUE) #  LFC >= 1 == 35
+d2.num.DownReg_OA   <- sum((resd2.OA.ordered$log2FoldChange[1:d2.numDEGs_padj_OA] < 1) == TRUE) # LFC >= 1  == 66
+d2.total_OA         <- sum(d2.num.DownReg_OA,d2.num.UpReg_OA) # sum of DEGs with the criteria pdj < 0.05 + LFC>1 (< -1)
+# 101 total DEGs
+# with an LFC of 1..
+# 82 upregualted
+# 83 downregulated 
+# Overall... LPC threshold DID NOT alter the padj DEGs
+# plot histogram   ::::::::::::::::::::::::::::::::::
+png("../Output/DESeq2/Day2_larva/plots/FDR_histograms/Day2.hightemp.FDR_hist_OA.png", 1000, 1000, pointsize=20)
+hist(res.d2_OA.group$pvalue, breaks=20, col="grey") # view histogram
+abline(h=c( (nrow(res.d2_OA.group)*0.05), 
+            ((table(res.d2_OA.group$padj < 0.1)[2]) + (nrow(res.d2_OA.group)*0.1)),
+            ((table(res.d2_OA.group$padj < 0.05)[2]) + (nrow(res.d2_OA.group)*0.05)) ),
+                  col=c("blue", "red", "red"), lty=c(1,2,1), lwd=c(1, 3, 1)) # add line at 
+dev.off()
+
+# Write results  ::::::::::::::::::::::::::::::::::::
+
+resdata.d2.OA           <- merge(as.data.frame(resd2.OA.ordered), as.data.frame(counts(dds.d2, normalized=TRUE)), by="row.names", sort=FALSE) %>% 
+                                        dplyr::rename("TranscriptID" = "Row.names") %>% 
+                                        dplyr::mutate(TranscriptID = as.character(TranscriptID))
+resdata.d2.OA_anno      <- merge(Cvirginica_annot_reference, resdata.d2.OA, by = "TranscriptID")
+nrow(resdata.d2.OA) == nrow(resdata.d2.OA_anno)# should be TRUE
+resdata.d2.OA_anno      <- resdata.d2.OA_anno[order(resdata.d2.OA_anno$padj), ] # Order by adjusted p-value
+write.csv(resdata.d2.OA_anno, "../Data/TagSeq/DESeq2/Day2_larva/Day2.OA_DESeq2results_hightemp.csv") # write
+# volcano plot   ::::::::::::::::::::::::::::::::::::
+png("../Output/DESeq2/Day2_larva/plots/volcano/Day2.OA-VolcanoPlot_hightemp.png", 1000, 1000, pointsize=20)
+EnhancedVolcano(res.d2_OA.group,
+                lab = rownames(res.d2_OA.group),
+                x = 'log2FoldChange',
+                y = 'padj',
+                title = 'Day 2 (larva): OA (High v Low)',
+                subtitle = "DESeq2 - Differential expression",
+                FCcutoff = 1,
+                pCutoff = 0.05,
+                pointSize = 4.0,
+                labSize = 6.0,
+                colAlpha = 1,
+                legendPosition = 'right',
+                legendLabSize = 12,
+                legendIconSize = 4.0,
+                widthConnectors = 0.75)
+dev.off()
+
+
+
+
+
+
+
+
+# :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+# SALINITY EFFECT    ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+# :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+
+
+
+
+
+
+res.d2_salinity.group <- results(dds.d2.group, 
+                                    contrast = list(c("All_TreatmentHigh.High.High", "All_TreatmentHigh.Low.High"), c("All_TreatmentHigh.Low.Low", "All_TreatmentHigh.High.Low")),  alpha= 0.1)
+table(res.d2_salinity.group$padj<0.05) # 260 DEGs
+
+
+# stats on the model  ::::::::::::::::::::::::::::::
+table(res.d2_salinity.group$padj<0.05) # 260
+d2.numDEGs_padj_salinity  <- data.frame(table(res.d2_salinity.group$padj<0.05))[2,2] # DEGs - NOT considering LFC - just p adj == 260
+resd2.salinity.ordered    <- res.d2_salinity.group[order(res.d2_salinity.group$padj), ] # Order by adjusted p-value
+d2.num.UpReg_salinity     <- sum((resd2.salinity.ordered$log2FoldChange[1:d2.numDEGs_padj_salinity] > 1) == TRUE) #  LFC >= 1 == 89
+d2.num.DownReg_salinity   <- sum((resd2.salinity.ordered$log2FoldChange[1:d2.numDEGs_padj_salinity] < 1) == TRUE) # LFC >= 1  == 171
+d2.total_salinity         <- sum(d2.num.DownReg_salinity,d2.num.UpReg_salinity) # sum of DEGs with the criteria pdj < 0.05 + LFC>1 (< -1)
+# 719 total DEGs
+# with an LFC of 1..
+# 312 upregualted
+# 407 downregulated 
+# Overall... LPC threshold DID NOT alter the padj DEGs
+# plot histogram   ::::::::::::::::::::::::::::::::::
+png("../Output/DESeq2/Day2_larva/plots/FDR_histograms/Day2.FDR_hist_salinity_hightemp.png", 1000, 1000, pointsize=20)
+hist(res.d2_salinity.group$pvalue, breaks=20, col="grey") # view histogram
+abline(h=c( (nrow(res.d2_salinity.group)*0.05), 
+            ((table(res.d2_salinity.group$padj < 0.1)[2]) + (nrow(res.d2_salinity.group)*0.1)),
+            ((table(res.d2_salinity.group$padj < 0.05)[2]) + (nrow(res.d2_salinity.group)*0.05)) ),
+                  col=c("blue", "red", "red"), lty=c(1,2,1), lwd=c(1, 3, 1)) # add line at 
+dev.off()
+# Write results  ::::::::::::::::::::::::::::::::::::
+resdata.d2.salinity           <- merge(as.data.frame(resd2.salinity.ordered), as.data.frame(counts(dds.d2, normalized=TRUE)), by="row.names", sort=FALSE) %>% 
+                                        dplyr::rename("TranscriptID" = "Row.names") %>% 
+                                        dplyr::mutate(TranscriptID = as.character(TranscriptID))
+resdata.d2.salinity_anno      <- merge(Cvirginica_annot_reference, resdata.d2.salinity, by = "TranscriptID")
+nrow(resdata.d2.salinity) == nrow(resdata.d2.salinity_anno)# should be TRUE
+resdata.d2.salinity_anno      <- resdata.d2.salinity_anno[order(resdata.d2.salinity_anno$padj), ] # Order by adjusted p-value
+write.csv(resdata.d2.salinity_anno, "../Data/TagSeq/DESeq2/Day2_larva/Day2.salinity_DESeq2results_hightemp.csv") # write
+# volcano plot   ::::::::::::::::::::::::::::::::::::
+png("../Output/DESeq2/Day2_larva/plots/volcano/Day2.salinity-VolcanoPlot_hightemp.png", 1000, 1000, pointsize=20)
+EnhancedVolcano(res.d2_salinity.group,
+                lab = rownames(res.d2_salinity.group),
+                x = 'log2FoldChange',
+                y = 'padj',
+                title = 'Day 2 (larva): salinity (High v Low)',
+                subtitle = "DESeq2 - Differential expression",
+                FCcutoff = 1,
+                pCutoff = 0.05,
+                pointSize = 4.0,
+                labSize = 6.0,
+                colAlpha = 1,
+                legendPosition = 'right',
+                legendLabSize = 12,
+                legendIconSize = 4.0,
+                widthConnectors = 0.75)
+dev.off()
+
+
+
+
+
+
+
+
+
+
+# :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+# Transform data (rlog) for additional visuals (PCA and heatmaps                     ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+# :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+
+
+
+
+
+
+# Plot dispersions   :::::::::::::::::::::::::::::::::
+png("../Output/DESeq2/Day2_larva/plots/Day2.dispersions_hightemp.png", 1000, 1000, pointsize=20)
+plotDispEsts(dds.d2.group, main="Day 2 dispersions")
+dev.off()
+
+# Data transformations for heatmap and PCA visuals :::::::
+# rlog - regularized log transformation of origin count data to log2 scale - fit for each sample and dist. of coefficients in the data
+rlog.d2<- rlogTransformation(dds.d2) # rlog transform (regularized log)
+
+# diagnostiscs    :::::::::::::::::::::::::::::::::
+png("../Output/DESeq2/Day2_larva/plots/Day2.rlog_histogram_hightemp.png", 1000, 1000, pointsize=20)# diagnostics of transformation # Histogram and sd plot
+hist(assay(rlog.d2)) # view histogram 
+dev.off()
+png("../Output/DESeq2/Day2_larva/plots/Day2.rlog_mean_sd_hightemp.png", 1000, 1000, pointsize=20)
+meanSdPlot(assay(rlog.d2)) # shows the sd y axis (sq root of varaince in all samples) - flat curve may seem like a goals, BUT may be unreasonable in cases with MANY true DEGs from experimental conditions
+dev.off()
+
+# PCA plot rlog ::::::::::::::::::::::::::::::::::::::::::
+pcaData_d2 <- plotPCA(rlog.d2, intgroup = c("Temperature", "OA", "Salinity"), returnData = TRUE)
+percentVar <- round(100 * attr(pcaData_d2, "percentVar"))
+png("../Output/DESeq2/Day2_larva/plots/Day2.rlog_PCA_hightemp.png", 1000, 1000, pointsize=20)
+ggplot(pcaData_d2, aes(x = PC1, y = PC2,  shape = OA, color = Salinity, label=name)) +
+  scale_color_manual(values = c("blue", "orange")) +
+  scale_shape_manual(values = c(4, 19, 17)) +
+  geom_text(aes(label=name),hjust=0.2, vjust=1.4, size=5) +
+  geom_point(size =6) +
+  theme_classic() +
+  theme(text = element_text(size=15)) +
+  ggtitle("PCA: Day2 (rlog)") +
+  xlab(paste0("PC1: ", percentVar[1], "% variance")) +
+  ylab(paste0("PC2: ", percentVar[2], "% variance")) +
+  coord_fixed()
+dev.off()
+
+
+
+# dat <- as.data.frame(assay(rlog.d2)[,c(1:(ncol(assay(rlog.d2))))])
+# head(dat)
+# assay(rlog.d2)
+# d2.exp_data_rename <- d2.exp_data %>% dplyr::rename('Sample.ID' = 'SapleName_readmatrix')
+# samp.with.rownames <- as.data.frame(t(dat)) %>% 
+#   tibble::rownames_to_column("Sample.ID")
+# ncol(samp.with.rownames)
+# samp.with.rownamesMERGED <- merge(samp.with.rownames, d2.exp_data_rename)
+# ncol(samp.with.rownamesMERGED)
+# 
+# 
+# 
+# pca = prcomp(samp.with.rownamesMERGED[,c(2:4821)]) 
+# ggbiplot(pca,groups = samp.with.rownamesMERGED$Salinity,ellipse = T,ellipse.prob = .95)
+# theme(axis.text=element_text(size=8),
+# theme(axis.text=element_text(size=8),
+# theme(axis.text=element_text(size=8),
+# theme(axis.text=element_text(size=8),
+# theme(axis.text=element_text(size=8),
+# theme(axis.text=element_text(size=8))))))))
+
+      
+      
+
+# Plot heatmap map rlog ::::::::::::::::::::::::::::::
+# save heatmap fxn
+save_pheatmap <- function(x, filename, width=1000, height=960) { # template for saving pheatmap outputs
+  stopifnot(!missing(x))
+  stopifnot(!missing(filename))
+  png(filename,width = width, height=height)
+  grid::grid.newpage()
+  grid::grid.draw(x$gtable)
+  dev.off()
+}
+
+# OA heatmap :::::::::::::::
+# parameters for the pheatmap
+resd2.OA_topgenes.IDs                 <- head(rownames(resd2.OA.ordered),25) # call the first 13 genes that are differential expressed, FDR < 0.05 correct pdj
+resd2.OA_topgenes_rlog.counts         <- assay(rlog.d2)[resd2.OA_topgenes.IDs,] 
+resd2.OA_topgenes_corrected           <- resd2.OA_topgenes_rlog.counts - rowMeans(resd2.OA_topgenes_rlog.counts) # subtract from the row mean to get +/- 0 to normalize and ease aesthetic
+df_annot.col.OA                       <- as.data.frame(colData(dds.d2)[c("OA")])
+OA.ann_colors                         <- list(OA = c(Low="turquoise", High="coral1"))
+d2.OA.rlog.heatmap                    <- pheatmap(resd2.OA_topgenes_corrected, 
+                                          annotation_col=df_annot.col.OA, 
+                                          main = "Day 2 (larva): OA high v. Low (165 total DEGs - chose top 25)",
+                                          cutree_cols = 2,
+                                          cutree_rows = 2,
+                                          annotation_legend = TRUE,
+                                          annotation_colors = OA.ann_colors,
+                                          show_rownames = TRUE,
+                                          labels_col=df_annot.col.OA$OA, 
+                                          angle_col = 0,
+                                          fontsize = 8,
+                                  legend = TRUE)
+save_pheatmap(d2.OA.rlog.heatmap, filename = "../Output/DESeq2/Day2_larva/plots/heatmap/Day2.OA.rlog_heatmap_top25DEGs_hightemp.png") #Save heatmap
+
+# Salinity heatmap :::::::::::::::
+# parameters for the pheatmap
+resd2.salinity_topgenes.IDs           <- head(rownames(resd2.salinity.ordered),25) # call the first 13 genes that are differential expressed, FDR < 0.05 correct pdj
+resd2.salinity_topgenes_rlog.counts   <- assay(rlog.d2)[resd2.salinity_topgenes.IDs,] 
+resd2.salinity_topgenes_corrected     <- resd2.salinity_topgenes_rlog.counts - rowMeans(resd2.salinity_topgenes_rlog.counts) # subtract from the row mean to get +/- 0 to normalize and ease aesthetic
+df_annot.col.salinity                 <- as.data.frame(colData(dds.d2)[c("Salinity")])
+salinity.ann_colors                   <- list(salinity = c(Low="turquoise", High="coral1"))
+d2.salinity.rlog.heatmap              <- pheatmap(resd2.salinity_topgenes_corrected, 
+                                            annotation_col=df_annot.col.salinity, 
+                                            main = "Day 2 (larva): salinity high v. Low (165 total DEGs - chose top 25)",
+                                            cutree_cols = 2,
+                                            cutree_rows = 2,
+                                            annotation_legend = TRUE,
+                                            annotation_colors = salinity.ann_colors,
+                                            show_rownames = TRUE,
+                                            labels_col=df_annot.col.salinity$Salinity, 
+                                            angle_col = 0,
+                                            fontsize = 8,
+                                            legend = TRUE)
+save_pheatmap(d2.salinity.rlog.heatmap, filename = "../Output/DESeq2//Day2_larva/plots/heatmap/Day2.salinity.rlog_heatmap_top25DEGs_hightemp.png") #Save heatmap
+
+```
+
+

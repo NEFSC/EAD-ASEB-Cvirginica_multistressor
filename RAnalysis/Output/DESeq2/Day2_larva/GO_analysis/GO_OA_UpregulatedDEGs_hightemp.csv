@@ -1,0 +1,6 @@
+"category","over_represented_pvalue","under_represented_pvalue","numDEInCat","numInCat","term","ontology"
+"GO:0034641",0.0119028178991046,0.997173284012339,6,2677,"cellular nitrogen compound metabolic process","BP"
+"GO:0009056",0.0153089528647598,0.998179174069839,3,739,"catabolic process","BP"
+"GO:0044281",0.0393807950406417,0.993284810695818,3,1051,"small molecule metabolic process","BP"
+"GO:0005576",0.00336372322956467,0.999769431756159,3,405,"extracellular region","CC"
+"GO:0016491",0.0157242889587794,0.997284437702344,4,1327,"oxidoreductase activity","MF"

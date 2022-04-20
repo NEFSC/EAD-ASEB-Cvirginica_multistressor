@@ -1,0 +1,6 @@
+"category","over_represented_pvalue","under_represented_pvalue","numDEInCat","numInCat","term","ontology"
+"GO:0007568",1.06722111222017e-05,0.999999990801091,2,4,"aging","BP"
+"GO:0006810",0.00355315238523367,0.999750542743402,3,448,"transport","BP"
+"GO:0005622",0.0011216169892514,0.99986946545213,5,1052,"intracellular anatomical structure","CC"
+"GO:0030234",1.74233695769188e-05,0.999998820355252,6,669,"enzyme regulator activity","MF"
+"GO:0008289",0.0335929827876229,0.996992557676139,2,426,"lipid binding","MF"

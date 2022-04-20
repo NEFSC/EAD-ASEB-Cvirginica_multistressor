@@ -153,7 +153,7 @@ Metadata           <- read.csv(file="C:/Users/samjg/Documents/Github_repositorie
 ```
 
 
-```{r  experiment data}
+```{r  experiment data ALL}
 #================= #
 # ALL TIMEPOINTS:
 # call all experiment design treatments as 'exp.data'
@@ -173,6 +173,16 @@ write.csv(exp.data.d18,paste(path,"../day18.exp.data.csv", sep =''))
 
 ```
 
+```{r  experiment data - Day 2 w/o cold temperature}
+#================= #
+# DAY 2 
+exp.data.d2_hightemp <- Metadata %>% dplyr::select(!c("SampleName","Treatment", "ID")) %>% dplyr::filter(Age.days %in% 2) %>% 
+  dplyr::filter(Temperature  ==  'High')
+nrow(exp.data.d2_hightemp) # 12 total samples on Day 2
+write.csv(exp.data.d2_hightemp,paste(path,"../day2.exp.data_hightemp.csv", sep =''))
+
+
+```
 
 # INITALL ASSESSMENT OF THE RAW COUNT MATRIX 
   
@@ -209,13 +219,27 @@ raw.cts.all <- raw.countMatrix
 # ========================================================== 
 # DAY 2  raw counts
 # ========================================================== 
-# About: run dyplr 'antijoin' to call cts columns that match 'Sample.Name' in the data frame 'exp.data.d0'
+# About: run dplyr 'antijoin' to call cts columns that match 'Sample.Name' in the data frame 'exp.data.d0'
 raw.cts.d2 <- raw.countDataframe[,c(1,na.omit(match(exp.data.d2$SapleName_readmatrix, colnames(raw.countDataframe))))] # call the read count matrix JUST for day2 (omit col mathces to IDs in exp data Day 18)
 raw.cts.d2 <- data.frame(raw.cts.d2[,-1], row.names=raw.cts.d2[,1])
 raw.cts.d2 <- as.matrix(raw.cts.d2, row.names="transcript_id")
 dim(raw.cts.d2) # 66071 transcripts and  24 total samples
 paste( (mean(colSums(raw.cts.d2))) , (sd(colSums(raw.cts.d2))), sep ='+/-')  # 1,470,603 +/- 376,821 mean SD read count per sample
 sort(colnames(raw.cts.d2)) == sort(exp.data.d2$SapleName_readmatrix) # check if TRUE, means the same as the exp/design dataframe exp.data.d2
+
+
+# ========================================================== 
+# DAY 2  - only warm temp samples
+# ========================================================== 
+# About: run dplyr 'antijoin' to call cts columns that match 'Sample.Name' in the data frame 'exp.data.d0'
+raw.cts.d2_hightemp <- raw.countDataframe[,c(1,na.omit(match(exp.data.d2_hightemp$SapleName_readmatrix, colnames(raw.countDataframe))))] # call the read count matrix JUST for day2 (omit col mathces to IDs in exp data Day 18)
+raw.cts.d2_hightemp <- data.frame(raw.cts.d2_hightemp[,-1], row.names=raw.cts.d2_hightemp[,1])
+raw.cts.d2_hightemp <- as.matrix(raw.cts.d2_hightemp, row.names="transcript_id")
+dim(raw.cts.d2_hightemp) # 66071 transcripts and  12 total samples
+paste( (mean(colSums(raw.cts.d2_hightemp))) , (sd(colSums(raw.cts.d2_hightemp))), sep ='+/-')  # 1398371.33333333+/-323054.642300742 mean SD read count per sample
+sort(colnames(raw.cts.d2_hightemp)) == sort(exp.data.d2_hightemp$SapleName_readmatrix) # check if TRUE, means the same as the exp/design dataframe exp.data.d2
+
+
 
 # ========================================================== 
 # DAY 18  raw counts
@@ -230,6 +254,9 @@ sort(colnames(raw.cts.d18)) == sort(exp.data.d18$SapleName_readmatrix) # check i
 # write csv
 write.csv(raw.cts.d2,"C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Data/TagSeq/Filtered_Counts/raw.day2.counts.csv") # 'path' called in previous # write .csv section
 write.csv(raw.cts.d18,"C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Data/TagSeq/Filtered_Counts/raw.day18.counts.csv") # 'path' called in previous # write .csv section
+
+write.csv(raw.cts.d2_hightemp,"C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Data/TagSeq/Filtered_Counts/raw.day2.counts_hightemp.csv") # 'path' called in previous # write .csv section
+
 
 ```
 
@@ -255,6 +282,11 @@ Output is a grid filture for  days 0, 7, 14, 21
 raw.cts.d2  <- read.csv(file="C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Data/TagSeq/Filtered_Counts/raw.day2.counts.csv", sep=',', header=TRUE) # day 2
 
 raw.cts.d18  <- read.csv(file="C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Data/TagSeq/Filtered_Counts/raw.day18.counts.csv", sep=',', header=TRUE) # day 18
+
+
+raw.cts.d2_hightemp  <- read.csv(file="C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Data/TagSeq/Filtered_Counts/raw.day2.counts_hightemp.csv", sep=',', header=TRUE) # day 18
+
+
 
 # For loop ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::;;; #
 df_total <- data.frame() # start dataframe 
@@ -390,6 +422,46 @@ d2_1_samp     <- dim(countMatrix.d2.filtered)[2]
 SeqIDs$TranscriptID <- sub(" ,*","",SeqIDs$TranscriptID) #omits te space so we can match the rownames in countMatrix.d2.filtered
 Day2_PercAnnot_5cpm <- paste( ( (nrow(SeqIDs %>% dplyr::filter(TranscriptID  %in% (rownames(countMatrix.d2.filtered))))) / nrow(SeqIDs) * 100), " %", sep = '') # "7.39362101313321 %"
 
+
+
+# ========================================================== 
+#
+# DAY 2 - high temp only  (5 CPM in 50% samples using edgeR)
+# ========================================================== 
+raw.cts.d2_hightemp          <- data.frame(raw.cts.d2_hightemp[,-1], row.names=raw.cts.d2_hightemp[,1])
+raw.countMatrix.d2.hightemp  <- as.matrix(raw.cts.d2_hightemp, row.names="transcript_id")
+ncol(raw.countMatrix.d2.hightemp) # 12  samples from just Day 0
+nrow(raw.countMatrix.d2.hightemp) # 66071 total genes
+# pre-filtering; genes ommitted if < 5 counts per million reads in 50% of samples
+ # view the colSums of our Day0 samples  - notice the read sums are around 1 million
+CPM.d2.hightemp <- cpm(raw.countMatrix.d2.hightemp) # Obtain CPMs (counts oer million) using egdeR
+head(CPM.d2.hightemp) # Have a look at the output
+thresh.d2.hightemp <- CPM.d2.hightemp > 5 # Which values in myCPM are greater than 5?
+head(thresh.d2.hightemp) # This produces a logical matrix with TRUEs and FALSES
+rowSums(head(thresh.d2.hightemp)) # Summary of how many TRUEs there are in each row
+table(rowSums(thresh.d2.hightemp)) # 2452 genes with TRUE in all 24 samples; 57498 genes with false in all 24 samples
+#     0     1     2     3     4     5     6     7     8     9    10    11    12 
+# 58571  1017   581   407   335   302   301   276   273   302   404   562  2740
+keep.d2.hightemp <- rowSums(thresh.d2.hightemp) >= floor(ncol(thresh.d2.hightemp)/2) # we would like to keep genes that have at least 50% TRUES in each row of thresh
+summary(keep.d2.hightemp) # only 8% of genes passed
+#    Mode   FALSE    TRUE 
+# logical   61213    4858
+countMatrix.d2.hightemp.filtered <- raw.countMatrix.d2.hightemp[keep.d2.hightemp,] # Subset the rows of countdata to keep the more highly expressed genes
+dim(countMatrix.d2.hightemp.filtered) # 4858 seq  12 samples
+
+hist_1_d2.hightemp     <- qplot((colSums(countMatrix.d2.hightemp.filtered)) , geom="histogram")
+d2_1_numgenes.hightemp <- dim(countMatrix.d2.hightemp.filtered)[1]
+d2_1_samp.hightemp     <- dim(countMatrix.d2.hightemp.filtered)[2]
+
+# % Genes with annotation == (filtered genes with annotation / filtered genes) * 100 
+SeqIDs$TranscriptID <- sub(" ,*","",SeqIDs$TranscriptID) #omits te space so we can match the rownames in countMatrix.d2.hightemp.filtered
+Day2_PercAnnot_5cpm.hightemp <- paste( ( (nrow(SeqIDs %>% dplyr::filter(TranscriptID  %in% (rownames(countMatrix.d2.hightemp.filtered))))) / nrow(SeqIDs) * 100), " %", sep = '') # "7.29155722326454 %"
+
+
+
+
+
+
 # ========================================================== 
 #
 # DAY 18 (5 CPM in 50% samples using edgeR)
@@ -435,5 +507,10 @@ dev.off()
 write.csv(countMatrix.d2.filtered,"C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Data/TagSeq/Filtered_Counts/filtered_counts_5cpm_50perc/day2.filtered_5cpm50perc.csv") # 'path' called in previous # write .csv section
 
 write.csv(countMatrix.d18.filtered,"C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Data/TagSeq/Filtered_Counts/filtered_counts_5cpm_50perc/day18.counts.filtered_5cpm50perc.csv") # 'path' called in previous # write .csv section
+
+
+
+write.csv(countMatrix.d2.hightemp.filtered,"C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Data/TagSeq/Filtered_Counts/filtered_counts_5cpm_50perc/day2.filtered_5cpm50perc_hightemp.csv") # 'path' called in previous # write .csv section
+
 
 ```

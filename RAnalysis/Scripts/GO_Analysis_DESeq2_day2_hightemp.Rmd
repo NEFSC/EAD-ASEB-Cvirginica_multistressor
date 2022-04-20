@@ -54,21 +54,13 @@ Annotation and DE data (from DESeq2 Rmd script)
 
 # DE files - all genes and filtered raw counts
 ## main pairwise effect DEGs (salinity, temperature, OA - high vs. low for each)
-DE_d2.Temperature <- read.csv(file="C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Data/TagSeq/DESeq2/Day2_larva/Day2.Temperature_DESeq2results.csv", sep=',', header=TRUE)
-DE_d2.Salinity    <- read.csv(file="C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Data/TagSeq/DESeq2/Day2_larva/Day2.Salinity_DESeq2results.csv", sep=',', header=TRUE)
-DE_d2.OA          <- read.csv(file="C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Data/TagSeq/DESeq2/Day2_larva/Day2.OA_DESeq2results.csv", sep=',', header=TRUE)
-colnames(DE_d2.Temperature)[2]  == "TranscriptID" # TRUE
+DE_d2.Salinity    <- read.csv(file="C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Data/TagSeq/DESeq2/Day2_larva/Day2.Salinity_DESeq2results_hightemp.csv", sep=',', header=TRUE)
+DE_d2.OA          <- read.csv(file="C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Data/TagSeq/DESeq2/Day2_larva/Day2.OA_DESeq2results_hightemp.csv", sep=',', header=TRUE)
 colnames(DE_d2.Salinity)[2]     == "TranscriptID" # TRUE
 colnames(DE_d2.OA)[2]           == "TranscriptID" # TRUE
 
-DE_d18.Salinity    <- read.csv(file="C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Data/TagSeq/DESeq2/Day18_spat/Day18.salinity_DESeq2results.csv", sep=',', header=TRUE)
-DE_d18.OA          <- read.csv(file="C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Data/TagSeq/DESeq2/Day18_spat/Day18.OA_DESeq2results.csv", sep=',', header=TRUE)
-colnames(DE_d18.Salinity)[2]     == "TranscriptID" # TRUE
-colnames(DE_d18.OA)[2]           == "TranscriptID" # TRUE
-
 #  mapped read counts for each Day (addressed separately in DESeq2)
-d2.counts   <- read.csv(file="../Data/TagSeq/Filtered_counts/filtered_counts_5cpm_50perc/day2.filtered_5cpm50perc.csv", sep=',', header=TRUE) %>% dplyr::rename("TranscriptID" = "X")
-d18.counts  <- read.csv(file="../Data/TagSeq/Filtered_counts/filtered_counts_5cpm_50perc/day18.counts.filtered_5cpm50perc.csv", sep=',', header=TRUE) %>% dplyr::rename("TranscriptID" = "X")
+d2.counts   <- read.csv(file="../Data/TagSeq/Filtered_counts/filtered_counts_5cpm_50perc/day2.filtered_5cpm50perc_hightemp.csv", sep=',', header=TRUE) %>% dplyr::rename("TranscriptID" = "X")
 
 # annotation master data 
 # first the crassotrea virginica reference - containing the transcript IDs and functional annotation (nOTE: no KEGG or GO term-level annotation in this file!)
@@ -159,13 +151,6 @@ nrow(Master_ref) # 66437
 # ref$Function # View the new column Function
 
 
-# Day 2 larva temperature pairwise main effect (high v. low)
-DE_d2.Temperaturey_SHORT <- DE_d2.Temperature %>% 
-                              dplyr::select("TranscriptID", 'log2FoldChange', 'padj') %>% 
-                              dplyr::filter(!padj > 0.05) %>% 
-                              dplyr::mutate(Dir = case_when(log2FoldChange > 0 ~ "up", log2FoldChange < 0 ~ "down")) %>%  
-                              dplyr::mutate(Effect = "Day2_Temperature") %>% 
-                              dplyr::mutate(time = "d2_larva")
 # Day 2 larva Salinity pairwise main effect (high v. low)
 DE_d2.Salinity_SHORT     <- DE_d2.Salinity %>% 
                               dplyr::select("TranscriptID", 'log2FoldChange', 'padj') %>% 
@@ -182,56 +167,28 @@ DE_d2.OA_SHORT           <- DE_d2.OA %>%
                               dplyr::mutate(time = "d2_larva")
 
 
-# Day 18 larva Salinity pairwise main effect (high v. low)
-DE_d18.Salinity_SHORT     <- DE_d18.Salinity %>% 
-                              dplyr::select("TranscriptID", 'log2FoldChange', 'padj') %>% 
-                              dplyr::filter(!padj > 0.05) %>% 
-                              dplyr::mutate(Dir = case_when(log2FoldChange > 0 ~ "up", log2FoldChange < 0 ~ "down")) %>%  
-                              dplyr::mutate(Effect = "Day18_Salinity") %>% 
-                              dplyr::mutate(time = "d18_spat")
-# Day 18 larva OA pairwise main effect (high v. low)
-DE_d18.OA_SHORT           <- DE_d18.OA %>% 
-                              dplyr::select("TranscriptID", 'log2FoldChange', 'padj') %>% 
-                              dplyr::filter(!padj > 0.05) %>% 
-                              dplyr::mutate(Dir = case_when(log2FoldChange > 0 ~ "up", log2FoldChange < 0 ~ "down")) %>%  
-                              dplyr::mutate(Effect = "Day18_OA") %>% 
-                              dplyr::mutate(time = "d18_spat")
-
 # merge to a master file
-DE_ALL           <- rbind(DE_d2.Temperaturey_SHORT, DE_d2.Salinity_SHORT, DE_d2.OA_SHORT, 
-                   DE_d18.Salinity_SHORT, DE_d18.OA_SHORT)
+DE_ALL           <- rbind(DE_d2.Salinity_SHORT, DE_d2.OA_SHORT)
 
 DE_ALL_merged    <- merge( (DE_ALL %>% dplyr::rename(Cvirginica_TranscriptID=TranscriptID)), Master_ref, by="Cvirginica_TranscriptID")
 DE_Master_with_annotation <- DE_ALL_merged[!duplicated(DE_ALL_merged[,c('Cvirginica_TranscriptID','log2FoldChange', 'Effect', 'padj', 'Cvirginica_length')]),]
 
-write.csv(DE_Master_with_annotation, file = "../Output/DESeq2/DE_All_Annotation.csv", row.names = FALSE)
+write.csv(DE_Master_with_annotation, file = "../Output/DESeq2/DE_Day2hightemp_Annotation.csv", row.names = FALSE)
 
 ```
 
 Prep Differential Expression data (from DESeq2) by Date and direction of DE 
 ```{r}
 
-DE_Master_with_annotation <- read.csv(file="C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Output/DESeq2/DE_All_Annotation.csv", sep=',', header=TRUE)
+DE_Master_with_annotation <- read.csv(file="C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Output/DESeq2/DE_Day2hightemp_Annotation.csv", sep=',', header=TRUE)
 
 # Objective here is to call the DE genes (up and down) 
-# DAY 2 Temperature------------------------------------------- #
-DE_d2.Temperature.UPREG  <- DE_Master_with_annotation %>% dplyr::filter(Effect %in% "Day2_Temperature") %>% dplyr::filter(Dir %in% 'up')               # UPREG call
-DE_d2.Temperature.DWNREG <- DE_Master_with_annotation %>% dplyr::filter(Effect %in% "Day2_Temperature") %>% dplyr::filter(Dir %in% 'down')             # DWNREG call
 # DAY 2 Salinity   ------------------------------------------- #
 DE_d2.Salinity.UPREG     <- DE_Master_with_annotation %>% dplyr::filter(Effect %in% "Day2_Salinity") %>% dplyr::filter(Dir %in% 'up')               # UPREG call
 DE_d2.Salinity.DWNREG    <- DE_Master_with_annotation %>% dplyr::filter(Effect %in% "Day2_Salinity") %>% dplyr::filter(Dir %in% 'down')             # DWNREG call
 # DAY 2 OA         ------------------------------------------- #
 DE_d2.OA.UPREG           <- DE_Master_with_annotation %>% dplyr::filter(Effect %in% "Day2_OA") %>% dplyr::filter(Dir %in% 'up')               # UPREG call
 DE_d2.OA.DWNREG          <- DE_Master_with_annotation %>% dplyr::filter(Effect %in% "Day2_OA") %>% dplyr::filter(Dir %in% 'down')             # DWNREG call
-
-
-# Day 18 Salinity   ------------------------------------------- #
-DE_d18.Salinity.UPREG    <- DE_Master_with_annotation %>% dplyr::filter(Effect %in% "Day18_Salinity") %>% dplyr::filter(Dir %in% 'up')               # UPREG call
-DE_d18.Salinity.DWNREG   <- DE_Master_with_annotation %>% dplyr::filter(Effect %in% "Day18_Salinity") %>% dplyr::filter(Dir %in% 'down')             # DWNREG call
-# Day 18 OA         ------------------------------------------- #
-DE_d18.OA.UPREG          <- DE_Master_with_annotation %>% dplyr::filter(Effect %in% "Day18_OA") %>% dplyr::filter(Dir %in% 'up')               # UPREG call
-DE_d18.OA.DWNREG         <- DE_Master_with_annotation %>% dplyr::filter(Effect %in% "Day18_OA") %>% dplyr::filter(Dir %in% 'down')             # DWNREG call
-
 
 
 # All genes - and all by common abiotic challenge  (----------------------------)not including uncharacterized annotations)  -------------------------------------------------------- #
@@ -269,7 +226,6 @@ Set ID and gene length vectors, and make a binary matrix indicating which genes 
 # Prepare dataframe(s) and vectors for goseq 
 # Format 'GO.term' for goseq from the P.generosa annotation .fna file 'Geoduck_annotation'
 IDvector.d2         <- as.vector(unique(d2.counts$TranscriptID))   # call unique genes (those filtered and used in DESEq2) on day0 - 'IDvector'
-IDvector.d18        <- as.vector(unique(d18.counts$TranscriptID))  # call unique genes (those filtered and used in DESEq2) on day7 - 'IDvector'
 GO_unique.genes.all <- as.vector(unique(Master_ref$Cvirginica_TranscriptID)) # call all unique genes for GO analysis (goseq)
 
 # Gene length 
@@ -280,14 +236,9 @@ length_vector   <- GO_gene.length$Cvirginica_length
 
 GeneLength.d2   <-  dplyr::inner_join(d2.counts, unique((GO_gene.length %>% dplyr::rename(TranscriptID = Cvirginica_TranscriptID)), by='TranscriptID'))
 
-GeneLength.d18  <- dplyr::inner_join(d18.counts, unique((GO_gene.length %>% dplyr::rename(TranscriptID = Cvirginica_TranscriptID)), by='TranscriptID'))
-
 # call length values for goseq - confirms that the IDvector and length_vector are the same!!!
 length_vector.d2 <- GeneLength.d2$Cvirginica_length    # length vector for all unique reads address in DESeq2 on day 0 
 sum(sapply(length_vector.d2,length)) == dim(d2.counts)[1] #should be TRUE
-
-length_vector.d18 <- GeneLength.d18$Cvirginica_length    # length vector for all unique reads address in DESeq2 on day 7
-sum(sapply(length_vector.d18,length)) == dim(d18.counts)[1] #should be TRUE
 
 ```
 
@@ -298,74 +249,31 @@ sum(sapply(length_vector.d18,length)) == dim(d18.counts)[1] #should be TRUE
 
 # DAY 2 larvae ------------------------------------------- #
 
-
-# TEMPERATURE 
-nrow(DE_d2.Temperature.UPREG) # 341
-DE.d2._Temperature.UP    <-as.integer(GO_unique.genes.all%in%(DE_d2.Temperature.UPREG$Cvirginica_TranscriptID)) # Day 2-temperature, up
-names(DE.d2._Temperature.UP)=GO_unique.genes.all
-sum(sapply(DE.d2._Temperature.UP,length)) # 59032
-sum(DE.d2._Temperature.UP == 1) # should be 341
-
-nrow(DE_d2.Temperature.DWNREG) # 251
-DE.d2._Temperature.DOWN    <-as.integer(GO_unique.genes.all%in%(DE_d2.Temperature.DWNREG$Cvirginica_TranscriptID)) # Day 2-temperature, up
-names(DE.d2._Temperature.DOWN)=GO_unique.genes.all
-sum(sapply(DE.d2._Temperature.DOWN,length)) # 59032
-sum(DE.d2._Temperature.DOWN == 1) # should be 251
-
-
 # SALINITY
-nrow(DE_d2.Salinity.UPREG) # 318
+nrow(DE_d2.Salinity.UPREG) # 124
 DE.d2._Salinity.UP    <-as.integer(GO_unique.genes.all%in%(DE_d2.Salinity.UPREG$Cvirginica_TranscriptID)) # Day 2-Salinity, up
 names(DE.d2._Salinity.UP)=GO_unique.genes.all
 sum(sapply(DE.d2._Salinity.UP,length)) # 59032
-sum(DE.d2._Salinity.UP == 1) # should be 318
+sum(DE.d2._Salinity.UP == 1) # should be 124
 
-nrow(DE_d2.Salinity.DWNREG) # 355
+nrow(DE_d2.Salinity.DWNREG) # 118
 DE.d2._Salinity.DOWN    <-as.integer(GO_unique.genes.all%in%(DE_d2.Salinity.DWNREG$Cvirginica_TranscriptID)) # Day 2-Salinity, up
 names(DE.d2._Salinity.DOWN)=GO_unique.genes.all
 sum(sapply(DE.d2._Salinity.DOWN,length)) # 59032
-sum(DE.d2._Salinity.DOWN == 1) # should be 355
+sum(DE.d2._Salinity.DOWN == 1) # should be 118
 
 # OA
-nrow(DE_d2.OA.UPREG) # 81
+nrow(DE_d2.OA.UPREG) # 43
 DE.d2._OA.UP    <-as.integer(GO_unique.genes.all%in%(DE_d2.OA.UPREG$Cvirginica_TranscriptID)) # Day 2-OA, up
 names(DE.d2._OA.UP)=GO_unique.genes.all
 sum(sapply(DE.d2._OA.UP,length)) # 59032
-sum(DE.d2._OA.UP == 1) # should be 81
+sum(DE.d2._OA.UP == 1) # should be 43
 
-nrow(DE_d2.OA.DWNREG) # 70
+nrow(DE_d2.OA.DWNREG) # 47
 DE.d2._OA.DOWN    <-as.integer(GO_unique.genes.all%in%(DE_d2.OA.DWNREG$Cvirginica_TranscriptID)) # Day 2-OA, up
 names(DE.d2._OA.DOWN)=GO_unique.genes.all
 sum(sapply(DE.d2._OA.DOWN,length)) # 59032
-sum(DE.d2._OA.DOWN == 1) # should be 70
-
-# DAY 18 spat ------------------------------------------- #
-
-# SALINITY
-nrow(DE_d18.Salinity.UPREG) # 476
-DE.d18._Salinity.UP    <-as.integer(GO_unique.genes.all%in%(DE_d18.Salinity.UPREG$Cvirginica_TranscriptID)) # Day 2-Salinity, up
-names(DE.d18._Salinity.UP)=GO_unique.genes.all
-sum(sapply(DE.d18._Salinity.UP,length)) # 59032
-sum(DE.d18._Salinity.UP == 1) # should be 476
-
-nrow(DE_d18.Salinity.DWNREG) # 494
-DE.d18._Salinity.DOWN    <-as.integer(GO_unique.genes.all%in%(DE_d18.Salinity.DWNREG$Cvirginica_TranscriptID)) # Day 2-Salinity, up
-names(DE.d18._Salinity.DOWN)=GO_unique.genes.all
-sum(sapply(DE.d18._Salinity.DOWN,length)) # 59032
-sum(DE.d18._Salinity.DOWN == 1) # should be 494
-
-# OA
-nrow(DE_d18.OA.UPREG) # 185
-DE.d18._OA.UP    <-as.integer(GO_unique.genes.all%in%(DE_d18.OA.UPREG$Cvirginica_TranscriptID)) # Day 2-OA, up
-names(DE.d18._OA.UP)=GO_unique.genes.all
-sum(sapply(DE.d18._OA.UP,length)) # 59032
-sum(DE.d18._OA.UP == 1) # should be 185
-
-nrow(DE_d18.OA.DWNREG) # 160
-DE.d18._OA.DOWN    <-as.integer(GO_unique.genes.all%in%(DE_d18.OA.DWNREG$Cvirginica_TranscriptID)) # Day 2-OA, up
-names(DE.d18._OA.DOWN)=GO_unique.genes.all
-sum(sapply(DE.d18._OA.DOWN,length)) # 59032
-sum(DE.d18._OA.DOWN == 1) # should be 160
+sum(DE.d2._OA.DOWN == 1) # should be 47
 
 
 ```
@@ -403,9 +311,6 @@ Calculate Probability Weighting Function
 
 # DAY 2 larvae ------------------------------------------- #
 
-# Temperature
-TEMP.pwf_d2.UP    <- nullp(DE.d2._Temperature.UP,    id=GO_unique.genes.all, bias.data=length_vector) #weight vector by length of gene
-TEMP.pwf_d2.DOWN  <- nullp(DE.d2._Temperature.DOWN,  id=GO_unique.genes.all, bias.data=length_vector) #weight vector by length of gene
 # Salinity
 SAL.pwf_d2.UP     <- nullp(DE.d2._Salinity.UP,    id=GO_unique.genes.all, bias.data=length_vector) #weight vector by length of gene
 SAL.pwf_d2.DOWN   <- nullp(DE.d2._Salinity.DOWN,  id=GO_unique.genes.all, bias.data=length_vector) #weight vector by length of gene
@@ -414,15 +319,6 @@ OA.pwf_d2.UP      <- nullp(DE.d2._OA.UP,    id=GO_unique.genes.all, bias.data=le
 OA.pwf_d2.DOWN    <- nullp(DE.d2._OA.DOWN,  id=GO_unique.genes.all, bias.data=length_vector) #weight vector by length of gene
 
 
-# DAY 18 spat ------------------------------------------- #
-
-# Salinity
-SAL.pwf_d18.UP     <- nullp(DE.d18._Salinity.UP,    id=GO_unique.genes.all, bias.data=length_vector) #weight vector by length of gene
-SAL.pwf_d18.DOWN   <- nullp(DE.d18._Salinity.DOWN,  id=GO_unique.genes.all, bias.data=length_vector) #weight vector by length of gene
-# OA
-OA.pwf_d18.UP      <- nullp(DE.d18._OA.UP,    id=GO_unique.genes.all, bias.data=length_vector) #weight vector by length of gene
-OA.pwf_d18.DOWN    <- nullp(DE.d18._OA.DOWN,  id=GO_unique.genes.all, bias.data=length_vector) #weight vector by length of gene
-
 ```
 
 Run goseq
@@ -430,11 +326,6 @@ Run goseq
 
 
 # DAY 2 larvae  ------------------------------------------- #
-
-# Temperature
-Temp.GO_d2.UP       <- goseq(TEMP.pwf_d2.UP,  GO_unique.genes.all, gene2cat=GO.terms, test.cats=c("GO:CC", "GO:BP", "GO:MF"), method="Wallenius", use_genes_without_cat=TRUE)
-
-Temp.GO_d2.DOWN    <- goseq(TEMP.pwf_d2.DOWN,   GO_unique.genes.all, gene2cat=GO.terms, test.cats=c("GO:CC", "GO:BP", "GO:MF"), method="Wallenius", use_genes_without_cat=TRUE)
 
 # Salinity
 Salinity.GO_d2.UP    <- goseq(SAL.pwf_d2.UP,  GO_unique.genes.all, gene2cat=GO.terms, test.cats=c("GO:CC", "GO:BP", "GO:MF"), method="Wallenius", use_genes_without_cat=TRUE)
@@ -446,19 +337,6 @@ OA.GO_d2.UP        <- goseq(OA.pwf_d2.UP,  GO_unique.genes.all, gene2cat=GO.term
 
 OA.GO_d2.DOWN     <- goseq(OA.pwf_d2.DOWN,   GO_unique.genes.all, gene2cat=GO.terms, test.cats=c("GO:CC", "GO:BP", "GO:MF"), method="Wallenius", use_genes_without_cat=TRUE)
 
-
-# DAY 18 spat ------------------------------------------- #
-
-
-# Salinity
-Salinity.GO_d18.UP        <- goseq(SAL.pwf_d18.UP,  GO_unique.genes.all, gene2cat=GO.terms, test.cats=c("GO:CC", "GO:BP", "GO:MF"), method="Wallenius", use_genes_without_cat=TRUE)
-
-Salinity.GO_d18.DOWN     <- goseq(SAL.pwf_d18.DOWN,   GO_unique.genes.all, gene2cat=GO.terms, test.cats=c("GO:CC", "GO:BP", "GO:MF"), method="Wallenius", use_genes_without_cat=TRUE)
-
-# OA
-OA.GO_d18.UP        <- goseq(OA.pwf_d18.UP,  GO_unique.genes.all, gene2cat=GO.terms, test.cats=c("GO:CC", "GO:BP", "GO:MF"), method="Wallenius", use_genes_without_cat=TRUE)
-
-OA.GO_d18.DOWN     <- goseq(OA.pwf_d18.DOWN,   GO_unique.genes.all, gene2cat=GO.terms, test.cats=c("GO:CC", "GO:BP", "GO:MF"), method="Wallenius", use_genes_without_cat=TRUE)
 ```
 
 Find only enriched GO terms that are statistically significant at cutoff
@@ -474,38 +352,6 @@ Find only enriched GO terms that are statistically significant at cutoff
 
 # Day 2 larvae - Pairwise main effects  ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::;
 
-# TEMPETAURE ::::::::::::::::::::::::::::::::::::::
-
-# UPREGULATED GENES - those with higher expression from ambient (control) stress priming
-Temp.d2.UP.05           <- Temp.GO_d2.UP$category[Temp.GO_d2.UP$over_represented_pvalue<.05]
-Temp.d2.UP.05           <- data.frame(Temp.d2.UP.05)
-colnames(Temp.d2.UP.05) <- c("category")
-Temp.d2.UP.05           <- merge(Temp.d2.UP.05, Temp.GO_d2.UP, by="category")
-Temp.d2.UP.05           <- Temp.d2.UP.05[order(Temp.d2.UP.05$ontology, Temp.d2.UP.05$over_represented_pvalue, -Temp.d2.UP.05$numDEInCat),]
-Temp.d2.UP.05$term      <- as.factor(Temp.d2.UP.05$term)
-Temp.d2.UP.05_filtered  <- Temp.d2.UP.05 %>% filter(!(numDEInCat<2 & ontology == "BP"), !(numDEInCat<2 & ontology == "MF"))
-nrow(filter(Temp.d2.UP.05_filtered, ontology=="BP")) #number sig BP terms == 9
-nrow(filter(Temp.d2.UP.05_filtered, ontology=="MF")) #number sig MF terms == 5
-nrow(Temp.d2.UP.05_filtered) # == 20
-
-write.csv(Temp.d2.UP.05_filtered, file = "../Output/DESeq2/Day2_larva/GO_analysis/GO_Temperature_UpregulatedDEGs.csv", row.names = FALSE)
-
-
-#DOWNREGULATED GENES  - those with higher expression from moderate stress priming
-Temp.d2.DOWN.05           <- Temp.GO_d2.DOWN$category[Temp.GO_d2.DOWN$over_represented_pvalue<.05]
-Temp.d2.DOWN.05           <- data.frame(Temp.d2.DOWN.05)
-colnames(Temp.d2.DOWN.05) <- c("category")
-Temp.d2.DOWN.05           <- merge(Temp.d2.DOWN.05, Temp.GO_d2.DOWN, by="category")
-Temp.d2.DOWN.05           <- Temp.d2.DOWN.05[order(Temp.d2.DOWN.05$ontology, Temp.d2.DOWN.05$over_represented_pvalue, -Temp.d2.DOWN.05$numDEInCat),]
-Temp.d2.DOWN.05$term      <- as.factor(Temp.d2.DOWN.05$term)
-Temp.d2.DOWN.05_filtered  <- Temp.d2.DOWN.05 %>% filter(!(numDEInCat<2 & ontology == "BP"), !(numDEInCat<2 & ontology == "MF"))
-nrow(filter(Temp.d2.DOWN.05_filtered, ontology=="BP")) #number sig BP terms == 4
-nrow(filter(Temp.d2.DOWN.05_filtered, ontology=="MF")) #number sig MF terms == 5
-nrow(Temp.d2.DOWN.05_filtered) # == 16
-
-write.csv(Temp.d2.DOWN.05_filtered, file = "../Output/DESeq2/Day2_larva/GO_analysis/GO_Temperature_DownregulatedDEGs.csv", row.names = FALSE)
-
-
 # SALINITY ::::::::::::::::::::::::::::::::::::::
 
 # UPREGULATED GENES - those with higher expression from ambient (control) stress priming
@@ -520,7 +366,7 @@ nrow(filter(Salinity.d2.UP.05_filtered, ontology=="BP")) #number sig BP terms ==
 nrow(filter(Salinity.d2.UP.05_filtered, ontology=="MF")) #number sig MF terms == 5
 nrow(Salinity.d2.UP.05_filtered) # == 15
 
-write.csv(Salinity.d2.UP.05_filtered, file = "../Output/DESeq2/Day2_larva/GO_analysis/GO_Salinity_UpregulatedDEGs.csv", row.names = FALSE)
+write.csv(Salinity.d2.UP.05_filtered, file = "../Output/DESeq2/Day2_larva/GO_analysis/GO_Salinity_UpregulatedDEGs_hightemp.csv", row.names = FALSE)
 
 #DOWNREGULATED GENES  - those with higher expression from moderate stress priming
 Salinity.d2.DOWN.05           <- Salinity.GO_d2.DOWN$category[Salinity.GO_d2.DOWN$over_represented_pvalue<.05]
@@ -534,7 +380,7 @@ nrow(filter(Salinity.d2.DOWN.05_filtered, ontology=="BP")) #number sig BP terms 
 nrow(filter(Salinity.d2.DOWN.05_filtered, ontology=="MF")) #number sig MF terms == 7
 nrow(Salinity.d2.DOWN.05_filtered) # == 26
 
-write.csv(Salinity.d2.DOWN.05_filtered, file = "../Output/DESeq2/Day2_larva/GO_analysis/GO_Salinity_DownregulatedDEGs.csv", row.names = FALSE)
+write.csv(Salinity.d2.DOWN.05_filtered, file = "../Output/DESeq2/Day2_larva/GO_analysis/GO_Salinity_DownregulatedDEGs_hightemp.csv", row.names = FALSE)
 
 # OA:::::::::::: ::::::::::::::::::::::::::::::::::::::
 
@@ -550,7 +396,7 @@ nrow(filter(OA.d2.UP.05_filtered, ontology=="BP")) #number sig BP terms == 2
 nrow(filter(OA.d2.UP.05_filtered, ontology=="MF")) #number sig MF terms == 0
 nrow(OA.d2.UP.05_filtered) # == 3
 
-write.csv(OA.d2.UP.05_filtered, file = "../Output/DESeq2/Day2_larva/GO_analysis/GO_OA_UpregulatedDEGs.csv", row.names = FALSE)
+write.csv(OA.d2.UP.05_filtered, file = "../Output/DESeq2/Day2_larva/GO_analysis/GO_OA_UpregulatedDEGs_hightemp.csv", row.names = FALSE)
 
 #DOWNREGULATED GENES  - those with higher expression from moderate stress priming
 OA.d2.DOWN.05           <- OA.GO_d2.DOWN$category[OA.GO_d2.DOWN$over_represented_pvalue<.05]
@@ -564,88 +410,11 @@ nrow(filter(OA.d2.DOWN.05_filtered, ontology=="BP")) #number sig BP terms == 3
 nrow(filter(OA.d2.DOWN.05_filtered, ontology=="MF")) #number sig MF terms == 1
 nrow(OA.d2.DOWN.05_filtered) # == 7
 
-write.csv(OA.d2.DOWN.05_filtered, file = "../Output/DESeq2/Day2_larva/GO_analysis/GO_OA_DownregulatedDEGs.csv", row.names = FALSE)
+write.csv(OA.d2.DOWN.05_filtered, file = "../Output/DESeq2/Day2_larva/GO_analysis/GO_OA_DownregulatedDEGs_hightemp.csv", row.names = FALSE)
 
 ```
 
 
-Find only enriched GO terms that are statistically significant at cutoff
-```{r - Sig GO terms Day 18 spat}
-
-
-##### NOTE #####
-# each of the GO analysis below contains two data sets: 
-# (1) the UNFILTERED data (i.e. d0.UP.05 = day 0, upregualted genes, significant GO terms < 0.05)
-# (2) the FILTERED data (i.e. d0.UP.05_filtered = day 0, upregualted genes, significant GO terms < 0.05 AND filtered for BP terms >= 2 genes per term + MG terms >= 2 per term)
-# ....review  the compileGO.R script for the cumulative spreadsheet of ALL UNFILTERED GO terms for the funtional analysis of each pairwise DE below!
-
-
-# Day 18 spat - Pairwise main effects  ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::;
-
-
-# SALINITY ::::::::::::::::::::::::::::::::::::::
-
-# UPREGULATED GENES - those with higher expression from ambient (control) stress priming
-Salinity.d18.UP.05           <- Salinity.GO_d18.UP$category[Salinity.GO_d18.UP$over_represented_pvalue<.05]
-Salinity.d18.UP.05           <- data.frame(Salinity.d18.UP.05)
-colnames(Salinity.d18.UP.05) <- c("category")
-Salinity.d18.UP.05           <- merge(Salinity.d18.UP.05, Salinity.GO_d18.UP, by="category")
-Salinity.d18.UP.05           <- Salinity.d18.UP.05[order(Salinity.d18.UP.05$ontology, Salinity.d18.UP.05$over_represented_pvalue, -Salinity.d18.UP.05$numDEInCat),]
-Salinity.d18.UP.05$term      <- as.factor(Salinity.d18.UP.05$term)
-Salinity.d18.UP.05_filtered  <- Salinity.d18.UP.05 %>% filter(!(numDEInCat<2 & ontology == "BP"), !(numDEInCat<2 & ontology == "MF"))
-nrow(filter(Salinity.d18.UP.05_filtered, ontology=="BP")) #number sig BP terms == 10
-nrow(filter(Salinity.d18.UP.05_filtered, ontology=="MF")) #number sig MF terms == 6
-nrow(Salinity.d18.UP.05_filtered) # == 20
-
-write.csv(Salinity.d18.UP.05_filtered, file = "../Output/DESeq2/Day18_spat/GO_analysis/GO_Salinity_UpregulatedDEGs.csv", row.names = FALSE)
-
-
-#DOWNREGULATED GENES  - those with higher expression from moderate stress priming
-Salinity.d18.DOWN.05           <- Salinity.GO_d18.DOWN$category[Salinity.GO_d18.DOWN$over_represented_pvalue<.05]
-Salinity.d18.DOWN.05           <- data.frame(Salinity.d18.DOWN.05)
-colnames(Salinity.d18.DOWN.05) <- c("category")
-Salinity.d18.DOWN.05           <- merge(Salinity.d18.DOWN.05, Salinity.GO_d18.DOWN, by="category")
-Salinity.d18.DOWN.05           <- Salinity.d18.DOWN.05[order(Salinity.d18.DOWN.05$ontology, Salinity.d18.DOWN.05$over_represented_pvalue, -Salinity.d18.DOWN.05$numDEInCat),]
-Salinity.d18.DOWN.05$term      <- as.factor(Salinity.d18.DOWN.05$term)
-Salinity.d18.DOWN.05_filtered  <- Salinity.d18.DOWN.05 %>% filter(!(numDEInCat<2 & ontology == "BP"), !(numDEInCat<2 & ontology == "MF"))
-nrow(filter(Salinity.d18.DOWN.05_filtered, ontology=="BP")) #number sig BP terms == 20
-nrow(filter(Salinity.d18.DOWN.05_filtered, ontology=="MF")) #number sig MF terms == 14
-nrow(Salinity.d18.DOWN.05_filtered) # == 49
-
-write.csv(Salinity.d18.DOWN.05_filtered, file = "../Output/DESeq2/Day18_spat/GO_analysis/GO_Salinity_DownregulatedDEGs.csv", row.names = FALSE)
-
-
-# OA:::::::::::: ::::::::::::::::::::::::::::::::::::::
-
-# UPREGULATED GENES - those with higher expression from ambient (control) stress priming
-OA.d18.UP.05           <- OA.GO_d18.UP$category[OA.GO_d18.UP$over_represented_pvalue<.05]
-OA.d18.UP.05           <- data.frame(OA.d18.UP.05)
-colnames(OA.d18.UP.05) <- c("category")
-OA.d18.UP.05           <- merge(OA.d18.UP.05, OA.GO_d18.UP, by="category")
-OA.d18.UP.05           <- OA.d18.UP.05[order(OA.d18.UP.05$ontology, OA.d18.UP.05$over_represented_pvalue, -OA.d18.UP.05$numDEInCat),]
-OA.d18.UP.05$term      <- as.factor(OA.d18.UP.05$term)
-OA.d18.UP.05_filtered  <- OA.d18.UP.05 %>% filter(!(numDEInCat<2 & ontology == "BP"), !(numDEInCat<2 & ontology == "MF"))
-nrow(filter(OA.d18.UP.05_filtered, ontology=="BP")) #number sig BP terms == 16
-nrow(filter(OA.d18.UP.05_filtered, ontology=="MF")) #number sig MF terms == 9
-nrow(OA.d18.UP.05_filtered) # == 35
-
-write.csv(OA.d18.UP.05_filtered, file = "../Output/DESeq2/Day18_spat/GO_analysis/GO_OA_UpregulatedDEGs.csv", row.names = FALSE)
-
-#DOWNREGULATED GENES  - those with higher expression from moderate stress priming
-OA.d18.DOWN.05           <- OA.GO_d18.DOWN$category[OA.GO_d18.DOWN$over_represented_pvalue<.05]
-OA.d18.DOWN.05           <- data.frame(OA.d18.DOWN.05)
-colnames(OA.d18.DOWN.05) <- c("category")
-OA.d18.DOWN.05           <- merge(OA.d18.DOWN.05, OA.GO_d18.DOWN, by="category")
-OA.d18.DOWN.05           <- OA.d18.DOWN.05[order(OA.d18.DOWN.05$ontology, OA.d18.DOWN.05$over_represented_pvalue, -OA.d18.DOWN.05$numDEInCat),]
-OA.d18.DOWN.05$term      <- as.factor(OA.d18.DOWN.05$term)
-OA.d18.DOWN.05_filtered  <- OA.d18.DOWN.05 %>% filter(!(numDEInCat<2 & ontology == "BP"), !(numDEInCat<2 & ontology == "MF"))
-nrow(filter(OA.d18.DOWN.05_filtered, ontology=="BP")) #number sig BP terms == 3
-nrow(filter(OA.d18.DOWN.05_filtered, ontology=="MF")) #number sig MF terms == 5
-nrow(OA.d18.DOWN.05_filtered) # == 11
-
-write.csv(OA.d18.DOWN.05_filtered, file = "../Output/DESeq2/Day18_spat/GO_analysis/GO_OA_DownregulatedDEGs.csv", row.names = FALSE)
-
-```
 Correct any un-annotated terms/ontologies
 ```{r}
 NAs.ontology <- d0.UP.05 %>% subset(is.na(term))
@@ -678,84 +447,42 @@ Read in files if previous steps are already run
 
 
 # load Day 2 larva GO results (main effect models - within treatment)
-Salinity_d2.UP.05       <- read.csv("../Output/DESeq2/Day2_larva/GO_analysis/GO_Salinity_UpregulatedDEGs.csv") %>%  
+Salinity_d2.UP.05       <- read.csv("../Output/DESeq2/Day2_larva/GO_analysis/GO_Salinity_UpregulatedDEGs_hightemp.csv") %>%  
                               dplyr::mutate(dir =  "up") %>% 
                               dplyr::mutate(Day = '2') %>% 
                               dplyr::mutate(challenge = 'salinity')
 
-Salinity_d2.DOWN.05     <- read.csv("../Output/DESeq2/Day2_larva/GO_analysis/GO_Salinity_DownregulatedDEGs.csv") %>%  
+Salinity_d2.DOWN.05     <- read.csv("../Output/DESeq2/Day2_larva/GO_analysis/GO_Salinity_DownregulatedDEGs_hightemp.csv") %>%  
                               dplyr::mutate(dir =  "down") %>% 
                               dplyr::mutate(Day = '2') %>% 
                               dplyr::mutate(challenge = 'salinity')
                               
-Temperature_d2.UP.05    <- read.csv("../Output/DESeq2/Day2_larva/GO_analysis/GO_Temperature_UpregulatedDEGs.csv") %>%  
-                              dplyr::mutate(dir =  "up") %>% 
-                              dplyr::mutate(Day = '2') %>% 
-                              dplyr::mutate(challenge = 'temperature')
-                              
-Temperature_d2.DOWN.05  <- read.csv("../Output/DESeq2/Day2_larva/GO_analysis/GO_Temperature_DownregulatedDEGs.csv") %>%  
-                              dplyr::mutate(dir =  "down") %>% 
-                              dplyr::mutate(Day = '2') %>% 
-                              dplyr::mutate(challenge = 'temperature')
-                              
-OA_d2.UP.05             <- read.csv("../Output/DESeq2/Day2_larva/GO_analysis/GO_OA_UpregulatedDEGs.csv") %>%  
+OA_d2.UP.05             <- read.csv("../Output/DESeq2/Day2_larva/GO_analysis/GO_OA_UpregulatedDEGs_hightemp.csv") %>%  
                               dplyr::mutate(dir =  "up") %>% 
                               dplyr::mutate(Day = '2') %>% 
                               dplyr::mutate(challenge = 'OA')
                               
-OA_d2.DOWN.05           <- read.csv("../Output/DESeq2/Day2_larva/GO_analysis/GO_OA_DownregulatedDEGs.csv") %>%  
+OA_d2.DOWN.05           <- read.csv("../Output/DESeq2/Day2_larva/GO_analysis/GO_OA_DownregulatedDEGs_hightemp.csv") %>%  
                               dplyr::mutate(dir =  "down") %>% 
                               dplyr::mutate(Day = '2') %>% 
                               dplyr::mutate(challenge = 'OA')
 
-# load Day 18 spat GO results (main effect models - within treatment)
-
-OA_d18.UP.05         <- read.csv("../Output/DESeq2/Day18_spat/GO_analysis/GO_OA_UpregulatedDEGs.csv") %>%  
-                              dplyr::mutate(dir =  "up") %>% 
-                              dplyr::mutate(Day = '18') %>% 
-                              dplyr::mutate(challenge = 'OA')
-
-OA_d18.DOWN.05       <- read.csv("../Output/DESeq2/Day18_spat/GO_analysis/GO_OA_DownregulatedDEGs.csv")%>%  
-                              dplyr::mutate(dir =  "down") %>% 
-                              dplyr::mutate(Day = '18') %>% 
-                              dplyr::mutate(challenge = 'OA')
-
-Salinity_d18.UP.05   <- read.csv("../Output/DESeq2/Day18_spat/GO_analysis/GO_Salinity_UpregulatedDEGs.csv")  %>%  
-                              dplyr::mutate(dir =  "up") %>% 
-                              dplyr::mutate(Day = '18') %>% 
-                              dplyr::mutate(challenge = 'salinity')
-
-Salinity_d18.DOWN.05 <- read.csv("../Output/DESeq2/Day18_spat/GO_analysis/GO_Salinity_DownregulatedDEGs.csv") %>%  
-                              dplyr::mutate(dir =  "down") %>% 
-                              dplyr::mutate(Day = '18') %>% 
-                              dplyr::mutate(challenge = 'salinity')
-
-Master_goseq_results      <- rbind(Salinity_d2.UP.05, Temperature_d2.UP.05, OA_d2.UP.05,Salinity_d18.UP.05,OA_d18.UP.05,
-                                   Salinity_d2.DOWN.05, Temperature_d2.DOWN.05, OA_d2.DOWN.05,Salinity_d18.DOWN.05,OA_d18.DOWN.05) %>%                                   dplyr::filter(!ontology %in% 'CC') # Master GOseq OF ALL PRIMARY EFFECTS
+Master_goseq_results      <- rbind(Salinity_d2.UP.05, OA_d2.UP.05,
+                                   Salinity_d2.DOWN.05, OA_d2.DOWN.05) %>%
+                                    dplyr::filter(!ontology %in% 'CC') # Master GOseq OF ALL PRIMARY EFFECTS
 
 
 
 
-
-
-
-DEG_d2.Temperature <- DE_d2.Temperature %>% dplyr::filter(padj < 0.05) %>%  dplyr::mutate(dir = case_when(log2FoldChange > 0 ~ "up", log2FoldChange <0 ~ "down")) %>% dplyr::mutate(Day = '2') %>% dplyr::mutate(challenge = 'temperature')  
 
 DEGs_d2.Salinity   <- DE_d2.Salinity    %>% dplyr::filter(padj < 0.05) %>%  dplyr::mutate(dir = case_when(log2FoldChange > 0 ~ "up", log2FoldChange <0 ~ "down")) %>% dplyr::mutate(Day = '2') %>% dplyr::mutate(challenge = 'salinity')  
 
 DEGs_d2.OA         <- DE_d2.OA          %>% dplyr::filter(padj < 0.05) %>%  dplyr::mutate(dir = case_when(log2FoldChange > 0 ~ "up", log2FoldChange <0 ~ "down"))  %>% dplyr::mutate(Day = '2') %>% dplyr::mutate(challenge = 'OA')  
 
 
-DEGs_d18.Salinity   <- DE_d18.Salinity    %>% dplyr::filter(padj < 0.05) %>%  dplyr::mutate(dir = case_when(log2FoldChange > 0 ~ "up", log2FoldChange <0 ~ "down")) %>% dplyr::mutate(Day = '18') %>% dplyr::mutate(challenge = 'salinity')  
 
-DEGs_d18.OA         <- DE_d18.OA          %>% dplyr::filter(padj < 0.05) %>%  dplyr::mutate(dir = case_when(log2FoldChange > 0 ~ "up", log2FoldChange <0 ~ "down")) %>% dplyr::mutate(Day = '18')  %>% dplyr::mutate(challenge = 'OA')      
-
-
-Master_DESeq2_results <- rbind(DEG_d2.Temperature[,c('TranscriptID','dir','Day', 'challenge')],
-                               DEGs_d2.Salinity[,c('TranscriptID','dir','Day', 'challenge')], 
-                               DEGs_d2.OA[,c('TranscriptID','dir','Day', 'challenge')],
-                               DEGs_d18.Salinity[,c('TranscriptID','dir','Day', 'challenge')],
-                               DEGs_d18.OA[,c('TranscriptID','dir','Day', 'challenge')]) # Master DESeq2 
+Master_DESeq2_results <- rbind(DEGs_d2.Salinity[,c('TranscriptID','dir','Day', 'challenge')], 
+                               DEGs_d2.OA[,c('TranscriptID','dir','Day', 'challenge')]) # Master DESeq2 
 
 ```
 
@@ -986,7 +713,7 @@ MF_Day2_Plot <- ggplot(data = GOres_Day2_MolFunction,aes(x = dir, y = forcats::f
                       ggtitle('GO analysis Day 2 larvae - Molecular Function') 
 MF_Day2_Plot
 
-pdf(paste("../Output/DESeq2/Day2_larva/GO_analysis/Day2_larvae_DEGs_MolFunction.pdf", sep =''), width=8,height=7)
+pdf(paste("../Output/DESeq2/Day2_larva/GO_analysis/Day2_larvae_DEGs_MolFunction_hightemp.pdf", sep =''), width=8,height=7)
 print(MF_Day2_Plot)
 dev.off()
 
@@ -1012,60 +739,8 @@ BP_Day2_Plot <- ggplot(data = GOres_Day2_BiolProcess,aes(x = dir, y = forcats::f
                       ggtitle('GO analysis Day 2 larvae - Biological Process') 
 BP_Day2_Plot
 
-pdf(paste("../Output/DESeq2/Day2_larva/GO_analysis/Day2_larvae_DEGs_BiolProcess.pdf", sep =''), width=8,height=7)
+pdf(paste("../Output/DESeq2/Day2_larva/GO_analysis/Day2_larvae_DEGs_BiolProcess_hightemp.pdf", sep =''), width=8,height=7)
 print(BP_Day2_Plot)
-dev.off()
-
-############################################################################################################## 3
-#  Molecular Function  
-
-
-GOres_Day18_MolFunction <- Master_goseq_results %>% dplyr::filter(ontology =='MF' & Day == '18')
-
-MF_Day18_Plot <- ggplot(data = GOres_Day18_MolFunction,aes(x = dir, y = forcats::fct_rev(term))) + 
-                      geom_tile(aes(fill= -log10(over_represented_pvalue), width = 1)) + 
-                      scale_fill_gradient(low = "grey95", high = "black",limits=c(0, (ceiling(max(-log10(GOres_Day18_MolFunction$over_represented_pvalue))))), breaks=seq(0, (ceiling(max(-log10(GOres_Day18_MolFunction$over_represented_pvalue)))),by=18))  +
-                      facet_grid(~challenge, labeller = label_wrap_gen(width = 10, multi_line = TRUE))+
-                      theme_bw() + 
-                      theme(panel.border = element_blank(), panel.grid.major = element_blank(),
-                                         panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"),
-                                         strip.text.y = element_text(angle=0, size = 8, face = "bold"),
-                                         strip.text.x = element_text(size = 8, face = "bold"),
-                                         axis.title.x = element_blank(),
-                                         axis.title.y = element_text(size=8),
-                                         axis.text = element_text(size = 8), legend.position = "right",
-                                         plot.margin = unit(c(0,1,0,0.185), "cm"))+
-                      ggtitle('GO analysis Day 18 larvae - Molecular Function') 
-MF_Day18_Plot
-
-pdf(paste("../Output/DESeq2/Day18_spat/GO_analysis/Day18_spat_DEGs_MolFunction.pdf", sep =''), width=8,height=7)
-print(MF_Day18_Plot)
-dev.off()
-
-############################################################################################################## 3
-#  Molecular Function  
-
-GOres_Day18_BiolProcess <- Master_goseq_results %>% dplyr::filter(ontology =='BP' & Day == '18') %>%  dplyr::filter(!term %in% 'biological_process') 
-
-BP_Day18_Plot <- ggplot(data = GOres_Day18_BiolProcess,aes(x = dir, y = forcats::fct_rev(term))) + 
-                      geom_tile(aes(fill= -log10(over_represented_pvalue), width = 1)) + 
-                      scale_fill_gradient(low = "grey95", high = "black",limits=c(0, (ceiling(max(-log10(GOres_Day18_MolFunction$over_represented_pvalue))))), breaks=seq(0, (ceiling(max(-log10(GOres_Day18_MolFunction$over_represented_pvalue)))),by=18))  +
-                      facet_grid(~challenge, labeller = label_wrap_gen(width = 10, multi_line = TRUE))+
-                      theme_bw() + 
-                      theme(panel.border = element_blank(), panel.grid.major = element_blank(),
-                                         panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"),
-                                         strip.text.y = element_text(angle=0, size = 8, face = "bold"),
-                                         strip.text.x = element_text(size = 8, face = "bold"),
-                                         axis.title.x = element_blank(),
-                                         axis.title.y = element_text(size=8),
-                                         axis.text = element_text(size = 8), legend.position = "right",
-                                         plot.margin = unit(c(0,1,0,0.185), "cm"))+
-                      ggtitle('GO analysis Day 18 spat - Biological Process') 
-BP_Day18_Plot
-
-
-pdf(paste("../Output/DESeq2/Day18_spat/GO_analysis/Day18_spat_DEGs_BiolProcess.pdf", sep =''), width=8,height=7)
-print(BP_Day18_Plot)
 dev.off()
 
 ```

@@ -1,0 +1,13 @@
+"","SapleName_readmatrix","Temperature","OA","Salinity","Replicate","Age.days"
+"1","A12.larva","High","Low","High","A",2
+"2","B1.larva","High","Low","High","B",2
+"3","B2.larva","High","Low","High","C",2
+"4","B3.larva","High","High","High","A",2
+"5","B4.larva","High","High","High","B",2
+"6","B5.larva","High","High","High","C",2
+"7","B6.larva","High","High","Low","A",2
+"8","B7.larva","High","High","Low","B",2
+"9","B8.larva","High","High","Low","C",2
+"10","C6.larva","High","Low","Low","A",2
+"11","C7.larva","High","Low","Low","B",2
+"12","C8.larva","High","Low","Low","C",2

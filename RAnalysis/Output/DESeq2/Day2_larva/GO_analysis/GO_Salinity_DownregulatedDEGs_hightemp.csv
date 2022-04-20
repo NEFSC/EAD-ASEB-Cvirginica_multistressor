@@ -1,0 +1,6 @@
+"category","over_represented_pvalue","under_represented_pvalue","numDEInCat","numInCat","term","ontology"
+"GO:0007010",0.0261522386496598,0.996092755517066,3,505,"cytoskeleton organization","BP"
+"GO:0005615",0.00160021936190358,0.999970713181141,2,48,"extracellular space","CC"
+"GO:0005622",0.0439396931600918,0.98711472117728,5,1052,"intracellular anatomical structure","CC"
+"GO:0030234",1.19201906739811e-05,0.999998489291537,9,669,"enzyme regulator activity","MF"
+"GO:0016874",0.0318135540962961,0.997191796633622,2,210,"ligase activity","MF"
