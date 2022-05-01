@@ -171,6 +171,15 @@ d2.Traits.Temperature  <-  d2.Traits %>% dplyr::select('Temperature') %>% # prim
                                dplyr::select(-Temperature)
 d2.Traits.Temperature  # final dataset of 0,1 for treatment groups - temperature only!
 
+
+# Salinity groups  ===================================================== #
+d2.Traits.Salinity      <-  d2.Traits %>% dplyr::select('Salinity')  %>% # primary treatment as Ambient (A) vs. Moderate (M)
+  dplyr::mutate(High = as.factor(as.numeric(Salinity == "High")))  %>%  # call occurrence of 'A' as 0s and 1s (factor)
+  dplyr::mutate(Low = as.factor(as.numeric(Salinity == "Low")))    %>%  # call occurrence of 'M'  as 0s and 1s (factor)
+  dplyr::select(-Salinity)
+d2.Traits.Salinity  # final dataset of 0,1 for treatment groups - Primary only!
+
+
 # pCO2 groups  ===================================================== #
 d2.Traits.pCO2          <-  d2.Traits %>% dplyr::select('pCO2')  %>% # primary treatment as Ambient (A) vs. Moderate (M)
                                 dplyr::mutate(High = as.factor(as.numeric(pCO2 == "High")))  %>%  # call occurrence of 'A' as 0s and 1s (factor)
@@ -178,7 +187,18 @@ d2.Traits.pCO2          <-  d2.Traits %>% dplyr::select('pCO2')  %>% # primary t
                                 dplyr::select(-pCO2)
 d2.Traits.pCO2  # final dataset of 0,1 for treatment groups - Primary only!
 
-# Group  ================================================================ #
+# oCO2_Salinity (as _ _ pCO2 and salinity)  ================================================================ #
+d2.Traits.pCO2Salinity   <- d2.Traits %>% 
+  dplyr::select('pCO2_Salinity') %>% # primary treatment as Ambient (A) vs. Moderate (M)
+  dplyr::mutate(HH = as.factor(as.numeric(pCO2_Salinity == "HH")))  %>%  # call occurrence of 'AA' as 0s and 1s (factor)
+  dplyr::mutate(HL = as.factor(as.numeric(pCO2_Salinity == "HL")))  %>%  # call occurrence of 'AA' as 0s and 1s (factor)
+  dplyr::mutate(LL = as.factor(as.numeric(pCO2_Salinity == "LL")))  %>%  # call occurrence of 'AA' as 0s and 1s (factor)
+  dplyr::mutate(LH = as.factor(as.numeric(pCO2_Salinity == "LH")))  %>%  # call occurrence of 'AA' as 0s and 1s (factor)
+dplyr::select(-pCO2_Salinity)
+d2.Traits.pCO2Salinity
+
+
+# all treatment grousp (as _ _ _ for temp, pCO2 and salinity)  ================================================================ #
 d2.Traits.Group         <- d2.Traits %>% 
                               dplyr::select('All_treatment') %>% # primary treatment as Ambient (A) vs. Moderate (M)
                               dplyr::mutate(HHH = as.factor(as.numeric(All_treatment == "HHH")))  %>%  # call occurrence of 'AA' as 0s and 1s (factor)
@@ -198,28 +218,46 @@ d2.Traits.Group
 # cluster samples by Trait
 # ===================================================================================
 
-# Primary treatment Only
-png("Presentations/URI/2022_URI_Puritz_Genomics_class/Day7_ClusterTree_PrimaryTreatment.png", 1000, 1000, pointsize=20)
-traitColors_Primary = labels2colors(d7.Traits.Primary); # Convert traits to a color representation: white means low, red means high, grey means missing entry
-plotDendroAndColors(sampleTree2, traitColors_Primary, # Plot the sample dendrogram and the colors underneath.
-                    groupLabels = names(d7.Traits.Primary), 
-                    main = "Sample dendrogram and trait heatmap")
+# Temperature ONLY
+png("Output/WGCNA/Day2_larvae/Day2_ClusterTree_Temperature.png", 1000, 1000, pointsize=20)
+traitColors_Temperature = labels2colors(d2.Traits.Temperature); # Convert traits to a color representation: white means low, red means high, grey means missing entry
+plotDendroAndColors(sampleTree2, traitColors_Temperature, # Plot the sample dendrogram and the colors underneath.
+                    groupLabels = names(d2.Traits.Temperature), 
+                    main = "Sample dendrogram and trait heatmap (temperature)")
 dev.off()
 
-# Second treatment 
-png("Presentations/URI/2022_URI_Puritz_Genomics_class/Day7_ClusterTree_SecondTreatment.png", 1000, 1000, pointsize=20)
-traitColors_Second = labels2colors(d7.Traits.Secondary); # Convert traits to a color representation: white means low, red means high, grey means missing entry
-plotDendroAndColors(sampleTree2, traitColors_Second, # Plot the sample dendrogram and the colors underneath.
-                    groupLabels = names(d7.Traits.Secondary), 
-                    main = "Sample dendrogram and trait heatmap")
+# pCO2 ONLY
+png("Output/WGCNA/Day2_larvae/Day2_ClusterTree_pCO2.png", 1000, 1000, pointsize=20)
+traitColors_pCO2 = labels2colors(d2.Traits.pCO2); # Convert traits to a color representation: white means low, red means high, grey means missing entry
+plotDendroAndColors(sampleTree2, traitColors_pCO2, # Plot the sample dendrogram and the colors underneath.
+                    groupLabels = names(d2.Traits.pCO2), 
+                    main = "Sample dendrogram and trait heatmap (pCO2)")
 dev.off()
 
-# Group treatment (primary_second)
-png("Presentations/URI/2022_URI_Puritz_Genomics_class/Day7_ClusterTree_GroupTreatment.png", 1000, 1000, pointsize=20)
-traitColorsGroup = labels2colors(d7.Traits.Group); # Convert traits to a color representation: white means low, red means high, grey means missing entry
-plotDendroAndColors(sampleTree2, traitColorsGroup, # Plot the sample dendrogram and the colors underneath.
-                    groupLabels = names(d7.Traits.Group), 
-                    main = "Sample dendrogram and trait heatmap")
+# Salinity ONLY
+png("Output/WGCNA/Day2_larvae/Day2_ClusterTree_Salinity.png", 1000, 1000, pointsize=20)
+traitColors_Salinity = labels2colors(d2.Traits.Salinity); # Convert traits to a color representation: white means low, red means high, grey means missing entry
+plotDendroAndColors(sampleTree2, traitColors_Salinity, # Plot the sample dendrogram and the colors underneath.
+                    groupLabels = names(d2.Traits.Salinity), 
+                    main = "Sample dendrogram and trait heatmap (Salinity)")
+dev.off()
+
+
+# pCO2 and Salinity only 
+png("Output/WGCNA/Day2_larvae/Day2_ClusterTree_pCO2Salinity.png", 1000, 1000, pointsize=20)
+traitColors_pCO2Sal = labels2colors(d2.Traits.pCO2Salinity); # Convert traits to a color representation: white means low, red means high, grey means missing entry
+plotDendroAndColors(sampleTree2, traitColors_pCO2Sal, # Plot the sample dendrogram and the colors underneath.
+                    groupLabels = names(d2.Traits.pCO2Salinity), 
+                    main = "Sample dendrogram and trait heatmap (pCO2_Salinity)")
+dev.off()
+
+
+# Group ONLY
+png("Output/WGCNA/Day2_larvae/Day2_ClusterTree_Group.png", 1000, 1000, pointsize=20)
+traitColors_Group = labels2colors(d2.Traits.Group); # Convert traits to a color representation: white means low, red means high, grey means missing entry
+plotDendroAndColors(sampleTree2, traitColors_Group, # Plot the sample dendrogram and the colors underneath.
+                    groupLabels = names(d2.Traits.Group), 
+                    main = "Sample dendrogram and trait heatmap (Group)")
 dev.off()
 
 
@@ -234,11 +272,11 @@ dev.off()
 # soft threshold
 # ===================================================================================
 
-dim(dds.d7_vst) #  35 8548 - again double check you have the correct data...
+dim(dds.d2_vst) #  22 4820 - again double check you have the correct data...
 # Choose a set of soft-thresholding powers
 powers = c(c(1:10), seq(from = 12, to=20, by=2))
 # Call the network topology analysis function
-sft = pickSoftThreshold(dds.d7_vst, powerVector = powers, verbose = 5) #...wait for this to finish
+sft = pickSoftThreshold(dds.d2_vst, powerVector = powers, verbose = 5) #...wait for this to finish
 #  pickSoftThreshold 
 #  performs the analysis of network topology and aids the
 #  user in choosing a proper soft-thresholding power.
@@ -247,7 +285,7 @@ sft = pickSoftThreshold(dds.d7_vst, powerVector = powers, verbose = 5) #...wait 
 
 # png to output 
 sizeGrWindow(9, 5) # set window size 
-png("Presentations/URI/2022_URI_Puritz_Genomics_class/Day7_ScaleTopology_SoftThresh.png", 1000, 1000, pointsize=20)
+png("Output/WGCNA/Day2_larvae/Day2_ScaleTopology_SoftThresh.png", 1000, 1000, pointsize=20)
         par(mfrow = c(1,2));
         cex1 = 0.9;
         
@@ -282,13 +320,13 @@ dev.off() # output
 # https://ramellose.github.io/networktutorials/wgcna.html
 # https://horvath.genetics.ucla.edu/html/CoexpressionNetwork/Rpackages/WGCNA/10cpm/TechnicalReports/signedTOM.pdf
 #=====================================================================================
-softPower = 3 # set your soft threshold based on the plots above 
+softPower = 10 # set your soft threshold based on the plots above 
 
 # unsigned -do not want to run this, remember pros and cons from the presentation; default when unspecified runs as unsigned
 adjacency_unsign = adjacency(dds.d7_vst, power = softPower, type="unsigned") # this takes a long time.. just wait...
 
 # signed - must call te type, defaults to unsigned
-adjacency_sign = adjacency(dds.d7_vst, power = softPower, type="signed") # this takes a long time.. just wait...
+adjacency_sign = adjacency(dds.d2_vst, power = softPower, type="signed") # this takes a long time.. just wait...
 
 
 #=====================================================================================
@@ -329,8 +367,8 @@ dynamicMods_sign = cutreeDynamic(dendro = geneTree_sign, distM = dissTOM_sign,
                                  minClusterSize = minModuleSize);
 table(dynamicMods_sign) # view the number of genes per module 
 # dynamicMods_sign
-# 1    2    3    4    5 
-# 3951 2821  862  610  304 
+# 1   2   3   4   5   6   7   8 
+# 881 770 690 645 518 506 431 379
 
 #=====================================================================================
 #
@@ -342,8 +380,8 @@ table(dynamicMods_sign) # view the number of genes per module
 dynamicColors_sign = labels2colors(dynamicMods_sign) # add colors to module labels (previously numbers)
 table(dynamicColors_sign) # lets look at this table...
 # dynamicColors_sign
-# blue     brown     green turquoise    yellow 
-# 2821       862       304      3951       610 
+# black      blue     brown     green      pink       red turquoise    yellow 
+# 431       770       690       518       379       506       881       645 
 # Plot the dendrogram and colors underneath
 sizeGrWindow(8,6)
 plotDendroAndColors(geneTree_sign, dynamicColors_sign, "Dynamic Tree Cut - SIGNED",
@@ -360,7 +398,7 @@ plotDendroAndColors(geneTree_sign, dynamicColors_sign, "Dynamic Tree Cut - SIGNE
 # Calculate eigengenes ========================================================== # 
 
 # MEList = moduleEigengenes(dds.d7_vst, colors = dynamicColors)
-MEList = moduleEigengenes(dds.d7_vst, colors = dynamicColors_sign)
+MEList = moduleEigengenes(dds.d2_vst, colors = dynamicColors_sign)
 MEs    = MEList$eigengenes # you can view MEs, condenses gene counts down to a single number for each sample representive of that expressoin pattern 
 
 # Calculate dissimilarity of module eigengenes
@@ -369,7 +407,7 @@ METree = hclust(as.dist(MEDiss), method = "average") # Cluster module eigengenes
 
 # Plot the result ================================================================ #
 sizeGrWindow(7, 6)
-png("Presentations/URI/2022_URI_Puritz_Genomics_class/Day7_ClusterEigengenes.png", 1000, 1000, pointsize=20)
+png("Output/WGCNA/Day2_larvae/Day2_ClusterEigengenes.png", 1000, 1000, pointsize=20)
 plot(METree, main = "Clustering of module eigengenes - SIGNED (dissimilarity calc = MEDiss = 1-cor(MEs))",
      xlab = "", sub = "")
 dev.off()
@@ -414,9 +452,9 @@ colorOrder = c("grey", standardColors(50));
 moduleLabels = match(moduleColors, colorOrder)-1;
 
 # Save module colors and labels for use in subsequent parts
-save(MEs, moduleLabels, moduleColors, file = "Presentations/URI/2022_URI_Puritz_Genomics_class/Day7-networkConstruction-stepByStep.RData")
+save(MEs, moduleLabels, moduleColors, file = "Output/WGCNA/Day2_larvae/Day2-networkConstruction-stepByStep.RData")
 # write csv - save the module eigengenes
-write.csv(MEs, file = "Presentations/URI/2022_URI_Puritz_Genomics_class/d7.WGCNA_ModulEigengenes.csv")
+write.csv(MEs, file = "Output/WGCNA/Day2_larvae/d2.WGCNA_ModulEigengenes.csv")
 
 
 #=====================================================================================
@@ -430,10 +468,10 @@ write.csv(MEs, file = "Presentations/URI/2022_URI_Puritz_Genomics_class/d7.WGCNA
 # we simply correlate eigengenes with external traits and look for the  significant associations:
 
 # Define numbers of genes and samples
-nGenes = ncol(dds.d7_vst); # 8548
-nSamples = nrow(dds.d7_vst); # 35
+nGenes = ncol(dds.d2_vst); # 8548
+nSamples = nrow(dds.d2_vst); # 35
 # Recalculate MEs with color labels
-MEs0 = moduleEigengenes(dds.d7_vst, moduleColors)$eigengenes
+MEs0 = moduleEigengenes(dds.d2_vst, moduleColors)$eigengenes
 MEs = orderMEs(MEs0) # reorders the columns (colors/modules)
 
 
@@ -444,32 +482,49 @@ MEs = orderMEs(MEs0) # reorders the columns (colors/modules)
 #=====================================================================================
 # ALL TRAIT DATA
 
-dim(d7.Traits)  # 35  8
-dim(MEs)  # 35  6
+dim(d2.Traits)  # 22  5
+dim(MEs)  # 22  8
 # moduleTraitCor = cor(MEs, d7.Traits, use = "p");
 # moduleTraitPvalue = corPvalueStudent(moduleTraitCor, nSamples);
 
 # primary 
-d7.Traits.Primary.asnum    <- data.frame(lapply(d7.Traits.Primary, function(x) as.numeric(as.character(x))),
-                                check.names=F, row.names = row.names(d7.Traits.Primary))
-moduleTraitCor_Primary      = cor(MEs, d7.Traits.Primary.asnum, use = "p");
-moduleTraitPvalue_Primary   = corPvalueStudent(moduleTraitCor_Primary, nSamples);
-moduleTraitPvalue_Primary
+d2.Traits.Temperature.asnum    <- data.frame(lapply(d2.Traits.Temperature, function(x) as.numeric(as.character(x))),
+                                check.names=F, row.names = row.names(d2.Traits.Temperature))
+moduleTraitCor_Temperature      = cor(MEs, d2.Traits.Temperature.asnum, use = "p");
+moduleTraitPvalue_Temperature   = corPvalueStudent(moduleTraitCor_Temperature, nSamples);
+moduleTraitPvalue_Temperature
 
 
-# Second
-d7.Traits.Secondary.asnum  <- data.frame(lapply(d7.Traits.Secondary, function(x) as.numeric(as.character(x))),
-                                       check.names=F, row.names = row.names(d7.Traits.Secondary))
-moduleTraitCor_Secondary    = cor(MEs, d7.Traits.Secondary.asnum, use = "p");
-moduleTraitPvalue_Secondary = corPvalueStudent(moduleTraitCor_Secondary, nSamples);
-moduleTraitPvalue_Secondary
+# pCO2
+d2.Traits.pCO2.asnum  <- data.frame(lapply(d2.Traits.pCO2, function(x) as.numeric(as.character(x))),
+                                       check.names=F, row.names = row.names(d2.Traits.pCO2))
+moduleTraitCor_pCO2    = cor(MEs, d2.Traits.pCO2.asnum, use = "p");
+moduleTraitPvalue_pCO2 = corPvalueStudent(moduleTraitCor_pCO2, nSamples);
+moduleTraitPvalue_pCO2
+
+
+# Salinity
+d2.Traits.Salinity.asnum  <- data.frame(lapply(d2.Traits.Salinity, function(x) as.numeric(as.character(x))),
+                                    check.names=F, row.names = row.names(d2.Traits.Salinity))
+moduleTraitCor_Salinity    = cor(MEs, d2.Traits.Salinity.asnum, use = "p");
+moduleTraitPvalue_Salinity = corPvalueStudent(moduleTraitCor_Salinity, nSamples);
+moduleTraitPvalue_Salinity
+
+# pCO2 and Salinity 
+d2.Traits.pCO2Salinity
+
+d2.Traits.pCO2Salinity.asnum  <- data.frame(lapply(d2.Traits.pCO2Salinity, function(x) as.numeric(as.character(x))),
+                                        check.names=F, row.names = row.names(d2.Traits.pCO2Salinity))
+moduleTraitCor_pCO2Salinity    = cor(MEs, d2.Traits.pCO2Salinity.asnum, use = "p");
+moduleTraitPvalue_pCO2Salinity = corPvalueStudent(moduleTraitCor_pCO2Salinity, nSamples);
+moduleTraitPvalue_pCO2Salinity
 
 
 # Group
-d7.Traits.Group.asnum      <- data.frame(lapply(d7.Traits.Group, function(x) as.numeric(as.character(x))),
-                                        check.names=F, row.names = row.names(d7.Traits.Group))
-moduleTraitCor_Group        = cor(MEs, d7.Traits.Group.asnum, use = "p");
-moduleTraitPvalue_Group     = corPvalueStudent(moduleTraitCor_Group, nSamples);
+d2.Traits.Group.asnum  <- data.frame(lapply(d2.Traits.Group, function(x) as.numeric(as.character(x))),
+                                        check.names=F, row.names = row.names(d2.Traits.Group))
+moduleTraitCor_Group    = cor(MEs, d2.Traits.Group.asnum, use = "p");
+moduleTraitPvalue_Group = corPvalueStudent(moduleTraitCor_Group, nSamples);
 moduleTraitPvalue_Group
 
 #=====================================================================================
@@ -480,38 +535,38 @@ moduleTraitPvalue_Group
 
 
 
-# PRRIMARY TRETMENT ONLY  ------------------------------------------------------------------ # 
+# TEMPERATURE ONLY  ------------------------------------------------------------------ # 
 
 sizeGrWindow(10,10)
 # Will display correlations and their p-values
-d7.PRIMARYTreatments.matrix <-  paste(signif(moduleTraitCor_Primary, 2), "\n(",
-                                      signif(moduleTraitPvalue_Primary, 1), ")", sep = "")
+d2.TEMPERATURE.matrix <-  paste(signif(moduleTraitCor_Temperature, 2), "\n(",
+                                      signif(moduleTraitPvalue_Temperature, 1), ")", sep = "")
 #dim(textMatrix) == dim(moduleTraitCor_treatonly)
 par(mar = c(8, 9.5, 5, 3));
 # Display the correlation values within a heatmap plot
-png("Presentations/URI/2022_URI_Puritz_Genomics_class/Day7_Treatments_Primary_heatmap2.png", 500, 1000, pointsize=20)
-labeledHeatmap(Matrix = moduleTraitCor_Primary,
-               xLabels = names(d7.Traits.Primary),
+png("Output/WGCNA/Day2_larvae/heatmaps/Day2_Temperature_heatmap.png", 500, 1000, pointsize=20)
+labeledHeatmap(Matrix = moduleTraitCor_Temperature,
+               xLabels = names(d2.Traits.Temperature),
                yLabels = names(MEs),
                ySymbols = names(MEs),
                colorLabels = TRUE,
                colors = blueWhiteRed(50),
-               textMatrix = d7.PRIMARYTreatments.matrix,
+               textMatrix = d2.TEMPERATURE.matrix,
                setStdMargins = FALSE,
                cex.text = 1,
                zlim = c(-0.6,0.6),
-               main = paste("Module-trait relationships - Primary Treatment"))
+               main = paste("Module-trait relationships - temperature"))
 dev.off()
 
 # this heatmap looks better
-d7.PRIMARYtreatment.text <-  as.matrix(signif(moduleTraitPvalue_Primary, 3))
-pa = cluster::pam(d7.PRIMARYtreatment.text, k = 3)
-col_fun = colorRamp2(c(-0.5, 0, 0.5), c("blue", "white", "red"))
-pdf("Presentations/URI/2022_URI_Puritz_Genomics_class/Day7_Treatments_Primary_heatmap.pdf", width=5, height=6)
-Heatmap(moduleTraitCor_Primary, 
+d7.TEMPERATURE.text <-  as.matrix(signif(moduleTraitPvalue_Temperature, 3))
+pa                  = cluster::pam(d7.TEMPERATURE.text, k = 3)
+col_fun             = colorRamp2(c(-0.5, 0, 0.5), c("blue", "white", "red"))
+pdf("Output/WGCNA/Day2_larvae/heatmaps/Day2_Temperature_heatmap.pdf", width=5, height=6)
+Heatmap(moduleTraitCor_Temperature, 
         name = "gene_cor", 
         rect_gp = gpar(col = "grey", lwd = 1),
-        column_title = "Day 7 WGCNA - Primary Treatment", 
+        column_title = "Day 2 WGCNA - Temperature", 
         column_title_gp = gpar(fontsize = 12, fontface = "bold"),
         # row_title = "WGCNA modules",
         #row_km = 4, 
@@ -524,7 +579,7 @@ Heatmap(moduleTraitCor_Primary,
         border = TRUE,
         col = col_fun,
         cell_fun = function(j, i, x, y, width, height, fill) {
-          grid.text(sprintf("%.1f", d7.PRIMARYtreatment.text[i, j]), x, y, gp = gpar(fontsize = 10))
+          grid.text(sprintf("%.1f", d7.TEMPERATURE.text[i, j]), x, y, gp = gpar(fontsize = 10))
         })
 dev.off()
 
@@ -533,44 +588,157 @@ dev.off()
 
 
 
-# SECOND TREATMENT ONLY ------------------------------------------------------------------------------------- # 
 
 
-
-
-
+# pCO2 ONLY  ------------------------------------------------------------------ # 
 
 sizeGrWindow(10,10)
 # Will display correlations and their p-values
-d7.SECONDTreatments.matrix <-  paste(signif(moduleTraitCor_Secondary, 2), "\n(",
-                                     signif(moduleTraitPvalue_Secondary, 3), ")", sep = "")
+d2.pCO2.matrix <-  paste(signif(moduleTraitCor_pCO2, 2), "\n(",
+                                signif(moduleTraitPvalue_pCO2, 1), ")", sep = "")
+#dim(textMatrix) == dim(moduleTraitCor_treatonly)
 par(mar = c(8, 9.5, 5, 3));
 # Display the correlation values within a heatmap plot
-png("Presentations/URI/2022_URI_Puritz_Genomics_class/Day7_Treatments_Second_heatmap2.png", 1000, 500, pointsize=20)
-labeledHeatmap(Matrix = moduleTraitCor_Secondary,
-               xLabels = names(d7.Traits.Secondary),
+png("Output/WGCNA/Day2_larvae/heatmaps/Day2_pCO2_heatmap.png", 500, 1000, pointsize=20)
+labeledHeatmap(Matrix = moduleTraitCor_pCO2,
+               xLabels = names(d2.Traits.pCO2),
                yLabels = names(MEs),
                ySymbols = names(MEs),
                colorLabels = TRUE,
                colors = blueWhiteRed(50),
-               textMatrix = d7.SECONDTreatments.matrix,
+               textMatrix = d2.pCO2.matrix,
                setStdMargins = FALSE,
-               cex.text = 0.8,
+               cex.text = 1,
                zlim = c(-0.6,0.6),
-               main = paste("Module-trait relationships - Treatment Groups"))
+               main = paste("Module-trait relationships - pCO2"))
 dev.off()
 
 # this heatmap looks better
-d7.SECONDtreatment_text<-  as.matrix(signif(moduleTraitPvalue_Secondary, 4))
-d7.SECONDtreatment_cor <-  as.matrix(signif(moduleTraitCor_Secondary, 4))
-pa = cluster::pam(d7.SECONDtreatment_cor, k = 3)
-col_fun = colorRamp2(c(-0.5, 0, 0.5), c("blue", "white", "red"))
-
-pdf("Presentations/URI/2022_URI_Puritz_Genomics_class/Day7_Treatments_Second_heatmap.pdf", width=5, height=6)
-Heatmap(moduleTraitCor_Secondary, 
+d7.pCO2.text <-  as.matrix(signif(moduleTraitPvalue_pCO2, 3))
+pa                  = cluster::pam(d7.pCO2.text, k = 3)
+col_fun             = colorRamp2(c(-0.5, 0, 0.5), c("blue", "white", "red"))
+pdf("Output/WGCNA/Day2_larvae/heatmaps/Day2_pCO2_heatmap.pdf", width=5, height=6)
+Heatmap(moduleTraitCor_pCO2, 
         name = "gene_cor", 
         rect_gp = gpar(col = "grey", lwd = 1),
-        column_title = "Day 7 WGCNA - Treatment Groups", 
+        column_title = "Day 2 WGCNA - pCO2", 
+        column_title_gp = gpar(fontsize = 12, fontface = "bold"),
+        # row_title = "WGCNA modules",
+        #row_km = 4, 
+        column_km = 1,
+        row_split = paste0("clstr", pa$clustering),
+        row_gap = unit(5, "mm"),
+        column_gap = unit(5, "mm"),
+        # grid.text(matrix(textMatrix)),
+        # border = TRUE,
+        border = TRUE,
+        col = col_fun,
+        cell_fun = function(j, i, x, y, width, height, fill) {
+          grid.text(sprintf("%.1f", d7.pCO2.text[i, j]), x, y, gp = gpar(fontsize = 10))
+        })
+dev.off()
+
+
+
+
+
+
+
+
+
+
+
+# Salinity ONLY  ------------------------------------------------------------------ # 
+
+sizeGrWindow(10,10)
+# Will display correlations and their p-values
+d2.Salinity.matrix <-  paste(signif(moduleTraitCor_Salinity, 2), "\n(",
+                         signif(moduleTraitPvalue_Salinity, 1), ")", sep = "")
+#dim(textMatrix) == dim(moduleTraitCor_treatonly)
+par(mar = c(8, 9.5, 5, 3));
+# Display the correlation values within a heatmap plot
+png("Output/WGCNA/Day2_larvae/heatmaps/Day2_Salinity_heatmap.png", 500, 1000, pointsize=20)
+labeledHeatmap(Matrix = moduleTraitCor_Salinity,
+               xLabels = names(d2.Traits.Salinity),
+               yLabels = names(MEs),
+               ySymbols = names(MEs),
+               colorLabels = TRUE,
+               colors = blueWhiteRed(50),
+               textMatrix = d2.Salinity.matrix,
+               setStdMargins = FALSE,
+               cex.text = 1,
+               zlim = c(-0.6,0.6),
+               main = paste("Module-trait relationships - Salinity"))
+dev.off()
+
+# this heatmap looks better
+d7.Salinity.text <-  as.matrix(signif(moduleTraitPvalue_Salinity, 3))
+pa                  = cluster::pam(d7.Salinity.text, k = 3)
+col_fun             = colorRamp2(c(-0.5, 0, 0.5), c("blue", "white", "red"))
+pdf("Output/WGCNA/Day2_larvae/heatmaps/Day2_Salinity_heatmap.pdf", width=5, height=6)
+Heatmap(moduleTraitCor_Salinity, 
+        name = "gene_cor", 
+        rect_gp = gpar(col = "grey", lwd = 1),
+        column_title = "Day 2 WGCNA - Salinity", 
+        column_title_gp = gpar(fontsize = 12, fontface = "bold"),
+        # row_title = "WGCNA modules",
+        #row_km = 4, 
+        column_km = 1,
+        row_split = paste0("clstr", pa$clustering),
+        row_gap = unit(5, "mm"),
+        column_gap = unit(5, "mm"),
+        # grid.text(matrix(textMatrix)),
+        # border = TRUE,
+        border = TRUE,
+        col = col_fun,
+        cell_fun = function(j, i, x, y, width, height, fill) {
+          grid.text(sprintf("%.1f", d7.Salinity.text[i, j]), x, y, gp = gpar(fontsize = 10))
+        })
+dev.off()
+
+
+
+
+
+
+
+
+
+
+
+
+# pCO2 and Salinity  ------------------------------------------------------------------ # 
+
+sizeGrWindow(10,10)
+# Will display correlations and their p-values
+d2.pCO2Salinity.matrix <-  paste(signif(moduleTraitCor_pCO2Salinity, 2), "\n(",
+                             signif(moduleTraitPvalue_pCO2Salinity, 1), ")", sep = "")
+#dim(textMatrix) == dim(moduleTraitCor_treatonly)
+par(mar = c(8, 9.5, 5, 3));
+# Display the correlation values within a heatmap plot
+png("Output/WGCNA/Day2_larvae/heatmaps/Day2_pCO2Salinity_heatmap.png", 500, 1000, pointsize=20)
+labeledHeatmap(Matrix = moduleTraitCor_pCO2Salinity,
+               xLabels = names(d2.Traits.pCO2Salinity),
+               yLabels = names(MEs),
+               ySymbols = names(MEs),
+               colorLabels = TRUE,
+               colors = blueWhiteRed(50),
+               textMatrix = d2.pCO2Salinity.matrix,
+               setStdMargins = FALSE,
+               cex.text = 1,
+               zlim = c(-0.6,0.6),
+               main = paste("Module-trait relationships - pCO2Salinity"))
+dev.off()
+
+# this heatmap looks better
+d7.pCO2Salinity.text <-  as.matrix(signif(moduleTraitPvalue_pCO2Salinity, 3))
+pa                  = cluster::pam(d7.pCO2Salinity.text, k = 4)
+col_fun             = colorRamp2(c(-0.5, 0, 0.5), c("blue", "white", "red"))
+pdf("Output/WGCNA/Day2_larvae/heatmaps/Day2_pCO2Salinity_heatmap.pdf", width=5, height=6)
+Heatmap(moduleTraitCor_pCO2Salinity, 
+        name = "gene_cor", 
+        rect_gp = gpar(col = "grey", lwd = 1),
+        column_title = "Day 2 WGCNA - pCO2Salinity", 
         column_title_gp = gpar(fontsize = 12, fontface = "bold"),
         # row_title = "WGCNA modules",
         #row_km = 4, 
@@ -583,7 +751,7 @@ Heatmap(moduleTraitCor_Secondary,
         border = TRUE,
         col = col_fun,
         cell_fun = function(j, i, x, y, width, height, fill) {
-          grid.text(sprintf("%.1f", d7.SECONDtreatment_text[i, j]), x, y, gp = gpar(fontsize = 10))
+          grid.text(sprintf("%.1f", d7.pCO2Salinity.text[i, j]), x, y, gp = gpar(fontsize = 10))
         })
 dev.off()
 
@@ -594,44 +762,38 @@ dev.off()
 
 
 
-# GROUPS ONLY ------------------------------------------------------------------------------------- # 
-
-
-
-
-
+# Group ONLY  ------------------------------------------------------------------ # 
 
 sizeGrWindow(10,10)
 # Will display correlations and their p-values
-d7.GROUPTreatments.matrix <-  paste(signif(moduleTraitCor_Group, 2), "\n(",
-                                    signif(moduleTraitPvalue_Group, 3), ")", sep = "")
+d2.Group.matrix <-  paste(signif(moduleTraitCor_Group, 2), "\n(",
+                             signif(moduleTraitPvalue_Group, 1), ")", sep = "")
+#dim(textMatrix) == dim(moduleTraitCor_treatonly)
 par(mar = c(8, 9.5, 5, 3));
 # Display the correlation values within a heatmap plot
-png("Presentations/URI/2022_URI_Puritz_Genomics_class/Day7_Group_heatmap2.png", 1000, 500, pointsize=20)
+png("Output/WGCNA/Day2_larvae/heatmaps/Day2_Group_heatmap.png", 500, 1000, pointsize=20)
 labeledHeatmap(Matrix = moduleTraitCor_Group,
-               xLabels = names(d7.Traits.Group),
+               xLabels = names(d2.Traits.Group),
                yLabels = names(MEs),
                ySymbols = names(MEs),
                colorLabels = TRUE,
                colors = blueWhiteRed(50),
-               textMatrix = d7.GROUPTreatments.matrix,
+               textMatrix = d2.Group.matrix,
                setStdMargins = FALSE,
-               cex.text = 0.8,
+               cex.text = 1,
                zlim = c(-0.6,0.6),
-               main = paste("Module-trait relationships - Treatment Groups"))
+               main = paste("Module-trait relationships - Group"))
 dev.off()
 
 # this heatmap looks better
-d7.GROUPtreatment_text<-  as.matrix(signif(moduleTraitPvalue_Group, 4))
-d7.GROUPtreatment_cor <-  as.matrix(signif(moduleTraitCor_Group, 4))
-pa = cluster::pam(d7.GROUPtreatment_cor, k = 3)
-col_fun = colorRamp2(c(-0.5, 0, 0.5), c("blue", "white", "red"))
-
-pdf("Presentations/URI/2022_URI_Puritz_Genomics_class/Day7_Group_heatmap.pdf", width=5, height=6)
+d7.Group.text <-  as.matrix(signif(moduleTraitPvalue_Group, 3))
+pa                  = cluster::pam(d7.Group.text, k = 3)
+col_fun             = colorRamp2(c(-0.5, 0, 0.5), c("blue", "white", "red"))
+pdf("Output/WGCNA/Day2_larvae/heatmaps/Day2_Group_heatmap.pdf", width=5, height=6)
 Heatmap(moduleTraitCor_Group, 
         name = "gene_cor", 
         rect_gp = gpar(col = "grey", lwd = 1),
-        column_title = "Day 7 WGCNA - Treatment Groups", 
+        column_title = "Day 2 WGCNA - Group", 
         column_title_gp = gpar(fontsize = 12, fontface = "bold"),
         # row_title = "WGCNA modules",
         #row_km = 4, 
@@ -644,9 +806,11 @@ Heatmap(moduleTraitCor_Group,
         border = TRUE,
         col = col_fun,
         cell_fun = function(j, i, x, y, width, height, fill) {
-          grid.text(sprintf("%.1f", d7.GROUPtreatment_text[i, j]), x, y, gp = gpar(fontsize = 10))
+          grid.text(sprintf("%.1f", d7.Group.text[i, j]), x, y, gp = gpar(fontsize = 10))
         })
 dev.off()
+
+
 
 
 #=====================================================================================
