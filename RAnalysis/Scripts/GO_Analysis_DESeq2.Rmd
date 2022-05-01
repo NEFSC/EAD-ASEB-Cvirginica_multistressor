@@ -783,7 +783,7 @@ for (i in 1:nrow(GOslimLoop_vars)) {
   
   #goseq_res         <- Master_goseq_results %>%  dplyr::filter(dir %in% GOslimLoop_vars[i,1], Day %in% GOslimLoop_vars[i,2])
   
-  goseq_res         <- Master_goseq_results %>%  dplyr::filter(dir %in% GOslimLoop_vars[1,1], Day %in% GOslimLoop_vars[1,2])
+  goseq_res         <- Master_goseq_results %>%  dplyr::filter(dir %in% GOslimLoop_vars[i,1], Day %in% GOslimLoop_vars[i,2])
   
   if (GOslimLoop_vars[1,1] == 'up') {DESeq2_res <- Master_DESeq2_results %>%  dplyr::filter(dir == 'up') 
   } else {DESeq2_res <- Master_DESeq2_results %>%  dplyr::filter(dir = 'down') }
@@ -818,19 +818,18 @@ for (i in 1:nrow(GOslimLoop_vars)) {
    
   BPslim_Mapped <- mappedIds(GOslims_BP, BP_GOcollection, GOBPOFFSPRING)
   MFslim_Mapped <- mappedIds(GOslims_MF, MF_GOcollection, GOMFOFFSPRING)
-  
-  
+
   # BIOLOGICAL PROCESS
-  BPslim             <- filter(BPslim_Mapped, Term!="biological_process") #filter out empty slims and term "biological process" and slims with < 2 GO terms (omitted the Count>=2)
+  BPslim             <- BPslim_Mapped %>% dplyr::filter(!Term %in% "biological_process") %>% dplyr::filter(!Count == 0) #filter out empty slims and term "biological process" and slims with < 2 GO terms (omitted the Count>=2)
   BPsplitted         <- strsplit(as.character(BPslim$go_terms), ";") #split into multiple GO ids
   BPslim$BPsplitted  <- BPsplitted
   for (n in 1:nrow(BPslim)) {
-    table       <- data.frame(GOlist = unlist(BPslim[n,6])) # call the BPsplitted column of characters and create a small table to filter
+    table       <- data.frame(GOlist = unlist(MFslim[n,6])) # call the MFsplitted column of characters and create a small table to filter
     table       <- unique(table)
     
-    Pgen_module  <- Pgen_GOterms2 %>% dplyr::filter(gene.ID %in% gene_names) # d7_Mod.Brown$X calls the gene names in the origin Module membership dataframe at the start of this script
-    Pgen_loop    <- Pgen_module %>% dplyr::filter(Go.terms %in% table$GOlist) # filter Gene IDs with the GO term
-    Pgen_geneIDs <- Pgen_loop[-2] # ommit the GO.terms to call unique gene calls 
+    Pgen_module  <- Cvirginica_GOterms_MERGE %>% dplyr::filter(Cvirginica_TranscriptID %in% gene_names) # d7_Mod.Brown$X calls the gene names in the origin Module membership dataframe at the start of this script
+    Pgen_loop    <- Pgen_module %>% dplyr::filter(Annotation_GO_ID %in% table$GOlist) # filter Gene IDs with the GO term
+    Pgen_geneIDs <- Pgen_loop[2] # ommit the GO.terms to call unique gene calls 
     Pgen_geneIDs <- unique(Pgen_geneIDs) # call unique Gene calls (unique genes that had the GO term within each of the GOslim bins)
    
     BPslim$Gene.Count[n] <- nrow(Pgen_geneIDs)  # count of unique GeneIDs in each GOslim bin
@@ -872,20 +871,25 @@ for (i in 1:nrow(GOslimLoop_vars)) {
   
   
   # MOLECULAR FUNCTION
-  MFslim             <- filter(MFslim_Mapped, Term!="molecular_function") #filter out empty slims and term "biological process" (omitted the Count>=2)
+  MFslim             <-  MFslim_Mapped %>% 
+    dplyr::filter(!Term %in% "molecular_function") %>% 
+    dplyr::filter(!go_terms == "")#filter out empty slims and term "biological process" (omitted the Count>=2)
+ 
   MFsplitted         <- strsplit(as.character(MFslim$go_terms), ";") #split into multiple GO ids
+  
   MFslim$MFsplitted  <- MFsplitted
+  
   for (m in 1:nrow(MFslim)) {
     table       <- data.frame(GOlist = unlist(MFslim[m,6])) # call the MFsplitted column of characters and create a small table to filter
     table       <- unique(table)
     
-    Pgen_module  <- Pgen_GOterms2 %>% dplyr::filter(gene.ID %in% gene_names) # d7_Mod.Brown$X calls the gene names in the origin Module membership dataframe at the start of this script
-    Pgen_loop    <- Pgen_module %>% dplyr::filter(Go.terms %in% table$GOlist) # filter Gene IDs with the GO term
-    Pgen_geneIDs <- Pgen_loop[-2] # ommit the GO.terms to call unique gene calls 
+    Pgen_module  <- Cvirginica_GOterms_MERGE %>% dplyr::filter(Cvirginica_TranscriptID %in% gene_names) # d7_Mod.Brown$X calls the gene names in the origin Module membership dataframe at the start of this script
+    Pgen_loop    <- Pgen_module %>% dplyr::filter(Annotation_GO_ID %in% table$GOlist) # filter Gene IDs with the GO term
+    Pgen_geneIDs <- Pgen_loop[2] # ommit the GO.terms to call unique gene calls 
     Pgen_geneIDs <- unique(Pgen_geneIDs) # call unique Gene calls (unique genes that had the GO term within each of the GOslim bins)
     
-    MFslim$Gene.Count[m] <- nrow(Pgen_geneIDs)  # count of unique GeneIDs in each GOslim bin
-    MFslim$Gene.IDs[[m]] <- vapply((Pgen_geneIDs$gene.ID), paste, collapse = ";", character(1L))
+    MFslim$Gene.Count[1] <- nrow(Pgen_geneIDs)  # count of unique GeneIDs in each GOslim bin
+    MFslim$Gene.IDs[[m]] <- vapply((Pgen_geneIDs$Cvirginica_TranscriptID), paste, collapse = ";", character(1L))
     } # end m in 1:nrow
   
     MFslim_A <- data.frame(Term = rep.int(MFslim$Term, sapply(MFsplitted, length)), go_term = unlist(MFsplitted)) #list all
@@ -925,17 +929,17 @@ for (i in 1:nrow(GOslimLoop_vars)) {
     
     
     
-    # save GOslim final datasets for BP and MF of each  module in their respective folder(s) by Day
-    write.csv(MFslim_final, file = paste("../Output/GO/DESeq2_goseq/", GOslimLoop_vars[i,2], "/GOslim_MolFunction_",GOslimLoop_vars[i,1], "regulated.csv", sep ='')) # save csv file              
-    write.csv(BPslim_final, file = paste("../Output/GO/DESeq2_goseq/", GOslimLoop_vars[i,2], "/GOslim_BiolProc_",GOslimLoop_vars[i,1], "regulated.csv", sep ='')) # save csv file       
-
-    write.csv(MFslim_GOterm_summary_final, file = paste("../Output/GO/DESeq2_goseq/", GOslimLoop_vars[i,2], "/GOterms_and_GOslim_MolFunction_",GOslimLoop_vars[i,1], "regulated.csv", sep ='')) # save csv file
-    write.csv(BPslim_GOterm_summary_final, file = paste("../Output/GO/DESeq2_goseq/", GOslimLoop_vars[i,2], "/GOterms_and_GOslim_BiolProc_",GOslimLoop_vars[i,1], "regulated.csv", sep ='')) # save csv file
-    
-    write.csv(MF_master_gene_reference, file = paste("../Output/GO/DESeq2_goseq/", GOslimLoop_vars[i,2], "/GOterms_and_GOslim_MolFunction_",GOslimLoop_vars[i,1], "regulated_GENE_REFERENCE.csv", sep ='')) # save csv
-    write.csv(BP_master_gene_reference, file = paste("../Output/GO/DESeq2_goseq/", GOslimLoop_vars[i,2], "/GOterms_and_GOslim_BiolProc_",GOslimLoop_vars[i,1], "regulated_GENE_REFERENCE.csv", sep ='')) # save csv       
-    
-    print(paste(GOslimLoop_vars[i,2], GOslimLoop_vars[i,1], "done", sep = ' '))
+    # # save GOslim final datasets for BP and MF of each  module in their respective folder(s) by Day
+    # write.csv(MFslim_final, file = paste("../Output/GO/DESeq2_goseq/", GOslimLoop_vars[i,2], "/GOslim_MolFunction_",GOslimLoop_vars[i,1], "regulated.csv", sep ='')) # save csv file              
+    # write.csv(BPslim_final, file = paste("../Output/GO/DESeq2_goseq/", GOslimLoop_vars[i,2], "/GOslim_BiolProc_",GOslimLoop_vars[i,1], "regulated.csv", sep ='')) # save csv file       
+    # 
+    # write.csv(MFslim_GOterm_summary_final, file = paste("../Output/GO/DESeq2_goseq/", GOslimLoop_vars[i,2], "/GOterms_and_GOslim_MolFunction_",GOslimLoop_vars[i,1], "regulated.csv", sep ='')) # save csv file
+    # write.csv(BPslim_GOterm_summary_final, file = paste("../Output/GO/DESeq2_goseq/", GOslimLoop_vars[i,2], "/GOterms_and_GOslim_BiolProc_",GOslimLoop_vars[i,1], "regulated.csv", sep ='')) # save csv file
+    # 
+    # write.csv(MF_master_gene_reference, file = paste("../Output/GO/DESeq2_goseq/", GOslimLoop_vars[i,2], "/GOterms_and_GOslim_MolFunction_",GOslimLoop_vars[i,1], "regulated_GENE_REFERENCE.csv", sep ='')) # save csv
+    # write.csv(BP_master_gene_reference, file = paste("../Output/GO/DESeq2_goseq/", GOslimLoop_vars[i,2], "/GOterms_and_GOslim_BiolProc_",GOslimLoop_vars[i,1], "regulated_GENE_REFERENCE.csv", sep ='')) # save csv       
+    # 
+    # print(paste(GOslimLoop_vars[i,2], GOslimLoop_vars[i,1], "done", sep = ' '))
 }
     
 ```
