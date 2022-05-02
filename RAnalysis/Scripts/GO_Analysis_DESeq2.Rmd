@@ -153,8 +153,13 @@ nrow(Cvirginica_GOterms_MERGE) # 61891
 ```{r }
 library(magrittr)
 # create a referecne from the Geoduck annotation file to merge with the DE sumamry lists 
-Master_ref    <- merge( (merge(Cgigas_KEGGIDs, blastx_CgigasCvirg_besthits)), Cvirginica_GOterms_MERGE)
+Master_ref    <- (as.data.frame(merge( (merge(Cgigas_KEGGIDs, blastx_CgigasCvirg_besthits)), Cvirginica_GOterms_MERGE)))[,c(1,5,6,8,2,3,4,7)]
 nrow(Master_ref) # 66437
+
+# write master reference
+write.csv(Master_ref, file = "../Data/TagSeq/Seq_details/Seq_Reference_Master.csv", row.names = FALSE)
+
+
 
 # ref$Function # View the new column Function
 
