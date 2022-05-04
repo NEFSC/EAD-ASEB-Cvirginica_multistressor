@@ -68,98 +68,19 @@ colnames(DE_d18.OA)[2]           == "TranscriptID" # TRUE
 
 #  mapped read counts for each Day (addressed separately in DESeq2)
 d2.counts   <- read.csv(file="../Data/TagSeq/Filtered_counts/filtered_counts_5cpm_50perc/day2.filtered_5cpm50perc.csv", sep=',', header=TRUE) %>% dplyr::rename("TranscriptID" = "X")
-d18.counts  <- read.csv(file="../Data/TagSeq/Filtered_counts/filtered_counts_5cpm_50perc/day18.counts.filtered_5cpm50perc.csv", sep=',', header=TRUE) %>% dplyr::rename("TranscriptID" = "X")
+d18.counts  <- read.csv(file="../Data/TagSeq/Filtered_counts/filtered_counts_5cpm_50perc/day18.filtered_5cpm50perc.csv", sep=',', header=TRUE) %>% dplyr::rename("TranscriptID" = "X")
 
-# annotation master data 
-# first the crassotrea virginica reference - containing the transcript IDs and functional annotation (nOTE: no KEGG or GO term-level annotation in this file!)
-Cvirginica_annot_reference  <- read.csv(file="../Data/TagSeq/Seq_details/seq_id_master.csv", sep=',', header=TRUE) %>% 
-                                dplyr::select(c('TranscriptID','Function','GeneID')) %>% 
-                                dplyr::mutate(TranscriptID = gsub(" ", "", TranscriptID)) %>% # remove the space at the end of each transcript ID
-                                dplyr::mutate(Protein_name = gsub("\\s\\(LOC.*|\\sLOC111.*", "", perl=TRUE, Function)) %>% 
-                                dplyr::select(!Function)
-nrow(Cvirginica_annot_reference) #66625 including all genes
-nrow(Cvirginica_annot_reference %>% dplyr::filter(grepl('uncharacterized', Protein_name))) #27164 EXCLUDING protein names labeled  as 'uncharacterized'
-
-
-# GO terms: upload bpth the Cvirginica and the C gigas GO terms
-
-Cvirg_genome3.0  <- read.delim2(file="../Data/TagSeq/Seq_details/GCF_002022765.2_C_virginica-3.0_genomic.txt", skip = 4, header=FALSE) %>%
-                        dplyr::select(c('V3','V4','V5','V9')) %>% 
-                        dplyr::rename(Seqtype = V3, start = V4, end = V5, info = V9) %>% 
-                        dplyr::filter(Seqtype %in% c('start_codon','stop_codon')) %>%   
-                        dplyr::mutate(GeneID = ((str_match(info, "gene_id\\s*(.*?);\\s*transcript"))[,2]) ) %>%
-                        dplyr::mutate(TranscriptID = ((str_match(info, "transcript_id\\s*(.*?);\\s*db_xref"))[,2]) ) %>% 
-                        dplyr::select(!info) 
-# Cvirg_genome3.0 %>% group_by(TranscriptID) %>% mutate(Length = (start[Seqtype == 'start_codon'] - start[Seqtype == 'stop_codon']) )
-
-# CvirgLength             <- data.frame(matrix(nrow = length(unique(Cvirg_genome3.0$TranscriptID)), ncol = 3)) 
-# CvirgLength$TransciptID <- (Cvirg_genome3.0 %>% group_by(TranscriptID) %>% filter(row_number()==1))$TranscriptID
-# CvirgLength$start       <- (Cvirg_genome3.0 %>% group_by(TranscriptID) %>% filter(row_number()==1))$start
-# CvirgLength$end         <- (Cvirg_genome3.0 %>% group_by(TranscriptID) %>% filter(row_number()==2))$start
-# 
-# for (i in 1:nrow(CvirgLength)) {
-#   if (CvirgLength$start[i] > CvirgLength$end[i]) {
-#       CvirgLength$Length[i] <- CvirgLength$start[i] - CvirgLength$end[i]
-#       } else (CvirgLength$Length[i] <-CvirgLength$end[i] - CvirgLength$start[i])
-# 
-# }
-# View(CvirgLength)
-
-
-Cvirginica_GOterms  <- unique(read.csv(file="../Data/TagSeq/Seq_details/Cviginiva_GOterms.csv", sep=',', header=TRUE) %>% 
-                        dplyr::select(c('GeneID' ,'Annotation_GO_ID', 'Length')) %>% 
-                        dplyr::group_by(GeneID) %>% 
-                        dplyr::filter(Length == max(Length)))
-
-Cgigas_GOterms      <- read.csv(file="../Data/TagSeq/Seq_details/Cgigas_refs/Cgigas_GOterms_uniprot.csv", sep=',', header=TRUE) %>%    
-                        dplyr::select(c('Entry.name','Protein.names','Gene.ontology.IDs'))
-
-
-  
-# KEGG IDs: upload the Crassostrea gigas (Pacific oyster) KEGG reference 
-
-
-Cgigas_KEGGIDs      <- as.data.frame(read.delim2(file = "C:/Users/samjg/Documents/Bioinformatics/refs/Cgigas/T03920_(2021_06_23 21_09_09 UTC).nuc", header=FALSE)) %>% 
-                        dplyr::filter(grepl(">crg:", V1)) %>% 
-                        dplyr::mutate(Cgigas_KEGGID = gsub("\\s.*|>", "",V1)) %>% 
-                        dplyr::mutate(Cgigas_Protein_name = gsub("\\sLOC105.*|*.;", "", substring(V1, 16))) %>% 
-                        dplyr::select(!V1)
-
-blastx_CgigasCvirg  <- read.delim2(file="../Data/TagSeq/Seq_details/Cgigas_refs/crgKEGG_diamond_out.txt",header=FALSE) %>% 
-                          dplyr::rename(qseqid = V1,sseqid = V2,pident = V3,length = V4,mismatch = V5,gapopen = V6,qstart = V7,qend = V8,sstart = V9,send = V10,evalue = V11,bitscore = V12)  %>% # rename columns 
-                          dplyr::group_by(qseqid)
+# master reference view te master ref R script for details
+Master_ref <- read.csv(file= "../Data/TagSeq/Seq_details/Seq_Reference_Master.csv", sep=',', header=TRUE)
 
 # GOslim
 slim <- getOBOCollection("http://current.geneontology.org/ontology/subsets/goslim_generic.obo") #get GO database - # call goslim_generic.obo terms as 'slim'
 
 ```
 
-```{r Master reference }
-
-#  assemble a datafile of the best blast hist for Cvirginica to the Cgigas protein database to obtain KEGG IDs
-blastx_CgigasCvirg_besthits   <- blastx_CgigasCvirg %>% 
-                                    dplyr::group_by(qseqid) %>% # group by the query C virginica transcript IDs
-                                    dplyr::filter(evalue == min(evalue)) %>% # call the lowest E value (also highest bitscore) indicating the BEST blast hit
-                                    dplyr::select(c('qseqid','sseqid', 'length'))  %>%  # call the two target columns - the query (C virginica transcript IDs) and the database of the blast (Cgigas KEGG IDs)
-                                    dplyr::rename(Cvirginica_TranscriptID = qseqid, Cgigas_KEGGID = sseqid, Cgigas_length = length)# rename these columns for clarity
-
-# merge the Cvirginica annotated reference with the Cvirnginca GO terms (contains the gene length!) 
-Cvirginica_GOterms_MERGE <- merge(Cvirginica_annot_reference, Cvirginica_GOterms) %>% 
-    dplyr::rename(Cvirginica_GeneID = GeneID, Cvirginica_length = Length, Cvirginica_TranscriptID = TranscriptID, Cvirginica_Protein_name = Protein_name)
-nrow(Cvirginica_GOterms_MERGE) # 61891
-
-```
 
 ```{r }
 library(magrittr)
-# create a referecne from the Geoduck annotation file to merge with the DE sumamry lists 
-Master_ref    <- (as.data.frame(merge( (merge(Cgigas_KEGGIDs, blastx_CgigasCvirg_besthits)), Cvirginica_GOterms_MERGE)))[,c(1,5,6,8,2,3,4,7)]
-nrow(Master_ref) # 66437
-
-# write master reference
-write.csv(Master_ref, file = "../Data/TagSeq/Seq_details/Seq_Reference_Master.csv", row.names = FALSE)
-
-
 
 # ref$Function # View the new column Function
 

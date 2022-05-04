@@ -48,7 +48,7 @@ colnames(Crass_gigas_genome_dataframe) <- c('sseqid', 'Gene_name')
 
 # USING KEGGPROFILE -- NOTE: this is outdated and marked as so... 
 # Day 2 for loop ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::;;; #
-Day2_WGCNA_sigmodules <- as.data.frame(c('pink', 'blue', 'turquoise', 'brown', 'black', 'red'))
+Day2_WGCNA_sigmodules <- as.data.frame(c('pink', 'blue', 'turquoise', 'brown', 'black', 'red', 'yellow'))
 for (i in 1:nrow(Day2_WGCNA_sigmodules)) {
   # start with loop by calling the row value common with the 'Master_KEGG_BPTerms' data frind from rbind above 
   modColor <- Day2_WGCNA_sigmodules[i,1]
@@ -76,50 +76,50 @@ for (i in 1:nrow(Day2_WGCNA_sigmodules)) {
   KEGG_cgigas <- enrichKEGG(gene = KEGG_vector_cvirg_Cgigas, 
                             organism  = 'crg', # 'hsa' is human 'crg' is pacific oyster 
                             pvalueCutoff = 0.05) 
-  # if loop to output the KEGG enrichment analysis ONLY if genes were successfully mapped...
-  if (  nrow(as.data.frame(head(KEGG_cgigas))) > 0 ) {
-    # creat dateframe and write the csv file out 
-    df <- as.data.frame(head(KEGG_cgigas))
-    rownames(df) <- c()
-    KEGGoutput <- as.data.frame(do.call(cbind.data.frame, df))
-    KEGGoutput$GeneRatio_2 <- gsub("/"," of ", KEGGoutput$GeneRatio)
-    KEGGoutput$Rich_Factor <- (  (as.numeric(sub("/.*", "", KEGGoutput$GeneRatio))) / (as.numeric(sub("/.*", "", KEGGoutput$BgRatio)))  ) 
+        # if loop to output the KEGG enrichment analysis ONLY if genes were successfully mapped...
+        if (  nrow(as.data.frame(head(KEGG_cgigas))) > 0 ) {
+          # creat dateframe and write the csv file out 
+          df <- as.data.frame(head(KEGG_cgigas))
+          rownames(df) <- c()
+          KEGGoutput <- as.data.frame(do.call(cbind.data.frame, df))
+          KEGGoutput$GeneRatio_2 <- gsub("/"," of ", KEGGoutput$GeneRatio)
+          KEGGoutput$Rich_Factor <- (  (as.numeric(sub("/.*", "", KEGGoutput$GeneRatio))) / (as.numeric(sub("/.*", "", KEGGoutput$BgRatio)))  ) 
+          
+          write.csv(KEGGoutput, file = paste("Output/WGCNA/day2_larvae/KEGG/Day2_",modColor,"_KEGG_allgenes.csv", sep ='')) 
+          
+          # Plot
+          plot<- KEGGoutput %>%  
+            ggplot(aes(x=reorder(Description, Rich_Factor), y= Rich_Factor)) + 
+            geom_point( aes(col=qvalue, size=Count)) +   # Draw points
+            geom_segment(aes(x=Description, 
+                             xend=Description, 
+                             y=min(Rich_Factor), 
+                             yend=max(Rich_Factor)),  
+                         linetype=NA, 
+                         size=0) +   # Draw dashed lines
+            labs(title="Day 2", 
+                 x = "Pathway",
+                 y = "Rich Factor",
+                 subtitle=paste("WGCNA Module:", modColor, sep =' ')) +
+            coord_flip()
+           pdf(paste("Output/WGCNA/day2_larvae/KEGG/Day2_",modColor,"_RichFactorPlot.pdf", sep =''), width=5, height=6)
+           print(plot)
+           dev.off()
     
-    write.csv(KEGGoutput, file = paste("Output/WGCNA/day2_larvae/KEGG/Day2_",modColor,"_KEGG_allgenes.csv", sep ='')) 
     
-    # Plot
-    plot<- KEGGoutput %>%  
-      ggplot(aes(x=reorder(Description, Rich_Factor), y= Rich_Factor)) + 
-      geom_point( aes(col=qvalue, size=Count)) +   # Draw points
-      geom_segment(aes(x=Description, 
-                       xend=Description, 
-                       y=min(Rich_Factor), 
-                       yend=max(Rich_Factor)),  
-                   linetype=NA, 
-                   size=0) +   # Draw dashed lines
-      labs(title="Day 2", 
-           x = "Pathway",
-           y = "Rich Factor",
-           subtitle=paste("WGCNA Module:", modColor, sep =' ')) +
-      coord_flip()
-     pdf(paste("Output/WGCNA/day2_larvae/KEGG/Day2_",modColor,"_RichFactorPlot.pdf", sep =''), width=5, height=6)
-     print(plot)
-     dev.off()
+            # stringsplit and unnest for a data set of genes and IDs associated with each pathway 
+            df_2                 <- as.data.frame(KEGG_cgigas)[c(1:2,8:9)]
+            df_2$gene_IDs        <- as.vector(strsplit(as.character(df_2$geneID), "/"))
+            colnames(df_2)       <- c("Cgigas_PathwayID", "Pathway_Description", "Pathway_gene_list", "Pathway_gene_count", "gene_IDs")
+            df_3                 <- unnest(df_2, gene_IDs)
+            df_3$Cgigas_KEGG_IDs <- paste("crg:", df_3$gene_IDs, sep='')
+            Crass_gigas_ref      <- Crass_gigas_genome_dataframe %>% mutate(Cgigas_KEGG_IDs = Crass_gigas_genome_dataframe$sseqid) %>% select(c('Cgigas_KEGG_IDs','Gene_name'))
+            df_final             <- merge(df_3, Crass_gigas_ref, by='Cgigas_KEGG_IDs')
+            write.csv(df_final, file = paste("Output/WGCNA/day2_larvae/KEGG/Day2_",modColor,"_KEGG_allgenes_unlisted.csv", sep ='')) 
     
-    
-    # stringsplit and unnest for a data set of genes and IDs associated with each pathway 
-    df_2                 <- as.data.frame(KEGG_cgigas)[c(1:2,8:9)]
-    df_2$gene_IDs        <- as.vector(strsplit(as.character(df_2$geneID), "/"))
-    colnames(df_2)       <- c("Cgigas_PathwayID", "Pathway_Description", "Pathway_gene_list", "Pathway_gene_count", "gene_IDs")
-    df_3                 <- unnest(df_2, gene_IDs)
-    df_3$Cgigas_KEGG_IDs <- paste("crg:", df_3$gene_IDs, sep='')
-    Crass_gigas_ref      <- Crass_gigas_genome_dataframe %>% mutate(Cgigas_KEGG_IDs = Crass_gigas_genome_dataframe$sseqid) %>% select(c('Cgigas_KEGG_IDs','Gene_name'))
-    df_final             <- merge(df_3, Crass_gigas_ref, by='Cgigas_KEGG_IDs')
-    write.csv(df_final, file = paste("Output/WGCNA/day2_larvae/KEGG/Day2_",modColor,"_KEGG_allgenes_unlisted.csv", sep ='')) 
-    
-  } else {}
-  
-  print(paste("Finished! Day2 module = ", modColor, sep = " "))
+            } else {}
+            
+    print(paste("Finished! Day2 module = ", modColor, sep = " "))
 }
 
 
@@ -157,48 +157,48 @@ for (i in 1:nrow(Day18_WGCNA_sigmodules)) {
   KEGG_cgigas <- enrichKEGG(gene = KEGG_vector_cvirg_Cgigas, 
                             organism  = 'crg', # 'hsa' is human 'crg' is pacific oyster 
                             pvalueCutoff = 0.05) 
-  # if loop to output the KEGG enrichment analysis ONLY if genes were successfully mapped...
-  if (  nrow(as.data.frame(head(KEGG_cgigas))) > 0 ) {
-    # creat dateframe and write the csv file out 
-    df <- as.data.frame(head(KEGG_cgigas))
-    rownames(df) <- c()
-    KEGGoutput <- as.data.frame(do.call(cbind.data.frame, df))
-    KEGGoutput$GeneRatio_18 <- gsub("/"," of ", KEGGoutput$GeneRatio)
-    KEGGoutput$Rich_Factor <- (  (as.numeric(sub("/.*", "", KEGGoutput$GeneRatio))) / (as.numeric(sub("/.*", "", KEGGoutput$BgRatio)))  ) 
-    
-    write.csv(KEGGoutput, file = paste("Output/WGCNA/day18_spat/KEGG/Day18_",modColor,"_KEGG_allgenes.csv", sep ='')) 
-    
-    # Plot
-    plot<- KEGGoutput %>%  
-      ggplot(aes(x=reorder(Description, Rich_Factor), y= Rich_Factor)) + 
-      geom_point( aes(col=qvalue, size=Count)) +   # Draw points
-      geom_segment(aes(x=Description, 
-                       xend=Description, 
-                       y=min(Rich_Factor), 
-                       yend=max(Rich_Factor)),  
-                   linetype=NA, 
-                   size=0) +   # Draw dashed lines
-      labs(title="Day 18", 
-           x = "Pathway",
-           y = "Rich Factor",
-           subtitle=paste("WGCNA Module:", modColor, sep =' ')) +
-      coord_flip()
-    pdf(paste("Output/WGCNA/day18_spat/KEGG/Day18_",modColor,"_RichFactorPlot.pdf", sep =''), width=5, height=6)
-    print(plot)
-    dev.off()
-    
-    
-    # stringsplit and unnest for a data set of genes and IDs associated with each pathway 
-    df_18                 <- as.data.frame(KEGG_cgigas)[c(1:2,8:9)]
-    df_18$gene_IDs        <- as.vector(strsplit(as.character(df_18$geneID), "/"))
-    colnames(df_18)       <- c("Cgigas_PathwayID", "Pathway_Description", "Pathway_gene_list", "Pathway_gene_count", "gene_IDs")
-    df_3                 <- unnest(df_18, gene_IDs)
-    df_3$Cgigas_KEGG_IDs <- paste("crg:", df_3$gene_IDs, sep='')
-    Crass_gigas_ref      <- Crass_gigas_genome_dataframe %>% mutate(Cgigas_KEGG_IDs = Crass_gigas_genome_dataframe$sseqid) %>% select(c('Cgigas_KEGG_IDs','Gene_name'))
-    df_final             <- merge(df_3, Crass_gigas_ref, by='Cgigas_KEGG_IDs')
-    write.csv(df_final, file = paste("Output/WGCNA/day18_spat/KEGG/Day18_",modColor,"_KEGG_allgenes_unlisted.csv", sep ='')) 
-    
-  } else {}
+          # if loop to output the KEGG enrichment analysis ONLY if genes were successfully mapped...
+          if (  nrow(as.data.frame(head(KEGG_cgigas))) > 0 ) {
+            # creat dateframe and write the csv file out 
+            df <- as.data.frame(head(KEGG_cgigas))
+            rownames(df) <- c()
+            KEGGoutput <- as.data.frame(do.call(cbind.data.frame, df))
+            KEGGoutput$GeneRatio_18 <- gsub("/"," of ", KEGGoutput$GeneRatio)
+            KEGGoutput$Rich_Factor <- (  (as.numeric(sub("/.*", "", KEGGoutput$GeneRatio))) / (as.numeric(sub("/.*", "", KEGGoutput$BgRatio)))  ) 
+            
+            write.csv(KEGGoutput, file = paste("Output/WGCNA/day18_spat/KEGG/Day18_",modColor,"_KEGG_allgenes.csv", sep ='')) 
+            
+            # Plot
+            plot<- KEGGoutput %>%  
+              ggplot(aes(x=reorder(Description, Rich_Factor), y= Rich_Factor)) + 
+              geom_point( aes(col=qvalue, size=Count)) +   # Draw points
+              geom_segment(aes(x=Description, 
+                               xend=Description, 
+                               y=min(Rich_Factor), 
+                               yend=max(Rich_Factor)),  
+                           linetype=NA, 
+                           size=0) +   # Draw dashed lines
+              labs(title="Day 18", 
+                   x = "Pathway",
+                   y = "Rich Factor",
+                   subtitle=paste("WGCNA Module:", modColor, sep =' ')) +
+              coord_flip()
+            pdf(paste("Output/WGCNA/day18_spat/KEGG/Day18_",modColor,"_RichFactorPlot.pdf", sep =''), width=5, height=6)
+            print(plot)
+            dev.off()
+            
+            
+            # stringsplit and unnest for a data set of genes and IDs associated with each pathway 
+            df_18                 <- as.data.frame(KEGG_cgigas)[c(1:2,8:9)]
+            df_18$gene_IDs        <- as.vector(strsplit(as.character(df_18$geneID), "/"))
+            colnames(df_18)       <- c("Cgigas_PathwayID", "Pathway_Description", "Pathway_gene_list", "Pathway_gene_count", "gene_IDs")
+            df_3                 <- unnest(df_18, gene_IDs)
+            df_3$Cgigas_KEGG_IDs <- paste("crg:", df_3$gene_IDs, sep='')
+            Crass_gigas_ref      <- Crass_gigas_genome_dataframe %>% mutate(Cgigas_KEGG_IDs = Crass_gigas_genome_dataframe$sseqid) %>% select(c('Cgigas_KEGG_IDs','Gene_name'))
+            df_final             <- merge(df_3, Crass_gigas_ref, by='Cgigas_KEGG_IDs')
+            write.csv(df_final, file = paste("Output/WGCNA/day18_spat/KEGG/Day18_",modColor,"_KEGG_allgenes_unlisted.csv", sep ='')) 
+            
+          } else {}
   
   print(paste("Finished! Day18 module = ", modColor, sep = " "))
 }

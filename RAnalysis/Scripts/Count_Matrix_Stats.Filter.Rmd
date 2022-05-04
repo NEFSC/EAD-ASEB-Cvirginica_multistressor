@@ -25,6 +25,7 @@ library(edgeR)
 ```
 
 ### Set working directory
+
 ```{r  setup, include=TRUE}
 ### Set working directory
 print(getwd())  # working directory is the scipts folder 
@@ -38,6 +39,7 @@ path = 'C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RA
 ```
 
 # LOAD DATA:
+
 ```{r  load_data}
 
 raw_counts_mtx <- read.csv("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/HPC_Analysis/Output/Cvirginica_transcript_count_matrix.csv", sep=',', header=TRUE) # read the output count matrix from sedna
@@ -48,6 +50,7 @@ ncol(raw_counts_mtx) -1 # 70 total columns without the transcript ID; 35 total s
 ```
 
 # FORMAT AND EXPORT READ COUNT MATRIX (sum lanes of common sample ID):
+
 ```{r  format_export_readcount}
 # Edit raw count matrix ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 # two major alterations before starting read filtering...
@@ -152,8 +155,29 @@ Metadata           <- read.csv(file="C:/Users/samjg/Documents/Github_repositorie
 
 ```
 
+# Initial assessment of RAW read matrix
+
+* counts per sample 
+* unigenes represented (total and % to reference)
+
+```{r stats on RAW count matrix}
+
+# how many reads total?
+sum(raw.countDataframe[,-1]) # 52002750
+
+# how many read counts per sample? (average and sd)
+mean(colSums(raw.countDataframe[,-1])) # 1485793
+sd(colSums(raw.countDataframe[,-1])) # 377305.7
+
+# how many unigenes with at a least a single read?
+gene_sums_gtr0 <- rowSums(raw.countDataframe[,-1]) > 0 # boleean of TRUE and FALSE for rows (transcript IDs) with > 0 reads
+sum(gene_sums_gtr0 == TRUE) # 10862 total genes with unique transcript reads 
+( sum(gene_sums_gtr0 == TRUE) / (dim(raw.countDataframe)[1]) ) *100 # 16.43989 % of genes have a unique mapped read
+
+```
 
 ```{r  experiment data ALL}
+
 #================= #
 # ALL TIMEPOINTS:
 # call all experiment design treatments as 'exp.data'
@@ -183,35 +207,6 @@ write.csv(exp.data.d2_hightemp,paste(path,"../day2.exp.data_hightemp.csv", sep =
 
 
 ```
-
-# INITALL ASSESSMENT OF THE RAW COUNT MATRIX 
-  
-  * colsums
-  * 
-
-```{r assess teh raw count matrix}
-nrow(raw.countDataframe) # 66071 total transcripts
-ncol(raw.countDataframe)-1 # 35 samples (not counting gene ID column) 
-ncol(raw.countDataframe)-1 == nrow(exp.data) # MUST be true
-
-raw.countMatrix           <- as.matrix(raw.countDataframe[-1])
-rownames(raw.countMatrix) <- raw.countDataframe$transcript_id
-
-# READ COUNTS 
-dim(raw.countMatrix) # 66071 total genes 35 samples
-sum(raw.countMatrix) # 52002750 total read counts 
-
-gene_sums <- data.frame(rowSums(raw.countMatrix))  # all gene.IDs and the sum of unique reads
-
-transcript_sums <- colSums(raw.countMatrix) # sum of reads for each sample
-mean(transcript_sums) # 1485793 == average raw read counts for each sample
-sd(transcript_sums) # 377305.7 == standard deviation of raw read counts per sample
-
-gene_sums_gtr0 <- rowSums(raw.countMatrix) > 0 # all gene.IDs with at least one unique read
-sum(gene_sums_gtr0 == TRUE) # 10862 total genes with unique transcript reads 
-( sum(gene_sums_gtr0 == TRUE) / dim(raw.countMatrix)[1] ) *100 # 16.43989 % of genes have a unique mapped read
-```
-
 
 ```{r  raw_reads_by_Day}
 raw.cts.all <- raw.countMatrix
@@ -262,8 +257,7 @@ write.csv(raw.cts.d2_hightemp,"C:/Users/samjg/Documents/Github_repositories/Cvir
 
 
 
-
-# Filter read counts 
+Filter read counts 
 About: usiing edgeR function 'cpm' here to filter by counts bper million 
 
 Below I am making two cut-offs (thresholds) as (1) lenient low-end (2) strict/more conservative 
@@ -272,19 +266,21 @@ Below I am making two cut-offs (thresholds) as (1) lenient low-end (2) strict/mo
 
 Resulting umber of genes summarized in knitr table and output to TagSeq\Analysis\Data\filtered_counts'
 
-### For loop in 1 CPM increments to optimize the filtering threshold 
-Output is a grid filture for  days 0, 7, 14, 21 
+For loop in 1 CPM increments to optimize the filtering threshold 
+Output is a grid filture for  days 2 and 18
+
+
 ```{r CPM LOOP - Rarefaction-like appraoch to read filtering threshold}
 
 # Load data from previous ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::;;; #
 
 # Reference; sample IDs and corresponding treatments 
-raw.cts.d2  <- read.csv(file="C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Data/TagSeq/Filtered_Counts/raw.day2.counts.csv", sep=',', header=TRUE) # day 2
+raw.cts.d2  <- read.csv(file="C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Data/TagSeq/Filtered_Counts/raw_counts/raw.day2.counts.csv", sep=',', header=TRUE) # day 2
 
-raw.cts.d18  <- read.csv(file="C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Data/TagSeq/Filtered_Counts/raw.day18.counts.csv", sep=',', header=TRUE) # day 18
+raw.cts.d18  <- read.csv(file="C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Data/TagSeq/Filtered_Counts/raw_counts/raw.day18.counts.csv", sep=',', header=TRUE) # day 18
 
 
-raw.cts.d2_hightemp  <- read.csv(file="C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Data/TagSeq/Filtered_Counts/raw.day2.counts_hightemp.csv", sep=',', header=TRUE) # day 18
+raw.cts.d2_hightemp  <- read.csv(file="C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Data/TagSeq/Filtered_Counts/raw_counts/raw.day2.counts_hightemp.csv", sep=',', header=TRUE) # day 18
 
 
 
@@ -345,7 +341,7 @@ for (i in 1:nrow(CPM_loop)) {
 
 ```
 
-```{r}
+```{r figs}
 DAY2_filterfig <- df_total %>% 
   dplyr::filter(Day %in% 2) %>% 
   tidyr::gather(key = "variable", value = "measurement",
@@ -382,11 +378,12 @@ dev.off()
 ### Results of Rarefaction-like nonbias approach to read filtering
 Rationale: in the previous cluster, CPMs 1 - 50 were run (including 'in 50% of samples' due to the binary initial accliamtion present in half of ALL matrices)
 in a for loop to produce a rare-faction-like curve for read filtering. Observe the output "../Data/Filtered_Counts/CPM_Read_Filter_Curve.png"
-Figure shows that the 3CPM threshold looks like the best filter for consistant criteria in the folloing:
-a) close to the asymmptote when low reads were filtered out
-b) all genes have >50 mean read count sample-1
-c) 13k-15k genes selected across matrices - ~40% decrease in the total reference genome
-### LENIENT CUT-OFF [ 3 CPM IN 50% SAMPLES ]
+Figure shows that the 5CPM threshold looks like the best filter for consistant criteria in the folloing:
+a) close to a signiicant change in the regression when low reads were filtered out
+b) all genes have >250 mean read count sample-1
+c) 4.6-4.8k genes selected across matrices - ~50-60% decrease in the total unigene count with single read (~10k)
+ LENIENT CUT-OFF [ 5 CPM IN 50% SAMPLES ]
+
 ```{r  5 CPM 50% SAMPLES}
 
 # ========================================================== 
@@ -514,3 +511,54 @@ write.csv(countMatrix.d2.hightemp.filtered,"C:/Users/samjg/Documents/Github_repo
 
 
 ```
+
+
+# Post-filtered (<5CPM in 50% samples) assessment of 'cleaned' read matrix (lolwy-expressed removed!)
+
+* counts per sample 
+* unigenes represented (total and % to reference)
+
+```{r stats on RAW count matrix}
+
+d2_filtered_counts          <- read.csv(file="C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Data/TagSeq/Filtered_Counts/filtered_counts_5cpm_50perc/day2.filtered_5cpm50perc.csv", sep=',', header=TRUE)
+
+d18_filtered_counts         <- read.csv(file="C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Data/TagSeq/Filtered_Counts/filtered_counts_5cpm_50perc/day18.filtered_5cpm50perc.csv", sep=',', header=TRUE)
+
+d2_filtered_counts.hightemp <- read.csv(file="C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Data/TagSeq/Filtered_Counts/filtered_counts_5cpm_50perc/day2.filtered_5cpm50perc_hightemp.csv", sep=',', header=TRUE)
+
+
+# day 2 ================================= #
+# how many reads total?
+sum(d2_filtered_counts[,-1]) # 33997765
+# how many read counts per sample? (average and sd)
+min(colSums(d2_filtered_counts[,-1])) # 789376
+max(colSums(d2_filtered_counts[,-1])) # 2113582
+mean(colSums(d2_filtered_counts[,-1])) # 1416574
+sd(colSums(d2_filtered_counts[,-1])) # 337247
+# how many unigenes with at a least a single read?
+d2_sums_gtr0 <- rowSums(d2_filtered_counts[,-1]) > 0 # boleean of TRUE and FALSE for rows (transcript IDs) with > 0 reads
+sum(d2_sums_gtr0 == TRUE) # 4820 total genes with unique transcript reads 
+( sum(d2_sums_gtr0 == TRUE) / (dim(raw.countDataframe)[1])) *100 # 7.295182 % of genes have a unique mapped read - relative to the complete genome!
+
+
+# day 18 ================================= #
+# how many reads total?
+sum(d18_filtered_counts[,-1]) # 16533993
+# how many read counts per sample? (average and sd)
+min(colSums(d18_filtered_counts[,-1])) # 711736
+max(colSums(d18_filtered_counts[,-1])) # 2138741
+mean(colSums(d18_filtered_counts[,-1])) # 1503090
+sd(colSums(d18_filtered_counts[,-1])) # 360755.6
+# how many unigenes with at a least a single read?
+d18_sums_gtr0 <- rowSums(d18_filtered_counts[,-1]) > 0 # boleean of TRUE and FALSE for rows (transcript IDs) with > 0 reads
+sum(d18_sums_gtr0 == TRUE) # 4936 total genes with unique transcript reads 
+( sum(d18_sums_gtr0 == TRUE) / (dim(raw.countDataframe)[1])) *100 # 7.470751 % of genes have a unique mapped read - relative to the complete genome!
+
+
+# mean read counts for all filtered samples day 2 and day 18 larvae and spat!
+mean(c(colSums(d2_filtered_counts[,-1]), colSums(d18_filtered_counts[,-1]))) # 1443765
+sd(c(colSums(d2_filtered_counts[,-1]), colSums(d18_filtered_counts[,-1]))) # 341873
+```
+
+
+

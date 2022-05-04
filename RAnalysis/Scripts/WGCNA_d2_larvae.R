@@ -762,7 +762,7 @@ d2.Group.matrix <-  paste(signif(moduleTraitCor_Group, 2), "\n(",
 #dim(textMatrix) == dim(moduleTraitCor_treatonly)
 par(mar = c(8, 9.5, 5, 3));
 # Display the correlation values within a heatmap plot
-png("Output/WGCNA/day2_larvae/heatmaps/Day2_Group_heatmap.png", 500, 1000, pointsize=20)
+png("Output/WGCNA/day2_larvae/heatmaps/Day2_Group_heatmap.png", 1000, 1000, pointsize=20)
 labeledHeatmap(Matrix = moduleTraitCor_Group,
                xLabels = names(d2.Traits.Group),
                yLabels = names(MEs),
