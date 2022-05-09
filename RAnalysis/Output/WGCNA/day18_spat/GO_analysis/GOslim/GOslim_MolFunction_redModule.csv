@@ -1,0 +1,5 @@
+"","slim_term","slim_cat","GO_list","Gene_IDs","module_day"
+"1","structural molecule activity","GO:0003735","GO:0003735","XM_022435081.1;XM_022454936.1;XM_022459439.1;XM_022473388.1;XM_022487604.1","Day18_red"
+"2","hydrolase activity","GO:0003924","GO:0003924","XM_022433242.1;XM_022445998.1;XM_022449624.1;XM_022468645.1;XM_022469089.1;XM_022477057.1;XM_022479343.1;XR_002638562.1","Day18_red"
+"3","RNA binding","GO:0008135","GO:0008135","XM_022465190.1;XM_022469767.1","Day18_red"
+"4","translation regulator activity","GO:0008135","GO:0008135","XM_022465190.1;XM_022469767.1","Day18_red"

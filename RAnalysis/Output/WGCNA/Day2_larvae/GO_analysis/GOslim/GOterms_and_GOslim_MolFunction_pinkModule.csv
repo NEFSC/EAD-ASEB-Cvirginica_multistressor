@@ -1,0 +1,4 @@
+"","GO_terms","X","over_represented_pvalue","under_represented_pvalue","numDEInCat","numInCat","term","ontology","moduleColor","Day","slim_term","Gene_IDs"
+"1","GO:0003735",18,0.0299910901741286,0.99083427360007,6,176,"structural constituent of ribosome","MF","pink","Day2","structural molecule activity","XM_022453199.1;XM_022459435.1;XM_022469477.1;XM_022480126.1;XM_022484840.1;XM_022488041.1"
+"2","GO:0008135",17,0.014900381477516,0.998222213539167,3,66,"translation factor activity, RNA binding","MF","pink","Day2","RNA binding","XM_022432122.1;XM_022439719.1;XM_022477895.1"
+"3","GO:0008135",17,0.014900381477516,0.998222213539167,3,66,"translation factor activity, RNA binding","MF","pink","Day2","translation regulator activity","XM_022432122.1;XM_022439719.1;XM_022477895.1"

@@ -14,13 +14,24 @@ setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAn
 # LOAD DATA :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::;: #
 
 
-Cvirginica_GOterms  <- unique(read.csv(file="../Data/TagSeq/Seq_details/Cviginiva_GOterms.csv", sep=',', header=TRUE) %>%  # Cvirginica GO terms (from collaborator - shared from K. McFarland)
+Cvirginica_GOterms  <- unique(read.csv(file="Data/TagSeq/Seq_details/Cviginiva_GOterms.csv", sep=',', header=TRUE) %>%  # Cvirginica GO terms (from collaborator - shared from K. McFarland)
                              dplyr::select(c('GeneID' ,'Annotation_GO_ID', 'Length')) %>% 
                              dplyr::group_by(GeneID) %>% 
                              dplyr::filter(Length == max(Length)))
+
+
+
+Cvirginica_annot_reference  <- read.csv(file="Data/TagSeq/Seq_details/seq_id_master.csv", sep=',', header=TRUE) %>% 
+                                  dplyr::select(c('TranscriptID','Function','GeneID')) %>% 
+                                  dplyr::mutate(TranscriptID = gsub(" ", "", TranscriptID)) %>% # remove the space at the end of each transcript ID
+                                  dplyr::mutate(Protein_name = gsub("\\s\\(LOC.*|\\sLOC111.*", "", perl=TRUE, Function)) %>% 
+                                  dplyr::select(!Function)
+nrow(Cvirginica_annot_reference) #66625 including all genes
+nrow(Cvirginica_annot_reference %>% dplyr::filter(grepl('uncharacterized', Protein_name))) #27164 EXCLUDING protein names labeled  as 'uncharacterized'
+
 # nrow(Cvirginica_GOterms) # 34608 - contains gene ID as LOC111... gene length and GO ternms as GO...; GO...; (semicolon sep)
 
-Cgigas_GOterms      <- read.csv(file="../Data/TagSeq/Seq_details/Cgigas_refs/Cgigas_GOterms_uniprot.csv", sep=',', header=TRUE) %>%  # Cvirginica GO terms (from uniprot online)
+Cgigas_GOterms      <- read.csv(file="Data/TagSeq/Seq_details/Cgigas_refs/Cgigas_GOterms_uniprot.csv", sep=',', header=TRUE) %>%  # Cvirginica GO terms (from uniprot online)
                              dplyr::select(c('Entry.name','Protein.names','Gene.ontology.IDs'))
 
 Cgigas_KEGGIDs      <- as.data.frame(read.delim2(file = "C:/Users/samjg/Documents/Bioinformatics/refs/Cgigas/T03920_(2021_06_23 21_09_09 UTC).nuc", header=FALSE)) %>%  # C gigas KEGG terms from KEGG database (pain subscription allows access to these databases)
@@ -29,7 +40,7 @@ Cgigas_KEGGIDs      <- as.data.frame(read.delim2(file = "C:/Users/samjg/Document
                             dplyr::mutate(Cgigas_Protein_name = gsub("\\sLOC105.*|*.;", "", substring(V1, 16))) %>% 
                             dplyr::select(!V1)
 
-blastx_CgigasCvirg  <- read.delim2(file="../Data/TagSeq/Seq_details/Cgigas_refs/crgKEGG_diamond_out.txt",header=FALSE) %>% # Blast results of Cvirginica to Cgigas using diamond - upload the ouput file (raw!)
+blastx_CgigasCvirg  <- read.delim2(file="Data/TagSeq/Seq_details/Cgigas_refs/crgKEGG_diamond_out.txt",header=FALSE) %>% # Blast results of Cvirginica to Cgigas using diamond - upload the ouput file (raw!)
                             dplyr::rename(qseqid = V1,sseqid = V2,pident = V3,length = V4,mismatch = V5,gapopen = V6,qstart = V7,qend = V8,sstart = V9,send = V10,evalue = V11,bitscore = V12)  %>% # rename columns 
                             dplyr::group_by(qseqid)
 length(unique(blastx_CgigasCvirg$qseqid)) # 61147
@@ -44,19 +55,18 @@ blastx_CgigasCvirg_besthits   <- blastx_CgigasCvirg %>%
                                     dplyr::mutate(Cgigas_KEGGID= paste0(Cgigas_KEGGID, collapse = ";")) %>%  # concatenate duplicate KEGG IDs to the same row with ; delimiter
                                     dplyr::distinct(Cvirginica_TranscriptID, Cgigas_KEGGID, .keep_all = TRUE) # the line above does not omit duplicate rows - this line does...
 length(unique(blastx_CgigasCvirg_besthits$Cvirginica_TranscriptID)) # 61147
-View(blastx_CgigasCvirg_besthits) # view
 
 # mean sd bitscore
-mean(blastx_CgigasCvirg_besthits$bitscore)
-sd(blastx_CgigasCvirg_besthits$bitscore)
+mean(blastx_CgigasCvirg_besthits$bitscore) # 781.6509
+sd(blastx_CgigasCvirg_besthits$bitscore) # 927.4943
 # mean sd percent identity
-mean(as.numeric(blastx_CgigasCvirg_besthits$pident))
-sd(as.numeric(blastx_CgigasCvirg_besthits$pident))
+mean(as.numeric(blastx_CgigasCvirg_besthits$pident)) # 70.04658
+sd(as.numeric(blastx_CgigasCvirg_besthits$pident)) # 18.19463
 
 # check for duplicate rows (sould be zero yielded from theduplyr pipeline above!)
 n_occur <- data.frame(table(blastx_CgigasCvirg_besthits$Cvirginica_TranscriptID))
 n_occur[n_occur$Freq > 1,]
-blastx_CgigasCvirg_besthits[blastx_CgigasCvirg_besthits$Cvirginica_TranscriptID %in% n_occur$Var1[n_occur$Freq > 1],] # should be non!
+blastx_CgigasCvirg_besthits[blastx_CgigasCvirg_besthits$Cvirginica_TranscriptID %in% n_occur$Var1[n_occur$Freq > 1],] # should be none!
 
 
 # check the status of this pipeline...
@@ -66,10 +76,8 @@ length(unique(Cvirginica_annot_reference$TranscriptID)) # 66625
 length(unique(Cvirginica_GOterms$GeneID)) # 34604
 
 # percent of hits to total Cvirginica transcriptome (mRNA only) 
-nrows_Cvirg_mRNA_reference <- nrow(Cvirginica_annot_reference %>% dplyr::filter(!grepl('XR_', TranscriptID)))
-
-nrows_Cvirg_mRNA_blasthits <- nrow(blastx_CgigasCvirg_besthits %>% dplyr::filter(!grepl('XR_', Cvirginica_TranscriptID )))
-
+nrows_Cvirg_mRNA_reference <- nrow(Cvirginica_annot_reference %>% dplyr::filter(!grepl('XR_', TranscriptID))) # 60201
+nrows_Cvirg_mRNA_blasthits <- nrow(blastx_CgigasCvirg_besthits %>% dplyr::filter(!grepl('XR_', Cvirginica_TranscriptID ))) # 57662
 ( nrows_Cvirg_mRNA_blasthits / nrows_Cvirg_mRNA_reference ) * 100 # 95.78246 % of the transcriptome! (excluding ncRNAs!)
 
 
@@ -84,11 +92,11 @@ Cvirginica_GOterms_MERGE <- merge(Cvirginica_annot_reference, Cvirginica_GOterms
 # MASTER REFERENCE ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::;: #
 # we now have 'Cvirginica_GOterms_MERGE' containing the protein name, transcript and gene ID, and GO term annotation - we now want the KEGGIDs from the blastx hits!
 
-Master_ref    <- (as.data.frame(merge(blastx_CgigasCvirg_besthits, Cvirginica_GOterms_MERGE, by ='Cvirginica_TranscriptID')))[,c(1,5,6,2,7,8,3)] # create a referecne from the Geoduck annotation file to merge with the DE sumamry lists 
+Master_ref    <- (as.data.frame(merge(blastx_CgigasCvirg_besthits, Cvirginica_GOterms_MERGE, by ='Cvirginica_TranscriptID')))[,c(1,6,2,7,8,9)] # create a referecne from the Geoduck annotation file to merge with the DE sumamry lists 
 nrow(Master_ref) # 59089
 
 ncRNAs_NOT.merged <- blastx_CgigasCvirg_besthits %>%  dplyr::filter(!Cvirginica_TranscriptID %in% Cvirginica_GOterms_MERGE$Cvirginica_TranscriptID)
-nrow(ncRNAs_NOT.merged) # 1082 IDs in the Cvirginica_GOterms_MERGE file that do no have the same Transcript ID as the blast hits!
+nrow(ncRNAs_NOT.merged) # 2104 IDs in the Cvirginica_GOterms_MERGE file that do no have the same Transcript ID as the blast hits!
 
 
 # write master reference

@@ -55,11 +55,14 @@ d2.Treatment.data <- read.csv(file="Data/TagSeq/day2.exp.data.csv", sep=',', hea
                         dplyr::mutate_if(is.character, as.factor) %>% 
                         dplyr::rename('Sample.Name' = 'SapleName_readmatrix') %>% 
                         dplyr::rename('pCO2' = 'OA') %>% 
-                        dplyr::select(c('Sample.Name','Temperature','pCO2','Salinity')) %>% 
+                        dplyr::select(c('Sample.Name','Temperature','pCO2','Salinity', 'Aragonite_saturation')) %>% 
                         dplyr::mutate(All_treatment = paste( (substr(Temperature,1,1)), 
                                                              (substr(pCO2,1,1)), 
                                                              (substr(Salinity,1,1)), sep = '')) %>% 
-                        dplyr::mutate(pCO2_Salinity = substr(All_treatment, 2,3))
+                        dplyr::mutate(pCO2_Salinity = substr(All_treatment, 2,3)) %>% 
+                        dplyr::mutate(Aragonite_saturation = case_when(Aragonite_saturation < 0.5 ~ 'Low', 
+                                                                       (Aragonite_saturation > 0.5 & Aragonite_saturation < 1.0) ~ 'Mid', 
+                                                                       Aragonite_saturation > 1.0 ~ 'High'))
 
 View(d2.Treatment.data)
 
@@ -147,7 +150,7 @@ TreatRows     = match(d2.Samples, d2.Treatment.data$Sample.Name); # match the na
 d2.Traits     = d2.Treatment.data[TreatRows, -1]; # insert TreatRows as the row numbers in 'd7.Treatment.data'
 rownames(d2.Traits)     = d2.Treatment.data[TreatRows, 1]; # inserts the new TreatRows - matches sample IDs
 all(rownames(d2.Traits) == rownames(dds.d2_vst)) # should be TRUE
-dim(d2.Traits) # 22 Samples 3 columns; now we have 22 samples! - colnames are all treatment, primary and second treatment
+dim(d2.Traits) # 22 Samples 6 columns; now we have 22 samples! - colnames are all treatment, primary and second treatment
 
 
 # ===================================================================================
@@ -178,6 +181,17 @@ d2.Traits.pCO2          <-  d2.Traits %>% dplyr::select('pCO2')  %>% # primary t
                                 dplyr::mutate(Low = as.factor(as.numeric(pCO2 == "Low")))    %>%  # call occurrence of 'M'  as 0s and 1s (factor)
                                 dplyr::select(-pCO2)
 d2.Traits.pCO2  # final dataset of 0,1 for treatment groups - Primary only!
+
+
+# pCO2 groups  ===================================================== #
+d2.Traits.AragoniteSat <-  d2.Traits %>% dplyr::select('Aragonite_saturation')  %>% # primary treatment as Ambient (A) vs. Moderate (M)
+  dplyr::mutate(High = as.factor(as.numeric(Aragonite_saturation == "High")))  %>%  # call occurrence of 'A' as 0s and 1s (factor)
+  dplyr::mutate(Mid = as.factor(as.numeric(Aragonite_saturation == "Mid")))    %>%  # call occurrence of 'M'  as 0s and 1s (factor)
+  dplyr::mutate(Low = as.factor(as.numeric(Aragonite_saturation == "Low")))    %>%  # call occurrence of 'M'  as 0s and 1s (factor)
+  dplyr::select(-Aragonite_saturation)
+d2.Traits.AragoniteSat  # final dataset of 0,1 for treatment groups - Primary only!
+
+
 
 # oCO2_Salinity (as _ _ pCO2 and salinity)  ================================================================ #
 d2.Traits.pCO2Salinity   <- d2.Traits %>% 
@@ -234,6 +248,13 @@ plotDendroAndColors(sampleTree2, traitColors_Salinity, # Plot the sample dendrog
                     main = "Sample dendrogram and trait heatmap (Salinity)")
 dev.off()
 
+# Aragonite saturation ONLY
+png("Output/WGCNA/day2_larvae/Day2_ClusterTree_AragoniteSat.png", 1000, 1000, pointsize=20)
+traitColors_AragoniteSat = labels2colors(d2.Traits.AragoniteSat); # Convert traits to a color representation: white means low, red means high, grey means missing entry
+plotDendroAndColors(sampleTree2, traitColors_AragoniteSat, # Plot the sample dendrogram and the colors underneath.
+                    groupLabels = names(d2.Traits.AragoniteSat), 
+                    main = "Sample dendrogram and trait heatmap (AragoniteSat)")
+dev.off()
 
 # pCO2 and Salinity only 
 png("Output/WGCNA/day2_larvae/Day2_ClusterTree_pCO2Salinity.png", 1000, 1000, pointsize=20)
@@ -475,7 +496,7 @@ MEs = orderMEs(MEs0) # reorders the columns (colors/modules)
 #=====================================================================================
 # ALL TRAIT DATA
 
-dim(d2.Traits)  # 22  5
+dim(d2.Traits)  # 22  6
 dim(MEs)  # 22  8
 # moduleTraitCor = cor(MEs, d7.Traits, use = "p");
 # moduleTraitPvalue = corPvalueStudent(moduleTraitCor, nSamples);
@@ -502,6 +523,15 @@ d2.Traits.Salinity.asnum  <- data.frame(lapply(d2.Traits.Salinity, function(x) a
 moduleTraitCor_Salinity    = cor(MEs, d2.Traits.Salinity.asnum, use = "p");
 moduleTraitPvalue_Salinity = corPvalueStudent(moduleTraitCor_Salinity, nSamples);
 moduleTraitPvalue_Salinity
+
+
+# Aragonite.Sat
+d2.Traits.AragoniteSat.asnum  <- data.frame(lapply(d2.Traits.AragoniteSat, function(x) as.numeric(as.character(x))),
+                                        check.names=F, row.names = row.names(d2.Traits.AragoniteSat))
+moduleTraitCor_AragoniteSat    = cor(MEs, d2.Traits.AragoniteSat.asnum, use = "p");
+moduleTraitPvalue_AragoniteSat = corPvalueStudent(moduleTraitCor_AragoniteSat, nSamples);
+moduleTraitPvalue_AragoniteSat
+
 
 # pCO2 and Salinity 
 d2.Traits.pCO2Salinity.asnum  <- data.frame(lapply(d2.Traits.pCO2Salinity, function(x) as.numeric(as.character(x))),
@@ -684,6 +714,64 @@ Heatmap(moduleTraitCor_Salinity,
         col = col_fun,
         cell_fun = function(j, i, x, y, width, height, fill) {
           grid.text(sprintf("%.1f", d7.Salinity.text[i, j]), x, y, gp = gpar(fontsize = 10))
+        })
+dev.off()
+
+
+
+
+
+
+
+
+
+
+
+# AragoniteSat ONLY  ------------------------------------------------------------------ # 
+
+sizeGrWindow(10,10)
+# Will display correlations and their p-values
+d2.AragoniteSat.matrix <-  paste(signif(moduleTraitCor_AragoniteSat, 2), "\n(",
+                         signif(moduleTraitPvalue_AragoniteSat, 1), ")", sep = "")
+#dim(textMatrix) == dim(moduleTraitCor_treatonly)
+par(mar = c(8, 9.5, 5, 3));
+# Display the correlation values within a heatmap plot
+png("Output/WGCNA/day2_larvae/heatmaps/Day2_AragoniteSat_heatmap.png", 500, 1000, pointsize=20)
+labeledHeatmap(Matrix = moduleTraitCor_AragoniteSat,
+               xLabels = names(d2.Traits.AragoniteSat),
+               yLabels = names(MEs),
+               ySymbols = names(MEs),
+               colorLabels = TRUE,
+               colors = blueWhiteRed(50),
+               textMatrix = d2.AragoniteSat.matrix,
+               setStdMargins = FALSE,
+               cex.text = 1,
+               zlim = c(-0.6,0.6),
+               main = paste("Module-trait relationships - AragoniteSat"))
+dev.off()
+
+# this heatmap looks better
+d7.AragoniteSat.text <-  as.matrix(signif(moduleTraitPvalue_AragoniteSat, 3))
+pa                  = cluster::pam(d7.AragoniteSat.text, k = 3)
+col_fun             = colorRamp2(c(-0.5, 0, 0.5), c("blue", "white", "red"))
+pdf("Output/WGCNA/day2_larvae/heatmaps/Day2_AragoniteSat_heatmap.pdf", width=5, height=6)
+Heatmap(moduleTraitCor_AragoniteSat, 
+        name = "gene_cor", 
+        rect_gp = gpar(col = "grey", lwd = 1),
+        column_title = "Day 2 WGCNA - AragoniteSat", 
+        column_title_gp = gpar(fontsize = 12, fontface = "bold"),
+        # row_title = "WGCNA modules",
+        #row_km = 4, 
+        column_km = 2,
+        row_split = paste0("clstr", pa$clustering),
+        row_gap = unit(5, "mm"),
+        column_gap = unit(5, "mm"),
+        # grid.text(matrix(textMatrix)),
+        # border = TRUE,
+        border = TRUE,
+        col = col_fun,
+        cell_fun = function(j, i, x, y, width, height, fill) {
+          grid.text(sprintf("%.1f", d7.AragoniteSat.text[i, j]), x, y, gp = gpar(fontsize = 10))
         })
 dev.off()
 
