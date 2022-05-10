@@ -1,0 +1,256 @@
+Building DifferenceCoverSample
+  Building sPrime
+  Building sPrimeOrder
+  V-Sorting samples
+  V-Sorting samples time: 00:00:12
+  Allocating rank array
+  Ranking v-sort output
+  Ranking v-sort output time: 00:00:04
+  Invoking Larsson-Sadakane on ranks
+  Invoking Larsson-Sadakane on ranks time: 00:00:07
+  Sanity-checking and returning
+Building samples
+Reserving space for 12 sample suffixes
+Generating random suffixes
+QSorting 12 sample offsets, eliminating duplicates
+QSorting sample offsets, eliminating duplicates time: 00:00:00
+Multikey QSorting 12 samples
+  (Using difference cover)
+  Multikey QSorting samples time: 00:00:00
+Calculating bucket sizes
+Splitting and merging
+  Splitting and merging time: 00:00:00
+Avg bucket size: 7.6075e+07 (target: 128376623)
+Getting block 1 of 9
+  Reserving size (128376624) for bucket 1
+  Calculating Z arrays for bucket 1
+  Entering block accumulator loop for bucket 1:
+  bucket 1: 10%
+  bucket 1: 20%
+  bucket 1: 30%
+  bucket 1: 40%
+  bucket 1: 50%
+  bucket 1: 60%
+  bucket 1: 70%
+  bucket 1: 80%
+  bucket 1: 90%
+  bucket 1: 100%
+  Sorting block of length 60277335 for bucket 1
+  (Using difference cover)
+  Sorting block time: 00:00:23
+Returning block of 60277336 for bucket 1
+Getting block 2 of 9
+  Reserving size (128376624) for bucket 2
+  Calculating Z arrays for bucket 2
+  Entering block accumulator loop for bucket 2:
+  bucket 2: 10%
+  bucket 2: 20%
+  bucket 2: 30%
+  bucket 2: 40%
+  bucket 2: 50%
+  bucket 2: 60%
+  bucket 2: 70%
+  bucket 2: 80%
+  bucket 2: 90%
+  bucket 2: 100%
+  Sorting block of length 87734215 for bucket 2
+  (Using difference cover)
+  Sorting block time: 00:00:33
+Returning block of 87734216 for bucket 2
+Getting block 3 of 9
+  Reserving size (128376624) for bucket 3
+  Calculating Z arrays for bucket 3
+  Entering block accumulator loop for bucket 3:
+  bucket 3: 10%
+  bucket 3: 20%
+  bucket 3: 30%
+  bucket 3: 40%
+  bucket 3: 50%
+  bucket 3: 60%
+  bucket 3: 70%
+  bucket 3: 80%
+  bucket 3: 90%
+  bucket 3: 100%
+  Sorting block of length 94064761 for bucket 3
+  (Using difference cover)
+  Sorting block time: 00:00:36
+Returning block of 94064762 for bucket 3
+Getting block 4 of 9
+  Reserving size (128376624) for bucket 4
+  Calculating Z arrays for bucket 4
+  Entering block accumulator loop for bucket 4:
+  bucket 4: 10%
+  bucket 4: 20%
+  bucket 4: 30%
+  bucket 4: 40%
+  bucket 4: 50%
+  bucket 4: 60%
+  bucket 4: 70%
+  bucket 4: 80%
+  bucket 4: 90%
+  bucket 4: 100%
+  Sorting block of length 41331271 for bucket 4
+  (Using difference cover)
+  Sorting block time: 00:00:16
+Returning block of 41331272 for bucket 4
+Getting block 5 of 9
+  Reserving size (128376624) for bucket 5
+  Calculating Z arrays for bucket 5
+  Entering block accumulator loop for bucket 5:
+  bucket 5: 10%
+  bucket 5: 20%
+  bucket 5: 30%
+  bucket 5: 40%
+  bucket 5: 50%
+  bucket 5: 60%
+  bucket 5: 70%
+  bucket 5: 80%
+  bucket 5: 90%
+  bucket 5: 100%
+  Sorting block of length 108325211 for bucket 5
+  (Using difference cover)
+  Sorting block time: 00:00:41
+Returning block of 108325212 for bucket 5
+Getting block 6 of 9
+  Reserving size (128376624) for bucket 6
+  Calculating Z arrays for bucket 6
+  Entering block accumulator loop for bucket 6:
+  bucket 6: 10%
+  bucket 6: 20%
+  bucket 6: 30%
+  bucket 6: 40%
+  bucket 6: 50%
+  bucket 6: 60%
+  bucket 6: 70%
+  bucket 6: 80%
+  bucket 6: 90%
+  bucket 6: 100%
+  Sorting block of length 38759411 for bucket 6
+  (Using difference cover)
+  Sorting block time: 00:00:14
+Returning block of 38759412 for bucket 6
+Getting block 7 of 9
+  Reserving size (128376624) for bucket 7
+  Calculating Z arrays for bucket 7
+  Entering block accumulator loop for bucket 7:
+  bucket 7: 10%
+  bucket 7: 20%
+  bucket 7: 30%
+  bucket 7: 40%
+  bucket 7: 50%
+  bucket 7: 60%
+  bucket 7: 70%
+  bucket 7: 80%
+  bucket 7: 90%
+  bucket 7: 100%
+  Sorting block of length 100469340 for bucket 7
+  (Using difference cover)
+  Sorting block time: 00:00:38
+Returning block of 100469341 for bucket 7
+Getting block 8 of 9
+  Reserving size (128376624) for bucket 8
+  Calculating Z arrays for bucket 8
+  Entering block accumulator loop for bucket 8:
+  bucket 8: 10%
+  bucket 8: 20%
+  bucket 8: 30%
+  bucket 8: 40%
+  bucket 8: 50%
+  bucket 8: 60%
+  bucket 8: 70%
+  bucket 8: 80%
+  bucket 8: 90%
+  bucket 8: 100%
+  Sorting block of length 74000311 for bucket 8
+  (Using difference cover)
+  Sorting block time: 00:00:28
+Returning block of 74000312 for bucket 8
+Getting block 9 of 9
+  Reserving size (128376624) for bucket 9
+  Calculating Z arrays for bucket 9
+  Entering block accumulator loop for bucket 9:
+  bucket 9: 10%
+  bucket 9: 20%
+  bucket 9: 30%
+  bucket 9: 40%
+  bucket 9: 50%
+  bucket 9: 60%
+  bucket 9: 70%
+  bucket 9: 80%
+  bucket 9: 90%
+  bucket 9: 100%
+  Sorting block of length 79713465 for bucket 9
+  (Using difference cover)
+  Sorting block time: 00:00:30
+Returning block of 79713466 for bucket 9
+Referece genome indexed. Starting alingment Sun Feb 20 16:27:29 PST 2022
+clean.A10-spat-20_S54_L001_R1_001.fastq.gz bam-ified!
+clean.A10-spat-20_S54_L002_R1_001.fastq.gz bam-ified!
+clean.A11-spat-21_S55_L001_R1_001.fastq.gz bam-ified!
+clean.A11-spat-21_S55_L002_R1_001.fastq.gz bam-ified!
+clean.A12-larva-1_S56_L001_R1_001.fastq.gz bam-ified!
+clean.A12-larva-1_S56_L002_R1_001.fastq.gz bam-ified!
+clean.A1-spat-1_S45_L001_R1_001.fastq.gz bam-ified!
+clean.A1-spat-1_S45_L002_R1_001.fastq.gz bam-ified!
+clean.A2-spat-2_S46_L001_R1_001.fastq.gz bam-ified!
+clean.A2-spat-2_S46_L002_R1_001.fastq.gz bam-ified!
+clean.A3-spat-3_S47_L001_R1_001.fastq.gz bam-ified!
+clean.A3-spat-3_S47_L002_R1_001.fastq.gz bam-ified!
+clean.A4-spat-4_S48_L001_R1_001.fastq.gz bam-ified!
+clean.A4-spat-4_S48_L002_R1_001.fastq.gz bam-ified!
+clean.A5-spat-5_S49_L001_R1_001.fastq.gz bam-ified!
+clean.A5-spat-5_S49_L002_R1_001.fastq.gz bam-ified!
+clean.A6-spat-6_S50_L001_R1_001.fastq.gz bam-ified!
+clean.A6-spat-6_S50_L002_R1_001.fastq.gz bam-ified!
+clean.A7-spat-7_S51_L001_R1_001.fastq.gz bam-ified!
+clean.A7-spat-7_S51_L002_R1_001.fastq.gz bam-ified!
+clean.A8-spat-8_S52_L001_R1_001.fastq.gz bam-ified!
+clean.A8-spat-8_S52_L002_R1_001.fastq.gz bam-ified!
+clean.A9-spat-19_S53_L001_R1_001.fastq.gz bam-ified!
+clean.A9-spat-19_S53_L002_R1_001.fastq.gz bam-ified!
+clean.B10-larva-11_S66_L001_R1_001.fastq.gz bam-ified!
+clean.B10-larva-11_S66_L002_R1_001.fastq.gz bam-ified!
+clean.B11-larva-12_S67_L001_R1_001.fastq.gz bam-ified!
+clean.B11-larva-12_S67_L002_R1_001.fastq.gz bam-ified!
+clean.B12-larva-13_S68_L001_R1_001.fastq.gz bam-ified!
+clean.B12-larva-13_S68_L002_R1_001.fastq.gz bam-ified!
+clean.B1-larva-2_S57_L001_R1_001.fastq.gz bam-ified!
+clean.B1-larva-2_S57_L002_R1_001.fastq.gz bam-ified!
+clean.B2-larva-3_S58_L001_R1_001.fastq.gz bam-ified!
+clean.B2-larva-3_S58_L002_R1_001.fastq.gz bam-ified!
+clean.B3-larva-4_S59_L001_R1_001.fastq.gz bam-ified!
+clean.B3-larva-4_S59_L002_R1_001.fastq.gz bam-ified!
+clean.B4-larva-5_S60_L001_R1_001.fastq.gz bam-ified!
+clean.B4-larva-5_S60_L002_R1_001.fastq.gz bam-ified!
+clean.B5-larva-6_S61_L001_R1_001.fastq.gz bam-ified!
+clean.B5-larva-6_S61_L002_R1_001.fastq.gz bam-ified!
+clean.B6-larva-7_S62_L001_R1_001.fastq.gz bam-ified!
+clean.B6-larva-7_S62_L002_R1_001.fastq.gz bam-ified!
+clean.B7-larva-8_S63_L001_R1_001.fastq.gz bam-ified!
+clean.B7-larva-8_S63_L002_R1_001.fastq.gz bam-ified!
+clean.B8-larva-9_S64_L001_R1_001.fastq.gz bam-ified!
+clean.B8-larva-9_S64_L002_R1_001.fastq.gz bam-ified!
+clean.B9-larva-10_S65_L001_R1_001.fastq.gz bam-ified!
+clean.B9-larva-10_S65_L002_R1_001.fastq.gz bam-ified!
+clean.C10-larva-23_S78_L001_R1_001.fastq.gz bam-ified!
+clean.C10-larva-23_S78_L002_R1_001.fastq.gz bam-ified!
+clean.C11-larva-24_S79_L001_R1_001.fastq.gz bam-ified!
+clean.C11-larva-24_S79_L002_R1_001.fastq.gz bam-ified!
+clean.C1-larva-14_S69_L001_R1_001.fastq.gz bam-ified!
+clean.C1-larva-14_S69_L002_R1_001.fastq.gz bam-ified!
+clean.C2-larva-15_S70_L001_R1_001.fastq.gz bam-ified!
+clean.C2-larva-15_S70_L002_R1_001.fastq.gz bam-ified!
+clean.C3-larva-16_S71_L001_R1_001.fastq.gz bam-ified!
+clean.C3-larva-16_S71_L002_R1_001.fastq.gz bam-ified!
+clean.C4-larva-17_S72_L001_R1_001.fastq.gz bam-ified!
+clean.C4-larva-17_S72_L002_R1_001.fastq.gz bam-ified!
+clean.C5-larva-18_S73_L001_R1_001.fastq.gz bam-ified!
+clean.C5-larva-18_S73_L002_R1_001.fastq.gz bam-ified!
+clean.C6-larva-19_S74_L001_R1_001.fastq.gz bam-ified!
+clean.C6-larva-19_S74_L002_R1_001.fastq.gz bam-ified!
+clean.C7-larva-20_S75_L001_R1_001.fastq.gz bam-ified!
+clean.C7-larva-20_S75_L002_R1_001.fastq.gz bam-ified!
+clean.C8-larva-21_S76_L001_R1_001.fastq.gz bam-ified!
+clean.C8-larva-21_S76_L002_R1_001.fastq.gz bam-ified!
+clean.C9-larva-22_S77_L001_R1_001.fastq.gz bam-ified!
+clean.C9-larva-22_S77_L002_R1_001.fastq.gz bam-ified!
