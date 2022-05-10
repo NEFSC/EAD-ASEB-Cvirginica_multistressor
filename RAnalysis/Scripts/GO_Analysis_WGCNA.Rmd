@@ -488,8 +488,8 @@ Master_goseq_results      <- rbind(d2_GO.05blackModule, d2_GO.05blueModule, d2_G
 
 #  for the for loop...
 df_total             <- data.frame() # start dataframe 
-GO.table             <- data.frame(matrix(nrow = 0, ncol = 10)) # create dataframe to save cumunalitively during for loop
-colnames(GO.table)   <- c('Day', 'moduleColor',  'GO_term' , 'GO_ID', 'ontology', 'pvalue',  'Gene_count', 'Transcript_ID', 'geneSymbol', 'Protein_name') # names for comuns in the for loop
+GO.table             <- data.frame(matrix(nrow = 0, ncol = 11)) # create dataframe to save cumunalitively during for loop
+colnames(GO.table)   <- c('Day', 'moduleColor',  'GO_term' , 'GO_ID', 'ontology', 'pvalue',  'Gene_count', 'Gene_ratio', 'Transcript_ID', 'geneSymbol', 'Protein_name') # names for comuns in the for loop
 
 # un the loop
 for (i in 1:nrow(WGCNA_ColorList)) {
@@ -502,12 +502,14 @@ for (i in 1:nrow(WGCNA_ColorList)) {
 
   Moduel.GO.results  <- Master_goseq_results[-1] %>%  
                           dplyr::filter(!ontology %in% 'CC') %>% 
-                          dplyr::select(!c('under_represented_pvalue','numInCat')) %>% 
+                          dplyr::select(!'under_represented_pvalue') %>% 
                           dplyr::rename(Gene_count = numDEInCat, GO_term = term) %>% 
+                          dplyr::mutate(Gene_ratio = Gene_count/numInCat) %>% 
+                          dplyr::select(-'numInCat') %>% 
                           dplyr::filter(moduleColor %in% WGCNA_ColorList$moduleColor[i] & Day %in% WGCNA_ColorList$Day[i]) %>% 
                           dplyr::rename(GO_ID = category, pvalue = over_represented_pvalue)
 
-  Master <- rbind(GO.table, (as.data.frame(merge(Moduel.GO.results, Ref.GO.terms, by = c("GO_ID", 'moduleColor', 'Day')))[,c(3,2,6,1,7,4,5,8,9,10)]) )
+  Master <- rbind(GO.table, (as.data.frame(merge(Moduel.GO.results, Ref.GO.terms, by = c("GO_ID", 'moduleColor', 'Day')))[,c(3,2,6,1,7,4,5,8,9,10,11)]) )
   
   df       <- data.frame(Master) # name dataframe for this single row
   df_total <- rbind(df_total,df) #bind to a cumulative list dataframe
@@ -521,6 +523,74 @@ Day18_spat_master  <- df_total %>%  dplyr::filter(Day %in% 'Day18') %>% dplyr::a
 
 write.csv(Day2_larvae_master, file = "Output/WGCNA/day2_larvae/GO_analysis/Day2_GO_Results_Master.csv", row.names = FALSE)
 write.csv(Day18_spat_master, file = "Output/WGCNA/day18_spat/GO_analysis/Day18_GO_Results_Master.csv", row.names = FALSE)
+```
+
+
+# plot the data! 
+```{r PLOTs} 
+setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis")
+
+
+reorder_within <- function(x, by, within, fun = mean) {
+  stats::reorder(x, by, FUN = fun) }
+
+
+# Day 18 - modules 'blue', 'turquoise', 'brown'  - these have sig main effects of salinity and temperature! 
+for (i in 1:nrow(WGCNA_ColorList)) {
+DotPlot <-  ggplot(data =unique(df_total %>%
+                              dplyr::filter(moduleColor %in% WGCNA_ColorList$moduleColor[i]  & Day %in% WGCNA_ColorList$Day[i]) %>% 
+                              dplyr::filter(!ontology %in% NA) %>% 
+                              dplyr::mutate(moduleColor_Ontology = paste(moduleColor, ontology, sep = '_')) %>%
+                              dplyr::mutate(log_pvalue = -log(pvalue)) %>% 
+                              dplyr::arrange(log_pvalue) %>% 
+                              dplyr::select(-c('Protein_name', 'Transcript_ID', 'geneSymbol'))), 
+                     aes(x = Gene_ratio, y = reorder_within(GO_term, Gene_ratio,moduleColor_Ontology),
+                     color = `log_pvalue`, size = Gene_count)) + 
+                geom_point() +
+                scale_color_gradient(low = "orange", high = "blue") +
+                theme_bw() + 
+                ylab("") + 
+                xlab("") + 
+                ggtitle("GO enrichment analysis") + 
+                scale_x_continuous(limits=c(0,0.5)) +
+                facet_wrap(~moduleColor_Ontology, scales = "free",switch = "y") 
+
+        if (WGCNA_ColorList$Day[i] == 'Day2') {
+          pdf(paste0("Output/WGCNA/day2_larvae/GO_analysis/Day2_GO_DotPlot", WGCNA_ColorList$moduleColor[i], ".pdf", sep = ''), width=10, height=6)
+          plot(DotPlot)
+          dev.off()
+            } else {  
+              pdf(paste0("Output/WGCNA/day18_spat/GO_analysis/Day18_GO_DotPlot", WGCNA_ColorList$moduleColor[i], ".pdf", sep = ''), width=10, height=6)
+              plot(DotPlot)
+              dev.off() }
+    }
+
+
+
+# Day 18 - modules 
+
+Day18_DotPlot <-  ggplot(data =unique(Day18_spat_master %>%
+                              dplyr::filter(moduleColor %in% c('blue', 'purple', 'red')) %>% 
+                              dplyr::filter(!ontology %in% NA) %>% 
+                              dplyr::mutate(moduleColor_Ontology = paste(moduleColor, ontology, sep = '_')) %>%
+                              dplyr::mutate(log_pvalue = -log(pvalue)) %>% 
+                              dplyr::arrange(log_pvalue) %>% 
+                              dplyr::select(-c('Protein_name', 'Transcript_ID', 'geneSymbol'))), 
+                     aes(x = Gene_ratio, y = reorder_within(GO_term, Gene_ratio,moduleColor_Ontology),
+                     color = `log_pvalue`, size = Gene_count)) + 
+                geom_point() +
+                scale_color_gradient(low = "orange", high = "blue") +
+                theme_bw() + 
+                ylab("") + 
+                xlab("") + 
+                ggtitle("GO enrichment analysis") + 
+                scale_x_continuous(limits=c(0,0.5)) +
+                facet_wrap(~moduleColor_Ontology, scales = "free",switch = "y") 
+pdf(paste0("Output/WGCNA/day18_spat/GO_analysis/Day18_GO_DotPlot.pdf"), width=22, height=10)
+plot(Day18_DotPlot)
+dev.off()
+
+
 ```
 
 
