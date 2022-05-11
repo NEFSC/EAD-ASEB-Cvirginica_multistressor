@@ -1,0 +1,6 @@
+"","TranscriptID","slim_term","over_represented_pvalue","GO_terms","term","ontology","moduleColor","GeneID","Protein_name"
+"1","XM_022446834.1","intracellular protein transport",0.0142956107769758,"GO:0006605","protein targeting","BP","magenta","LOC111110359"," mitochondrial-processing peptidase subunit beta-like"
+"2","XM_022447390.1","mRNA metabolic process",0.031513934978324,"GO:0006397","mRNA processing","BP","magenta","LOC111110780"," PAB-dependent poly(A)-specific ribonuclease subunit PAN2-like"
+"3","XM_022480456.1","mRNA metabolic process",0.031513934978324,"GO:0006397","mRNA processing","BP","magenta","LOC111132626"," HIV Tat-specific factor 1-like"
+"4","XM_022488765.1","mRNA metabolic process",0.031513934978324,"GO:0006397","mRNA processing","BP","magenta","LOC111137332"," cleavage and polyadenylation specificity factor subunit 5-like"
+"5","XR_002638562.1","intracellular protein transport",0.0142956107769758,"GO:0006605","protein targeting","BP","magenta","LOC111126975"," signal recognition particle receptor subunit alpha-like"

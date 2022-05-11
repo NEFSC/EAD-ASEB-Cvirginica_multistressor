@@ -1,0 +1,3 @@
+"","GO_terms","X","over_represented_pvalue","under_represented_pvalue","numDEInCat","numInCat","term","ontology","moduleColor","Day","slim_term","Gene_IDs"
+"1","GO:0006397",6,4.37037471129312e-05,0.999994308040922,8,186,"mRNA processing","BP","black","Day2","mRNA metabolic process","XM_022441654.1;XM_022445844.1;XM_022446537.1;XM_022463499.1;XM_022470306.1;XM_022474850.1;XM_022475115.1;XM_022487084.1"
+"2","GO:0022618",17,0.0217443969194658,0.997000994139976,3,75,"ribonucleoprotein complex assembly","BP","black","Day2","protein-containing complex assembly","XM_022445844.1;XM_022470306.1;XM_022487084.1"

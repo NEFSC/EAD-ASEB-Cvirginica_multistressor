@@ -1,0 +1,5 @@
+"","GO_terms","X","over_represented_pvalue","under_represented_pvalue","numDEInCat","numInCat","term","ontology","moduleColor","Day","slim_term","Gene_IDs"
+"1","GO:0003924",20,0.0135981203009161,0.996036449452941,7,437,"GTPase activity","MF","pink","Day2_hightemp","hydrolase activity","XM_022445998.1;XM_022446113.1;XM_022453491.1;XM_022460808.1;XM_022464200.1;XM_022468645.1;XM_022472874.1"
+"2","GO:0008135",17,0.000422460206032557,0.999972937462696,4,66,"translation factor activity, RNA binding","MF","pink","Day2_hightemp","RNA binding","XM_022449348.1;XM_022463840.1;XM_022483537.1;XM_022483539.1"
+"3","GO:0008135",17,0.000422460206032557,0.999972937462696,4,66,"translation factor activity, RNA binding","MF","pink","Day2_hightemp","translation regulator activity","XM_022449348.1;XM_022463840.1;XM_022483537.1;XM_022483539.1"
+"4","GO:0016301",18,0.00298518011661013,0.999050508787133,11,1507,"kinase activity","MF","pink","Day2_hightemp","transferase activity","XM_022442109.1;XM_022442837.1;XM_022453542.1;XM_022458958.1;XM_022462276.1;XM_022463942.1;XM_022477026.1;XM_022477746.1;XM_022484775.1;XM_022485988.1;XM_022487414.1"

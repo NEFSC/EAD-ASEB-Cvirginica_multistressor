@@ -1,0 +1,5 @@
+"","slim_term","slim_cat","GO_list","Gene_IDs","module_day"
+"1","anatomical structure development","GO:0000902","GO:0000902","XM_022462087.1;XM_022472141.1","Day2_turquoise"
+"2","mRNA metabolic process","GO:0006397","GO:0006397","XM_022444348.1;XM_022458053.1;XM_022460779.1;XM_022463165.1;XM_022471185.1;XM_022475592.1;XM_022481399.1;XM_022481809.1","Day2_turquoise"
+"3","intracellular protein transport","GO:0006605","GO:0006605","XM_022441849.1;XM_022453244.1;XM_022474603.1;XM_022477781.1;XM_022487040.1;XM_022488825.1","Day2_turquoise"
+"4","protein-containing complex assembly","GO:0022618","GO:0022618","XM_022444348.1;XM_022458349.1;XM_022460779.1;XM_022463165.1;XM_022490402.1","Day2_turquoise"

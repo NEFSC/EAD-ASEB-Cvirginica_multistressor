@@ -1,0 +1,3 @@
+"","GO_terms","X","over_represented_pvalue","under_represented_pvalue","numDEInCat","numInCat","term","ontology","moduleColor","Day","slim_term","Gene_IDs"
+"1","GO:0006397",3,0.031513934978324,0.994939865117129,3,186,"mRNA processing","BP","magenta","Day2_hightemp","mRNA metabolic process","XM_022447390.1;XM_022480456.1;XM_022488765.1"
+"2","GO:0006605",2,0.0142956107769758,0.999189323338607,2,47,"protein targeting","BP","magenta","Day2_hightemp","intracellular protein transport","XM_022446834.1;XR_002638562.1"

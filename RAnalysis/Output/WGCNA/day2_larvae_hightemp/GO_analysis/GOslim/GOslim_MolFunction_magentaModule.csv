@@ -1,0 +1,5 @@
+"","slim_term","slim_cat","GO_list","Gene_IDs","module_day"
+"1","RNA binding","GO:0003729","GO:0003729","XM_022430889.1;XM_022488765.1","Day2_hightemp_magenta"
+"2","structural molecule activity","GO:0003735","GO:0003735","XM_022476789.1;XM_022477994.1;XM_022487525.1","Day2_hightemp_magenta"
+"3","hydrolase activity","GO:0004518","GO:0004518","XM_022447390.1;XM_022478684.1;XM_022481476.1;XM_022489086.1","Day2_hightemp_magenta"
+"4","transferase activity","GO:0008168","GO:0008168;GO:0016765","XM_022431103.1;XM_022431972.1;XM_022453909.1;XM_022460831.1;XM_022462112.1;XM_022462114.1","Day2_hightemp_magenta"

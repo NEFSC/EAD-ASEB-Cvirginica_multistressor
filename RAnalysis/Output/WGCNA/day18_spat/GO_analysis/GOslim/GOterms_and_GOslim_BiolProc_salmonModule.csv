@@ -1,0 +1,3 @@
+"","GO_terms","X","over_represented_pvalue","under_represented_pvalue","numDEInCat","numInCat","term","ontology","moduleColor","Day","slim_term","Gene_IDs"
+"1","GO:0006397",11,0.0028439572980585,0.999381869896354,7,186,"mRNA processing","BP","salmon","Day18","mRNA metabolic process","XM_022458865.1;XM_022464277.1;XM_022465018.1;XM_022470306.1;XM_022474850.1;XM_022475115.1;XM_022480101.1"
+"2","GO:0006605",15,0.0274636064300494,0.995916278034374,3,47,"protein targeting","BP","salmon","Day18","intracellular protein transport","XM_022476416.1;XM_022488825.1;XM_022490152.1"

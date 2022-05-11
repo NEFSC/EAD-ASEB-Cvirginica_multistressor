@@ -175,7 +175,7 @@ d2.Traits.pCO2          <-  d2.Traits %>% dplyr::select('pCO2')  %>% # primary t
 d2.Traits.pCO2  # final dataset of 0,1 for treatment groups - Primary only!
 
 
-# pCO2 groups  ===================================================== #
+# aragonite saturation groups  ===================================================== #
 d2.Traits.AragoniteSat <-  d2.Traits %>% dplyr::select('Aragonite_saturation')  %>% # primary treatment as Ambient (A) vs. Moderate (M)
   dplyr::mutate(High = as.factor(as.numeric(Aragonite_saturation == "High")))  %>%  # call occurrence of 'A' as 0s and 1s (factor)
   dplyr::mutate(Mid = as.factor(as.numeric(Aragonite_saturation == "Mid")))    %>%  # call occurrence of 'M'  as 0s and 1s (factor)
@@ -1101,7 +1101,7 @@ names(modcolor)[1] <- "color"
 for(i in 1:nrow(modcolor)) {
   
   # vst read count date - narrow the columns - reshape and rename
-  Mod_geneIDs     <- day2_ModuleMembership %>% dplyr::filter(moduleColor %in% modcolor[i,]) %>%  dplyr::select("TranscriptID") %>%  na.omit()
+  Mod_geneIDs      <- day2_ModuleMembership %>% dplyr::filter(moduleColor %in% modcolor[i,]) %>%  dplyr::select("TranscriptID") %>%  na.omit()
   d2_rlog_Mod      <- dds.d2_rlogtrans %>% dplyr::filter(TranscriptID %in% Mod_geneIDs[,1])
   d2_rlog_Mod_MELT <- melt(d2_rlog_Mod, id=("TranscriptID")) # melt using reshape2
   names(d2_rlog_Mod_MELT)[(2:3)] <-  c('Sample.Name', 'rlog_Expression') # change column names
@@ -1162,10 +1162,11 @@ for(i in 1:nrow(modcolor)) {
   # The errorbars overlapped, so use position_dodge to move them horizontally
   pd <- position_dodge(0.3) # move them .05 to the left and right
    
-  # Temperature mean sd plot ========================== #
+  # All.Treatment mean sd - allows all plots to have the same y axis range 
+  min_p <- min(meanEXp_Summary.All.Treatment$mean) - max(meanEXp_Summary.All.Treatment$se)
+  max_p <- max(meanEXp_Summary.All.Treatment$mean) + max(meanEXp_Summary.All.Treatment$se)
   
-  min_p1 <- min(meanEXp_Summary.Aragonite_saturation$mean) - max(meanEXp_Summary.Aragonite_saturation$se)
-  max_p1 <- max(meanEXp_Summary.Aragonite_saturation$mean) + max(meanEXp_Summary.Aragonite_saturation$se)
+  # Temperature mean sd plot ========================== #
   
   Aragonite_saturation.rlog.Mod <- meanEXp_Summary.Aragonite_saturation %>% 
     dplyr::mutate(Aragonite_saturation    = forcats::fct_relevel(Aragonite_saturation, 'Low', 'Mid', 'High')) %>%
@@ -1180,7 +1181,7 @@ for(i in 1:nrow(modcolor)) {
       # scale_color_manual(values=c("#56B4E9","#E69F00")) +
       # ggtitle(paste("Day 7 WGCNA", modcolor[i,], "Module VST GeneExp", sep =' ')) +
       # expand_limits(y=0) +                                                    # Expand y range
-      scale_y_continuous(limits=c((min_p1), (max_p1))) +
+      scale_y_continuous(limits=c((min_p), (max_p))) +
       theme(text = element_text(size=10), legend.position="none")
   
   
@@ -1203,7 +1204,7 @@ for(i in 1:nrow(modcolor)) {
       # scale_color_manual(values=c("#56B4E9","#E69F00")) +
       # ggtitle("Day 21 WGCNA red' Module VST GeneExp") +
       # expand_limits(y=0) +                                                    # Expand y range
-      scale_y_continuous(limits=c((min_p2), (max_p2))) +
+      scale_y_continuous(limits=c((min_p), (max_p))) +
       theme(text = element_text(size=10), legend.position="none")
   
   
@@ -1226,7 +1227,7 @@ for(i in 1:nrow(modcolor)) {
         # scale_color_manual(values=c("#56B4E9","#E69F00")) +
         # ggtitle("Day 21 WGCNA red' Module VST GeneExp") +
         # expand_limits(y=0) +                                                    # Expand y range
-        scale_y_continuous(limits=c((min_p3), (max_p3))) +
+        scale_y_continuous(limits=c((min_p), (max_p))) +
         theme(text = element_text(size=10), legend.position="none")
   
   
@@ -1259,7 +1260,7 @@ for(i in 1:nrow(modcolor)) {
         ylab("rlog gene expression") +                 # note the mean was first by sample ID THEN by treatment
          # ylab(paste(modcolor[i,]," Module rlog Gene Expression (Mean +/- SE)", sep = ' ')) +                 # note the mean was first by sample ID THEN by treatment
         scale_fill_manual(values=c("#D55E00", "#E69F00", "#56B4E9")) +
-        scale_y_continuous(limits=c((min_p4), (max_p4))) +
+        scale_y_continuous(limits=c((min_p), (max_p))) +
         theme(text = element_text(size=15)) + 
         facet_wrap(~Salinity) # facetted by temperature
   

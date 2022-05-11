@@ -580,8 +580,9 @@ labeledHeatmap(Matrix = moduleTraitCor_Temperature,
 dev.off()
 
 # this heatmap looks better
-d7.TEMPERATURE.text <-  as.matrix(signif(moduleTraitPvalue_Temperature, 3))
-pa                  = cluster::pam(d7.TEMPERATURE.text, k = 3)
+d2.TEMPERATURE.text <-  as.matrix(signif(moduleTraitPvalue_Temperature, 3))
+d2.TEMPERATURE.COR  <-  as.matrix(signif(moduleTraitCor_Temperature, 3))
+pa                  = cluster::pam(d2.TEMPERATURE.COR, k = 3)
 col_fun             = colorRamp2(c(-0.5, 0, 0.5), c("blue", "white", "red"))
 pdf("Output/WGCNA/day2_larvae/heatmaps/Day2_Temperature_heatmap.pdf", width=5, height=6)
 Heatmap(moduleTraitCor_Temperature, 
@@ -600,7 +601,7 @@ Heatmap(moduleTraitCor_Temperature,
         border = TRUE,
         col = col_fun,
         cell_fun = function(j, i, x, y, width, height, fill) {
-          grid.text(sprintf("%.1f", d7.TEMPERATURE.text[i, j]), x, y, gp = gpar(fontsize = 10))
+          grid.text(sprintf("%.1f", d2.TEMPERATURE.text[i, j]), x, y, gp = gpar(fontsize = 10))
         })
 dev.off()
 
@@ -635,8 +636,9 @@ labeledHeatmap(Matrix = moduleTraitCor_pCO2,
 dev.off()
 
 # this heatmap looks better
-d7.pCO2.text <-  as.matrix(signif(moduleTraitPvalue_pCO2, 3))
-pa                  = cluster::pam(d7.pCO2.text, k = 3)
+d2.pCO2.text  <-  as.matrix(signif(moduleTraitPvalue_pCO2, 3))
+d2.pCO2.COR   <-  as.matrix(signif(moduleTraitCor_pCO2, 3))
+pa                  = cluster::pam(d2.pCO2.COR, k = 3)
 col_fun             = colorRamp2(c(-0.5, 0, 0.5), c("blue", "white", "red"))
 pdf("Output/WGCNA/day2_larvae/heatmaps/Day2_pCO2_heatmap.pdf", width=5, height=6)
 Heatmap(moduleTraitCor_pCO2, 
@@ -655,7 +657,7 @@ Heatmap(moduleTraitCor_pCO2,
         border = TRUE,
         col = col_fun,
         cell_fun = function(j, i, x, y, width, height, fill) {
-          grid.text(sprintf("%.1f", d7.pCO2.text[i, j]), x, y, gp = gpar(fontsize = 10))
+          grid.text(sprintf("%.1f", d2.pCO2.COR[i, j]), x, y, gp = gpar(fontsize = 10))
         })
 dev.off()
 
@@ -693,8 +695,9 @@ labeledHeatmap(Matrix = moduleTraitCor_Salinity,
 dev.off()
 
 # this heatmap looks better
-d7.Salinity.text <-  as.matrix(signif(moduleTraitPvalue_Salinity, 3))
-pa                  = cluster::pam(d7.Salinity.text, k = 3)
+d2.Salinity.text     <-  as.matrix(signif(moduleTraitPvalue_Salinity, 3))
+d2.Salinity.COR      <-  as.matrix(signif(moduleTraitCor_Salinity, 3))
+pa                  = cluster::pam(d2.Salinity.COR, k = 3)
 col_fun             = colorRamp2(c(-0.5, 0, 0.5), c("blue", "white", "red"))
 pdf("Output/WGCNA/day2_larvae/heatmaps/Day2_Salinity_heatmap.pdf", width=5, height=6)
 Heatmap(moduleTraitCor_Salinity, 
@@ -713,7 +716,7 @@ Heatmap(moduleTraitCor_Salinity,
         border = TRUE,
         col = col_fun,
         cell_fun = function(j, i, x, y, width, height, fill) {
-          grid.text(sprintf("%.1f", d7.Salinity.text[i, j]), x, y, gp = gpar(fontsize = 10))
+          grid.text(sprintf("%.1f", d2.Salinity.text[i, j]), x, y, gp = gpar(fontsize = 10))
         })
 dev.off()
 
@@ -751,8 +754,9 @@ labeledHeatmap(Matrix = moduleTraitCor_AragoniteSat,
 dev.off()
 
 # this heatmap looks better
-d7.AragoniteSat.text <-  as.matrix(signif(moduleTraitPvalue_AragoniteSat, 3))
-pa                  = cluster::pam(d7.AragoniteSat.text, k = 3)
+d2.AragoniteSat.text <-  as.matrix(signif(moduleTraitPvalue_AragoniteSat, 3))
+d2.AragoniteSat.COR  <-  as.matrix(signif(moduleTraitCor_AragoniteSat, 3))
+pa                  = cluster::pam(d2.AragoniteSat.COR, k = 3)
 col_fun             = colorRamp2(c(-0.5, 0, 0.5), c("blue", "white", "red"))
 pdf("Output/WGCNA/day2_larvae/heatmaps/Day2_AragoniteSat_heatmap.pdf", width=5, height=6)
 Heatmap(moduleTraitCor_AragoniteSat, 
@@ -771,7 +775,7 @@ Heatmap(moduleTraitCor_AragoniteSat,
         border = TRUE,
         col = col_fun,
         cell_fun = function(j, i, x, y, width, height, fill) {
-          grid.text(sprintf("%.1f", d7.AragoniteSat.text[i, j]), x, y, gp = gpar(fontsize = 10))
+          grid.text(sprintf("%.1f", d2.AragoniteSat.text[i, j]), x, y, gp = gpar(fontsize = 10))
         })
 dev.off()
 
@@ -810,8 +814,9 @@ labeledHeatmap(Matrix = moduleTraitCor_pCO2Salinity,
 dev.off()
 
 # this heatmap looks better
-d7.pCO2Salinity.text <-  as.matrix(signif(moduleTraitPvalue_pCO2Salinity, 3))
-pa                  = cluster::pam(d7.pCO2Salinity.text, k = 4)
+d2.pCO2Salinity.text <-  as.matrix(signif(moduleTraitPvalue_pCO2Salinity, 3))
+d2.pCO2Salinity.COR  <-  as.matrix(signif(moduleTraitCor_pCO2Salinity, 3))
+pa                  = cluster::pam(d2.pCO2Salinity.COR, k = 4)
 col_fun             = colorRamp2(c(-0.5, 0, 0.5), c("blue", "white", "red"))
 pdf("Output/WGCNA/day2_larvae/heatmaps/Day2_pCO2Salinity_heatmap.pdf", width=5, height=6)
 Heatmap(moduleTraitCor_pCO2Salinity, 
@@ -830,7 +835,7 @@ Heatmap(moduleTraitCor_pCO2Salinity,
         border = TRUE,
         col = col_fun,
         cell_fun = function(j, i, x, y, width, height, fill) {
-          grid.text(sprintf("%.1f", d7.pCO2Salinity.text[i, j]), x, y, gp = gpar(fontsize = 10))
+          grid.text(sprintf("%.1f", d2.pCO2Salinity.text[i, j]), x, y, gp = gpar(fontsize = 10))
         })
 dev.off()
 
@@ -865,8 +870,9 @@ labeledHeatmap(Matrix = moduleTraitCor_Group,
 dev.off()
 
 # this heatmap looks better
-d7.Group.text <-  as.matrix(signif(moduleTraitPvalue_Group, 3))
-pa                  = cluster::pam(d7.Group.text, k = 3)
+d2.Group.text <-  as.matrix(signif(moduleTraitPvalue_Group, 3))
+d2.Group.COR  <-  as.matrix(signif(moduleTraitCor_Group, 3))
+pa                  = cluster::pam(d2.Group.COR, k = 3)
 col_fun             = colorRamp2(c(-0.5, 0, 0.5), c("blue", "white", "red"))
 pdf("Output/WGCNA/day2_larvae/heatmaps/Day2_Group_heatmap.pdf", width=5, height=6)
 Heatmap(moduleTraitCor_Group, 
@@ -885,7 +891,7 @@ Heatmap(moduleTraitCor_Group,
         border = TRUE,
         col = col_fun,
         cell_fun = function(j, i, x, y, width, height, fill) {
-          grid.text(sprintf("%.1f", d7.Group.text[i, j]), x, y, gp = gpar(fontsize = 10))
+          grid.text(sprintf("%.1f", d2.Group.text[i, j]), x, y, gp = gpar(fontsize = 10))
         })
 dev.off()
 

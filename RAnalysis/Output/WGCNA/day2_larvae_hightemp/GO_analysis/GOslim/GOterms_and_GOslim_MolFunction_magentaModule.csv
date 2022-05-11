@@ -1,0 +1,6 @@
+"","GO_terms","X","over_represented_pvalue","under_represented_pvalue","numDEInCat","numInCat","term","ontology","moduleColor","Day","slim_term","Gene_IDs"
+"1","GO:0003729",12,0.0101825121584412,0.999518137533422,2,42,"mRNA binding","MF","magenta","Day2_hightemp","RNA binding","XM_022430889.1;XM_022488765.1"
+"2","GO:0003735",15,0.0350306995442887,0.99414444318502,3,176,"structural constituent of ribosome","MF","magenta","Day2_hightemp","structural molecule activity","XM_022476789.1;XM_022477994.1;XM_022487525.1"
+"3","GO:0004518",13,0.0115445608175466,0.998113438853237,4,242,"nuclease activity","MF","magenta","Day2_hightemp","hydrolase activity","XM_022447390.1;XM_022478684.1;XM_022481476.1;XM_022489086.1"
+"4","GO:0008168",11,0.00788562752655303,0.998847053351502,4,210,"methyltransferase activity","MF","magenta","Day2_hightemp","transferase activity","XM_022431103.1;XM_022431972.1;XM_022453909.1;XM_022460831.1;XM_022462112.1;XM_022462114.1"
+"5","GO:0016765",14,0.020547202297873,0.998581717380963,2,57,"transferase activity, transferring alkyl or aryl (other than methyl) groups","MF","magenta","Day2_hightemp","transferase activity","XM_022431103.1;XM_022431972.1;XM_022453909.1;XM_022460831.1;XM_022462112.1;XM_022462114.1"

@@ -1,0 +1,4 @@
+"","GO_terms","X","over_represented_pvalue","under_represented_pvalue","numDEInCat","numInCat","term","ontology","moduleColor","Day","slim_term","Gene_IDs"
+"1","GO:0006605",9,0.0338970708481363,0.99695709518768,2,47,"protein targeting","BP","pink","Day2_hightemp","intracellular protein transport","XM_022476416.1;XM_022481453.1"
+"2","GO:0007009",2,0.00637305979174978,0.999452469597012,3,43,"plasma membrane organization","BP","pink","Day2_hightemp","membrane organization","XM_022446967.1;XM_022479011.1;XM_022482789.1"
+"3","GO:0022618",3,0.00690209068009665,0.999377556428212,3,75,"ribonucleoprotein complex assembly","BP","pink","Day2_hightemp","protein-containing complex assembly","XM_022458344.1;XM_022461312.1;XM_022487084.1"
