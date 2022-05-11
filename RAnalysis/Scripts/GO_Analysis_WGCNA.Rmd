@@ -1721,7 +1721,7 @@ GO_d7.DOWN.05 <- GO_d7.DOWN.05[order(-GO_d7.DOWN.05$numDEInCat),]
 GO_d7.DOWN.05$term <- as.factor(GO_d7.DOWN.05$term)
 
 d7_DOWN_MF <- GO_d7.DOWN.05 %>% 
-  drop_na(ontology) %>% 
+  drop_na(ontology) %>%   
   mutate(term = fct_reorder(term, (-log10(over_represented_pvalue)) ),
          ontology = paste(ontology, 'd7_DOWN', sep = "_")) %>%
   dplyr::filter(ontology %in% ('MF_d7_DOWN'))
