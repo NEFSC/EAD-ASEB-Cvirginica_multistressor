@@ -668,7 +668,7 @@ Day18_spat_master  <- df_total %>%
                                 dplyr::arrange(moduleColor, ontology, pvalue, GO_term, Protein_name) 
 
 write.csv(Day2_larvae_master, file = "Output/WGCNA/day2_larvae/GO_analysis/Day2_GO_Results_Master.csv", row.names = FALSE)
-write.csv(Day2_larvae_master, file = "Output/WGCNA/day2_larvae_hightemp/GO_analysis/Day2_GO_Results_Master.csv", row.names = FALSE)
+write.csv(Day2_larvae_hightemp_master, file = "Output/WGCNA/day2_larvae_hightemp/GO_analysis/Day2_GO_Results_Master.csv", row.names = FALSE)
 write.csv(Day18_spat_master, file = "Output/WGCNA/day18_spat/GO_analysis/Day18_GO_Results_Master.csv", row.names = FALSE)
 ```
 

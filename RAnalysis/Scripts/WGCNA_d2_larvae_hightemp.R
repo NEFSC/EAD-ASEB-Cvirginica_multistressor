@@ -1186,10 +1186,7 @@ for(i in 1:nrow(modcolor)) {
   
   
   # Salinity mean sd plot ========================== #
-  
-  min_p2 <- min(meanEXp_Summary.Salinity$mean) - max(meanEXp_Summary.Salinity$se)
-  max_p2 <- max(meanEXp_Summary.Salinity$mean) + max(meanEXp_Summary.Salinity$se)
-  
+
   Salinity.rlog.Mod <- meanEXp_Summary.Salinity %>% 
     dplyr::mutate(Salinity    = forcats::fct_relevel(Salinity, 'Low', 'High')) %>%
       ggplot(aes(x=Salinity, y=mean, fill=Salinity)) +
@@ -1209,9 +1206,7 @@ for(i in 1:nrow(modcolor)) {
   
   
   # pCO2 mean sd plot ========================== #
-  
-  min_p3 <- min(meanEXp_Summary.pCO2$mean) - max(meanEXp_Summary.pCO2$se)
-  max_p3 <- max(meanEXp_Summary.pCO2$mean) + max(meanEXp_Summary.pCO2$se)
+
   
   pCO2.rlog.Mod <- meanEXp_Summary.pCO2 %>% 
     dplyr::mutate(pCO2    = forcats::fct_relevel(pCO2, 'Low', 'High')) %>%
@@ -1243,9 +1238,7 @@ for(i in 1:nrow(modcolor)) {
                           
   
   # Summary plot of all treatments ==================================================================================== #
-  # All.Treatment mean sd plot
-  min_p4 <- min(meanEXp_Summary.All.Treatment$mean) - max(meanEXp_Summary.All.Treatment$se)
-  max_p4 <- max(meanEXp_Summary.All.Treatment$mean) + max(meanEXp_Summary.All.Treatment$se)
+
   
   AllTreatment.rlog.Mod <- meanEXp_Summary.All.Treatment %>% 
     dplyr::mutate(Salinity    = forcats::fct_relevel(Salinity, 'Low', 'High')) %>%
