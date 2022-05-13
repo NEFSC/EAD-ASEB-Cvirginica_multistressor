@@ -29,7 +29,7 @@ library(car)
 
 # SET WORKING DIRECTORY :::::::::::::::::::::::::::::::::::::::::::::::
 
-setwd("C:/Users/samjg/Documents/Github_repositories/Cvriginica_multistressor/RAnalysis") # personal computer
+setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis") # personal computer
 # setwd("C:/Users/samuel.gurr/Documents/Github_repositories/Cvriginica_multistressor/RAnalysis") # Work computer
 
 # LOAD DATA :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -49,8 +49,16 @@ resp.data    <- read.csv(file="Output/Respiration/Cumulative_resp_alpha0.4.csv",
 
 # merge the exp_metadata with the resp.data
 resp.ref_merged                 <- merge(exp_metadata, resp.ref, by = 'Chamber_tank', all=TRUE) # all TRUE allows us to keep the blanks
-resp.data_merged                <- merge(resp.data, resp.ref_merged, by = c('Date', 'Channel','Notes','Filename')) # out master file moving forward....
-resp.data_merged$TempCarbSal    <- paste(resp.data_merged$Temp, resp.data_merged$pCO2, resp.data_merged$Salinity, sep ='')
+resp.data_merged                <- merge(resp.data, resp.ref_merged, by = c('Date', 'Channel','Notes','Filename')) %>% 
+                                      dplyr::mutate(TempCarbSal = case_when( !is.na(Temp) ~ (as.character(paste(Temp, pCO2, Salinity, sep =''))) )) %>% 
+                                      dplyr::mutate(Aragonite_saturation = case_when( (TempCarbSal == "HHH") ~ 0.7,
+                                                                                      (TempCarbSal == 'HHL') ~ 0.3, 
+                                                                                      (TempCarbSal == 'HLH') ~ 1.6,
+                                                                                      (TempCarbSal == 'HLL') ~ 0.6,
+                                                                                      (TempCarbSal == 'LLL') ~ 0.5,
+                                                                                      (TempCarbSal == 'LLH') ~ 1.5,
+                                                                                      (TempCarbSal == 'LHL') ~ 0.2,
+                                                                                      (TempCarbSal == 'LHH') ~ 0.6))
 ```
 
 
@@ -113,35 +121,39 @@ Resp.blanks.merge <- merge(resp.data_merged, blanks_total, by=c("Date", "Notes")
   dplyr::mutate(resp_norm = Lpc - BLANK.mean.Lpc) # calc resp norm - note Lpc is still raw data  - thus a positive resp norm means blank > sample resp - bad data! 
 
 Resp.blanks.merge_OM <- Resp.blanks.merge %>% dplyr::filter(!resp_norm > 0)  # omits respiration rate values showing an increase in O2 over time 
-Resp.outliers <- Resp.blanks.merge_OM %>% dplyr::filter(resp_norm > 0)  # lets lopok at this data - possible troubleshootiung to ID these outliers...
+Resp.outliers        <- Resp.blanks.merge_OM %>% dplyr::filter(resp_norm > 0)  # lets lopok at this data - possible troubleshootiung to ID these outliers...
 print(c("number of blank resp > sample resp =",nrow(Resp.outliers)))
 
-count_check <- Resp.blanks.merge_OM %>% dplyr::group_by(Date,TempCarbSal) %>% dplyr::summarise(n = n())
-count_check
+count_check_all <- Resp.blanks.merge_OM %>% dplyr::group_by(Date,TempCarbSal) %>% dplyr::summarise(n = n())
+knitr::kable(count_check_all)
+
+count_check_true_rates <- Resp.blanks.merge_OM %>% dplyr::filter(!Lpc > 0) %>% dplyr::group_by(Date,TempCarbSal) %>% dplyr::summarise(n = n()) # omit those wit positive values - no oxygen consumption recorded 
+knitr::kable(count_check_true_rates)
+### no HLL after filtered of poor data
 ```
 
 - calculate resp rates
   
 ```{r calc as resp_ng_L_indiv_hr, echo=FALSE}
 vial.vol <- 0.08 # milliliters (ml)
-Resp.Master <- merge(Resp.blanks.merge_OM[,c(1,3,5,9:13,17)], counts_resp[,c(1,6:7)], by = c('Date','Chamber_tank'))
+Resp.Master <- merge(Resp.blanks.merge_OM[,c(1,3,5,9:14,18)], counts_resp[,c(1,6:7)], by = c('Date','Chamber_tank'))
 Resp.Master$resp_ng_L_indiv_hr <- ( 
-  ( ( (abs(Resp.Master$resp_norm)*1000000) * # call absolute value of resp in mg per minute - convert to ng min-1
-      (vial.vol/1000) ) / # correct ng minute-1 to ng liter-1 by multiplying by the resp vial in liters
-      Resp.Master$Counts ) * # normalize by individual or larvae count - as to ng L-1 individual-1
-    (60)) # correct for the time; final value is ng Liter-1 individual-1 hour-1
+                                    ( ( (abs(Resp.Master$resp_norm)*1000000) * # call absolute value of resp in mg per minute - convert to ng min-1
+                                        (vial.vol/1000) ) / # correct ng minute-1 to ng liter-1 by multiplying by the resp vial in liters
+                                        Resp.Master$Counts ) * # normalize by individual or larvae count - as to ng L-1 individual-1
+                                      (60)) # correct for the time; final value is ng Liter-1 individual-1 hour-1
 
 # mean sd rates
 # mean(Resp.Master$resp_ng_L_indiv_hr) # mean = 0.4994656
 # sd(Resp.Master$resp_ng_L_indiv_hr) # sd= 0.8197345
 
-head(Resp.Master)[,c(1:3,11)]
+Resp.Master[,c(1:3,12)]
 ```
 
 
 ## ANALYSIS
 ### Day 1 Respirometry (20210430)
-  - a. filter the dataset for taget data
+  - a. filter the dataset for target data
   - b. add column for mean aragonite sat. (note: this is from the entire experiment, not just day 1 chemistry!)
   - c. run moels and diagnostics
   - d. plot (reconfigure data as needed for plotting; i.e. melt/dcast, etc.)
@@ -150,19 +162,43 @@ head(Resp.Master)[,c(1:3,11)]
 ```{r day 1 analysis, echo=TRUE}
 
 # a.
-Resp_APRIL <- Resp.Master %>% 
-  dplyr::filter(Date %in% '4/30/2021') 
+Resp_age1 <- Resp.Master %>% 
+  dplyr::filter(Date %in% '4/30/2021')  %>% 
+  dplyr::mutate(Treatment = as.character(paste('Temp.', Temp, '_OA.', pCO2, '_Sal.',Salinity, sep = ''))) %>% 
+  dplyr::mutate(pCO2_Salinity = as.character(substr(TempCarbSal, 2, 3))) %>% 
+  dplyr::mutate(Temp = (fct_relevel(Temp, c('L','H'))))
 
 # b.
-Resp_APRIL <- merge(Resp_APRIL, aragonite_dat, by = 'TempCarbSal') # merge with the mean aragonite saturation state
+Resp_age1 <- merge(Resp_age1, aragonite_dat, by = 'TempCarbSal') # merge with the mean aragonite saturation state
+
+## Plot geeom boxlot with jitter
+Resp_Age1_Boxplot <- ggplot(data=Resp_age1, 
+                            aes(x=as.factor(Aragonite_saturation), 
+                            #aes(x=meanAragonite, 
+                                y=resp_ng_L_indiv_hr, 
+                                fill=pCO2_Salinity)) +
+                            geom_boxplot()+
+                            geom_jitter(width = 0.1)+
+                            scale_fill_manual(values=c("skyblue2", "darkorange3","royalblue3", "orange2"))+
+                            theme_bw() +  
+                            theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+ 
+                            theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+                            labs(title = "Age =24 hours; Respiration rates", 
+                                   y = expression(Respiration~rate~"("~ng~L^{-1}~O[2]%.%indiv^{-1}%.% hr^{-1}~")"), 
+                                   x = "Aragonite saturation") +
+                            theme(axis.title.y = element_text(size = rel(1.3), angle =90), axis.title.x = element_text(size = rel(1.3), angle = 0))+
+                            theme(axis.text=element_text(size=12)) + 
+                            facet_wrap(~Temp )
+Resp_Age1_Boxplot
+
 
 # c.
-LMmod.APRIL   <- aov(lm( resp_ng_L_indiv_hr~Temp*pCO2*Salinity,data=Resp_APRIL))
+LMmod.age1   <- aov(lm( resp_ng_L_indiv_hr~Temp*pCO2*Salinity,data=Resp_age1))
 print('LM model  == aov( lm ( resp_ng_L_indiv_hr ~ Temp * pCO2 * Salinity, data = Resp_APRIL ) )')
-summary(LMmod.APRIL)
-check_model(LMmod.APRIL) # observe the diagnostics of the model
-shapiro.test(residuals(LMmod.APRIL)) # non normal
-leveneTest(LMmod.APRIL) # good
+summary(LMmod.age1)
+check_model(LMmod.age1) # observe the diagnostics of the model
+shapiro.test(residuals(LMmod.age1)) # non normal
+leveneTest(LMmod.age1) # good
 
 # LME model here however we do only have one rep per chamber_tank in some cases, thus the lm (above is the same)
 # MEmod.APRIL    <- lmer(resp_ng_L_indiv_hr~Temp*pCO2*Salinity + (1|Chamber_tank),REML=F, data=Resp_APRIL)
@@ -172,12 +208,12 @@ leveneTest(LMmod.APRIL) # good
 # leveneTest(MEmod.APRIL) # good
 
 # POst-hoc tests and exploration of sig effects
-TukeyHSD(LMmod.APRIL, 'Temp:pCO2')
+TukeyHSD(LMmod.age1, 'Temp:pCO2')
 
 
 # d. 
-Resp_APRIL_select  <- Resp_APRIL %>% dplyr::select(c('resp_ng_L_indiv_hr', 'Temp', 'pCO2', 'Salinity'))
-Resp_APRIL_melt    <- tidyr::gather(Resp_APRIL_select, variable, value, -resp_ng_L_indiv_hr)
+Resp_age1_select  <- Resp_age1 %>% dplyr::select(c('resp_ng_L_indiv_hr', 'Temp', 'pCO2', 'Salinity', 'Aragonite_saturation'))
+Resp_age1L_melt    <- tidyr::gather(Resp_age1_select, variable, value, -resp_ng_L_indiv_hr)
 
 # MAIN EFFECT PLOT
 # ggplot(Resp_APRIL_melt, aes(value , resp_ng_L_indiv_hr , fill = factor(value ))) +
@@ -189,7 +225,7 @@ Resp_APRIL_melt    <- tidyr::gather(Resp_APRIL_select, variable, value, -resp_ng
 #   facet_wrap(~variable, scales = "free_y")
 
 # INTERACTION PLOT
-Resp_APRIL %>%
+Resp_age1 %>%
   dplyr::mutate(full.treatment = (paste(Temp, pCO2, Salinity,sep=''))) %>%
   dplyr::mutate(full.treatment = fct_relevel(full.treatment,
                             "HHH", "HLH", "LHH",'LLH',
@@ -209,7 +245,8 @@ Resp_APRIL %>%
 
 
 pd <- position_dodge(0.1) # adjust the jitter for the different treatments   
-Resp_APRIL %>% 
+library(Rmisc)
+Resp_age1 %>% 
   dplyr::mutate(full.treatment = (paste(Temp, pCO2, Salinity,sep=''))) %>%
   dplyr::mutate(full.treatment = fct_relevel(full.treatment,
                             "HHH", "HLH", "LHH",'LLH',
@@ -240,17 +277,44 @@ Resp_APRIL %>%
 ```{r day 8 analysis, echo=TRUE}
 
 # a.
-Resp_MAY <- Resp.Master %>% 
-  dplyr::filter(Date %in% '5/7/2021')
+Resp_age8 <- Resp.Master %>% 
+  dplyr::filter(Date %in% '5/7/2021') %>% 
+  dplyr::mutate(Treatment = as.character(paste('Temp.', Temp, '_OA.', pCO2, '_Sal.',Salinity, sep = ''))) %>% 
+  dplyr::mutate(pCO2_Salinity = as.character(substr(TempCarbSal, 2, 3))) %>% 
+  dplyr::mutate(Temp = (fct_relevel(Temp, c('L','H'))))
+
 # b.
-Resp_MAY <- merge(Resp_MAY, aragonite_dat, by = 'TempCarbSal') # merge with the mean aragonite saturation state
+Resp_age8 <- merge(Resp_age8, aragonite_dat, by = 'TempCarbSal') # merge with the mean aragonite saturation state
+
+
+## Plot geeom boxlot with jitter
+Resp_Age8_Boxplot <- ggplot(data=Resp_age8, 
+                            aes(x=as.factor(Aragonite_saturation), 
+                            #aes(x=meanAragonite, 
+                                y=resp_ng_L_indiv_hr, 
+                                fill=pCO2_Salinity)) +
+                            geom_boxplot()+
+                            geom_jitter(width = 0.1)+
+                            scale_fill_manual(values=c("skyblue2", "darkorange3","royalblue3", "orange2"))+
+                            theme_bw() +  
+                            theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+ 
+                            theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+                            labs(title = "Age = 8 days; Respiration rates", 
+                                   y = expression(Respiration~rate~"("~ng~L^{-1}~O[2]%.%indiv^{-1}%.% hr^{-1}~")"), 
+                                   x = "Aragonite saturation") +
+                            theme(axis.title.y = element_text(size = rel(1.3), angle =90), axis.title.x = element_text(size = rel(1.3), angle = 0))+
+                            theme(axis.text=element_text(size=12)) + 
+                            facet_wrap(~Temp )
+Resp_Age8_Boxplot
+
+
 # c.
-LMmod.MAY   <- aov(lm(resp_ng_L_indiv_hr~Temp*pCO2*Salinity,data=Resp_MAY))
+LMmod.age8   <- aov(lm(resp_ng_L_indiv_hr~Temp*pCO2*Salinity,data=Resp_age8))
 print('LM model  == aov( lm ( resp_ng_L_indiv_hr ~ Temp * pCO2 * Salinity, data = Resp_APRIL ) )')
-summary(LMmod.MAY)
-# check_model(LMmod.MAY) # observe the diagnostics of the model
-shapiro.test(residuals(LMmod.MAY)) # non normal
-leveneTest(LMmod.MAY) # good
+summary(LMmod.age8)
+# check_model(LMmod.age8) # observe the diagnostics of the model
+shapiro.test(residuals(LMmod.age8)) # non normal
+leveneTest(LMmod.age8) # good
 
 # LME model here however we do only have one rep per chamber_tank in some cases, thus the lm (above is the same)
 # MEmod.APRIL    <- lmer(resp_ng_L_indiv_hr~Temp*pCO2*Salinity + (1|Chamber_tank),REML=F, data=Resp_APRIL)
@@ -261,8 +325,8 @@ leveneTest(LMmod.MAY) # good
 
 
 # d. 
-Resp_MAY_select  <- Resp_MAY %>% dplyr::select(c('resp_ng_L_indiv_hr', 'Temp', 'pCO2', 'Salinity'))
-Resp_MAY_melt    <- tidyr::gather(Resp_MAY_select, variable, value, -resp_ng_L_indiv_hr)
+Resp_age8_select  <- Resp_age8 %>% dplyr::select(c('resp_ng_L_indiv_hr', 'Temp', 'pCO2', 'Salinity'))
+Resp_age8_melt    <- tidyr::gather(Resp_age8_select, variable, value, -resp_ng_L_indiv_hr)
 
 # MAIN EFFECT PLOT
 # ggplot(Resp_APRIL_melt, aes(value , resp_ng_L_indiv_hr , fill = factor(value ))) +
@@ -274,7 +338,7 @@ Resp_MAY_melt    <- tidyr::gather(Resp_MAY_select, variable, value, -resp_ng_L_i
 #   facet_wrap(~variable, scales = "free_y")
 
 # INTERACTION PLOT
-Resp_MAY %>%
+Resp_age8 %>%
   dplyr::mutate(full.treatment = (paste(Temp, pCO2, Salinity,sep=''))) %>%
   dplyr::mutate(full.treatment = fct_relevel(full.treatment,
                             "HHH", "HLH", "LHH",'LLH',
