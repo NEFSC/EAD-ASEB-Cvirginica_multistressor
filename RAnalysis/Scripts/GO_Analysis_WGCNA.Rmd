@@ -1,7 +1,7 @@
 ---
-title: "GO_Analysis_DESeq2_10cpm"
+title: "GO_Analysois_WGCNa - cvirginica ultistressor"
 author: "Samuel Gurr"
-date: "February 1, 2021"
+date: "May 1, 2022"
 output: html_document
 ---
 
@@ -334,14 +334,14 @@ for (i in 1:nrow(WGCNA_ColorList)) {
 
 it's goSlim time!!!
 ```{r RUN GOSLIM}
-#===================================================================================================
+#=================================================================================================== #
 #
 #
 #  GOslim analysis 
 # - data reduction from the many GO terms to more broad functions/processes
 #
 #
-#===================================================================================================
+#=================================================================================================== #
 # load the output from the previous for loop
 setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis")
 
@@ -672,19 +672,321 @@ write.csv(Day2_larvae_hightemp_master, file = "Output/WGCNA/day2_larvae_hightemp
 write.csv(Day18_spat_master, file = "Output/WGCNA/day18_spat/GO_analysis/Day18_GO_Results_Master.csv", row.names = FALSE)
 ```
 
+# Seqment plots 
+
+```{r segment plots} 
+
+# load this for the reorder_within command
+require(tidytext)
+
+
+# load the output from the previous for loop
+setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis")
+
+# load data from the GOslim/GO analysis above
+df_Day2          <- read.csv(file= "Output/WGCNA/day2_larvae/GO_analysis/Day2_GO_Results_Master.csv", sep=',', header=TRUE) 
+df_Day2_hightemp <- read.csv(file= "Output/WGCNA/day2_larvae_hightemp/GO_analysis/Day2_GO_Results_Master.csv", sep=',', header=TRUE) 
+df_Day18         <- read.csv(file= "Output/WGCNA/day18_spat/GO_analysis/Day18_GO_Results_Master.csv", sep=',', header=TRUE) 
+ 
+
+
+# ==================================================================================== #
+# Day 2 (all high and low temp)
+# ==================================================================================== #
+
+
+#  MOLECULAR FUNCTION
+MF_Day2      <- as.data.frame(unique(df_Day2  %>%  
+                                     dplyr::select(c('Day', 'GO_term', 'moduleColor', 'ontology', 'pvalue', 'Gene_count',  'Gene_ratio')))) %>% 
+                                     dplyr::filter(!ontology %in% 'CC' & ontology %in% 'MF') %>%  # omit the cellular component enriched GO terms - CALL THE MOLECUALR FUNCTION TERMS
+                                     dplyr::filter(!(moduleColor == 'black' & GO_term == 'structural constituent of ribosome')) %>% # the strucutral component of ribosme (ribosomal proteins) contains an abnormally high lopvlue - oomitted here
+                                    # check this 'structural constituent of ribosome' enrichment data!
+                                     dplyr::mutate(log10_pvalue = -log10(pvalue)) %>% 
+                                     na.omit() %>% 
+                                     dplyr::mutate(GO_term = reorder_within(GO_term, log10_pvalue, moduleColor)) %>% # this orders the pvalue correctly for plotting
+                                    # dplyr::mutate(GO_term = sub('___.*$','', GO_term)) %>% # but the line above also adds module color followed by three underscores (strange?!) - omit these easily with gsub
+                                            ggplot(aes(x=GO_term, y= log10_pvalue, size = Gene_ratio)) +
+                                            geom_segment( aes(x=GO_term, xend=GO_term, y=1, yend=log10_pvalue, color=moduleColor, size = 3)) + 
+                                            scale_color_manual(values=c("black", "blue","brown", "pink", "red", 'turquoise')) +
+                                            #scale_color_gradient(low = "orange", high = "blue") +
+                                            geom_point(aes(size = Gene_count), shape =21,  fill = "white") + # shap = 15 (squares)
+                                            coord_flip() +
+                                            theme(
+                                              panel.grid.minor.y = element_blank(),
+                                              panel.grid.major.y = element_blank(),
+                                              legend.position="bottom"
+                                            ) +
+                                            xlab("") +
+                                            ylab("") +
+                                            ggtitle("Molecular Function: WGCNA day 2 (high temp only)") +
+                                            #geom_label(aes(x = 0.5, y = 0.5, label = paste(num_up, "DEGs"))) +
+                                            theme_bw() + #Set background color 
+                                            theme(panel.border = element_blank(), # Set border
+                                                  panel.grid.major = element_blank(), #Set major gridlines
+                                                  panel.grid.minor = element_blank(), #Set minor gridlines
+                                                  axis.line = element_line(colour = "black"), #Set axes color
+                                                  plot.background=element_blank()) + #Set the plot background #set title attributes
+                                            #geom_hline(yintercept=0.25, linetype="dashed",  color = "black", size=2) +
+                                            facet_wrap(moduleColor ~., scales="free_y", ncol= 1, strip.position="right", shrink = T)
+pdf(paste0("Output/WGCNA/day2_larvae/GO_analysis/Day2_GO_SegPlot_MolFunction.pdf"), width=10, height=16)
+plot(MF_Day2)
+dev.off()
+
+
+#  BIOLOGICAL PROCESS
+BP_Day2      <- as.data.frame(unique(df_Day2 %>%  
+                                     dplyr::select(c('Day', 'GO_term', 'moduleColor', 'ontology', 'pvalue', 'Gene_count',  'Gene_ratio')))) %>% 
+                                     dplyr::filter(!ontology %in% 'CC' & ontology %in% 'BP') %>%  # omit the cellular component enriched GO terms - CALL THE MOLECUALR FUNCTION TERMS
+                                     dplyr::filter(!(moduleColor == 'black' & GO_term == c('translation','ribosome biogenesis'))) %>% #'translation','ribosome biogenesis' contains an abnormally high logpvlue - oomitted here
+                                     dplyr::mutate(log10_pvalue = -log10(pvalue)) %>% 
+                                     na.omit() %>% 
+                                     dplyr::mutate(GO_term = reorder_within(GO_term, log10_pvalue, moduleColor)) %>% # this orders the pvalue correctly for plotting
+                                    # dplyr::mutate(GO_term = sub('___.*$','', GO_term)) %>% # but the line above also adds module color followed by three underscores (strange?!) - omit these easily with gsub
+                                            ggplot(aes(x=GO_term, y= log10_pvalue, size = Gene_ratio)) +
+                                            geom_segment( aes(x=GO_term, xend=GO_term, y=1, yend=log10_pvalue, color=moduleColor, size = 3)) + 
+                                            scale_color_manual(values=c("black", "blue","brown", "pink", "red", 'turquoise')) +
+                                            #scale_color_gradient(low = "orange", high = "blue") +
+                                            geom_point(aes(size = Gene_count), shape =21,  fill = "white") + # shap = 15 (squares)
+                                            coord_flip() +
+                                            theme(
+                                              panel.grid.minor.y = element_blank(),
+                                              panel.grid.major.y = element_blank(),
+                                              legend.position="bottom"
+                                            ) +
+                                            xlab("") +
+                                            ylab("") +
+                                            ggtitle("Biological Process: WGCNA day 2 (high temp only)") +
+                                            #geom_label(aes(x = 0.5, y = 0.5, label = paste(num_up, "DEGs"))) +
+                                            theme_bw() + #Set background color 
+                                            theme(panel.border = element_blank(), # Set border
+                                                  panel.grid.major = element_blank(), #Set major gridlines
+                                                  panel.grid.minor = element_blank(), #Set minor gridlines
+                                                  axis.line = element_line(colour = "black"), #Set axes color
+                                                  plot.background=element_blank()) + #Set the plot background #set title attributes
+                                            #geom_hline(yintercept=0.25, linetype="dashed",  color = "black", size=2) +
+                                            facet_wrap(moduleColor ~., scales="free_y", ncol= 1, strip.position="right", shrink = T)
+
+pdf(paste0("Output/WGCNA/day2_larvae/GO_analysis/Day2_GO_SegPlot_BiolProcess.pdf"), width=10, height=16)
+plot(BP_Day2)
+dev.off()
+
+
+
+
+
+
+
+
+
+
+# ==================================================================================== #
+# Day 2 high temp only 
+# ==================================================================================== #
+
+
+
+
+
+#  MOLECULAR FUNCTION
+MF_Day2_hightemp <- as.data.frame(unique(df_Day2_hightemp  %>%  
+                                     dplyr::select(c('Day', 'GO_term', 'moduleColor', 'ontology', 'pvalue', 'Gene_count',  'Gene_ratio')))) %>% 
+                                     dplyr::filter(!ontology %in% 'CC' & ontology %in% 'MF') %>%  # omit the cellular component enriched GO terms - CALL THE MOLECUALR FUNCTION TERMS
+                                     dplyr::mutate(log10_pvalue = -log10(pvalue)) %>% 
+                                     na.omit() %>% 
+                                     dplyr::mutate(GO_term = reorder_within(GO_term, log10_pvalue, moduleColor)) %>% # this orders the pvalue correctly for plotting
+                                    # dplyr::mutate(GO_term = sub('___.*$','', GO_term)) %>% # but the line above also adds module color followed by three underscores (strange?!) - omit these easily with gsub
+                                            ggplot(aes(x=GO_term, y= log10_pvalue, size = Gene_ratio)) +
+                                            geom_segment( aes(x=GO_term, xend=GO_term, y=1, yend=log10_pvalue, color=moduleColor, size = 3)) + 
+                                            scale_color_manual(values=c("brown", "green", "magenta", 'pink', 'red')) +
+                                            #scale_color_gradient(low = "orange", high = "blue") +
+                                            geom_point(aes(size = Gene_count), shape =21,  fill = "white") + # shap = 15 (squares)
+                                            coord_flip() +
+                                            theme(
+                                              panel.grid.minor.y = element_blank(),
+                                              panel.grid.major.y = element_blank(),
+                                              legend.position="bottom"
+                                            ) +
+                                            xlab("") +
+                                            ylab("") +
+                                            ggtitle("Molecular Function: WGCNA day 2 (high temp only)") +
+                                            #geom_label(aes(x = 0.5, y = 0.5, label = paste(num_up, "DEGs"))) +
+                                            theme_bw() + #Set background color 
+                                            theme(panel.border = element_blank(), # Set border
+                                                  panel.grid.major = element_blank(), #Set major gridlines
+                                                  panel.grid.minor = element_blank(), #Set minor gridlines
+                                                  axis.line = element_line(colour = "black"), #Set axes color
+                                                  plot.background=element_blank()) + #Set the plot background #set title attributes
+                                            #geom_hline(yintercept=0.25, linetype="dashed",  color = "black", size=2) +
+                                            facet_wrap(moduleColor ~., scales="free_y", ncol= 1, strip.position="right", shrink = T)
+
+pdf(paste0("Output/WGCNA/day2_larvae_hightemp/GO_analysis/Day2_GO_SegPlot_MolFunction.pdf"), width=10, height=16)
+plot(MF_Day2_hightemp)
+dev.off()
+
+
+#  BIOLOGICAL PROCESS
+BP_Day2_hightemp <- as.data.frame(unique(df_Day2_hightemp  %>%  
+                                     dplyr::select(c('Day', 'GO_term', 'moduleColor', 'ontology', 'pvalue', 'Gene_count',  'Gene_ratio')))) %>% 
+                                     dplyr::filter(!ontology %in% 'CC' & ontology %in% 'BP') %>%  # omit the cellular component enriched GO terms - CALL THE MOLECUALR FUNCTION TERMS
+                                     dplyr::mutate(log10_pvalue = -log10(pvalue)) %>% 
+                                     na.omit() %>% 
+                                     dplyr::mutate(GO_term = reorder_within(GO_term, log10_pvalue, moduleColor)) %>% # this orders the pvalue correctly for plotting
+                                    # dplyr::mutate(GO_term = sub('___.*$','', GO_term)) %>% # but the line above also adds module color followed by three underscores (strange?!) - omit these easily with gsub
+                                            ggplot(aes(x=GO_term, y= log10_pvalue, size = Gene_ratio)) +
+                                            geom_segment( aes(x=GO_term, xend=GO_term, y=1, yend=log10_pvalue, color=moduleColor, size = 3)) + 
+                                            scale_color_manual(values=c("brown", "green", "magenta", 'pink', 'red')) +
+                                            #scale_color_gradient(low = "orange", high = "blue") +
+                                            geom_point(aes(size = Gene_count), shape =21,  fill = "white") + # shap = 15 (squares)
+                                            coord_flip() +
+                                            theme(
+                                              panel.grid.minor.y = element_blank(),
+                                              panel.grid.major.y = element_blank(),
+                                              legend.position="bottom"
+                                            ) +
+                                            xlab("") +
+                                            ylab("") +
+                                            ggtitle("Biological Process: WGCNA day 2 (high temp only)") +
+                                            #geom_label(aes(x = 0.5, y = 0.5, label = paste(num_up, "DEGs"))) +
+                                            theme_bw() + #Set background color 
+                                            theme(panel.border = element_blank(), # Set border
+                                                  panel.grid.major = element_blank(), #Set major gridlines
+                                                  panel.grid.minor = element_blank(), #Set minor gridlines
+                                                  axis.line = element_line(colour = "black"), #Set axes color
+                                                  plot.background=element_blank()) + #Set the plot background #set title attributes
+                                            #geom_hline(yintercept=0.25, linetype="dashed",  color = "black", size=2) +
+                                            facet_wrap(moduleColor ~., scales="free_y", ncol= 1, strip.position="right", shrink = T)
+
+pdf(paste0("Output/WGCNA/day2_larvae_hightemp/GO_analysis/Day2_GO_SegPlot_BiolProcess.pdf"), width=10, height=16)
+plot(BP_Day2_hightemp)
+dev.off()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# ==================================================================================== #
+# Day 18 
+# ==================================================================================== #
+
+
+
+
+
+
+
+#  MOLECULAR FUNCTION
+MF_Day18     <- as.data.frame(unique(df_Day18  %>%  
+                                     dplyr::select(c('Day', 'GO_term', 'moduleColor', 'ontology', 'pvalue', 'Gene_count',  'Gene_ratio')))) %>% 
+                                     dplyr::filter(!ontology %in% 'CC' & ontology %in% 'MF') %>%  # omit the cellular component enriched GO terms - CALL THE MOLECUALR FUNCTION TERMS
+                                     dplyr::filter(!(moduleColor == 'green' & GO_term == 'structural constituent of ribosome')) %>% #'structural constituent of ribosome' contains an abnormally high log pvlue - ooitted here
+                                     dplyr::mutate(log10_pvalue = -log10(pvalue)) %>% 
+                                     na.omit() %>% 
+                                     dplyr::mutate(GO_term = reorder_within(GO_term, log10_pvalue, moduleColor)) %>% # this orders the pvalue correctly for plotting
+                                    # dplyr::mutate(GO_term = sub('___.*$','', GO_term)) %>% # but the line above also adds module color followed by three underscores (strange?!) - omit these easily with gsub
+                                            ggplot(aes(x=GO_term, y= log10_pvalue, size = Gene_ratio)) +
+                                            geom_segment( aes(x=GO_term, xend=GO_term, y=1, yend=log10_pvalue, color=moduleColor, size = 3)) + 
+                                            scale_color_manual(values=c("blue", "green", "greenyellow", 'red', 'salmon', 'tan', 'turquoise')) +
+                                            #scale_color_gradient(low = "orange", high = "blue") +
+                                            geom_point(aes(size = Gene_count), shape =21,  fill = "white") + # shap = 15 (squares)
+                                            coord_flip() +
+                                            theme(
+                                              panel.grid.minor.y = element_blank(),
+                                              panel.grid.major.y = element_blank(),
+                                              legend.position="bottom"
+                                            ) +
+                                            xlab("") +
+                                            ylab("") +
+                                            ggtitle("Molecular Function: WGCNA day 18") +
+                                            #geom_label(aes(x = 0.5, y = 0.5, label = paste(num_up, "DEGs"))) +
+                                            theme_bw() + #Set background color 
+                                            theme(panel.border = element_blank(), # Set border
+                                                  panel.grid.major = element_blank(), #Set major gridlines
+                                                  panel.grid.minor = element_blank(), #Set minor gridlines
+                                                  axis.line = element_line(colour = "black"), #Set axes color
+                                                  plot.background=element_blank()) + #Set the plot background #set title attributes
+                                            #geom_hline(yintercept=0.25, linetype="dashed",  color = "black", size=2) +
+                                            facet_wrap(moduleColor ~., scales="free_y", ncol= 1, strip.position="right", shrink = T)
+
+pdf(paste0("Output/WGCNA/day18_spat/GO_analysis/Day18_GO_SegPlot_MolFunction.pdf"), width=10, height=16)
+plot(MF_Day18)
+dev.off()
+
+
+#  BIOLOGICAL PROCESS
+BP_Day18     <- as.data.frame(unique(df_Day18  %>%  
+                                     dplyr::select(c('Day', 'GO_term', 'moduleColor', 'ontology', 'pvalue', 'Gene_count',  'Gene_ratio')))) %>% 
+                                     dplyr::filter(!ontology %in% 'CC' & ontology %in% 'BP') %>%  # omit the cellular component enriched GO terms - CALL THE MOLECUALR FUNCTION TERMS
+                                     dplyr::filter(!(moduleColor == 'green' & GO_term == c('ribosome biogenesis','translation'))) %>% #'translation','ribosome biogenesis' contains an abnormally high logpvlue - oomitted here
+                                     dplyr::mutate(log10_pvalue = -log10(pvalue)) %>% 
+                                     na.omit() %>% 
+                                     dplyr::mutate(GO_term = reorder_within(GO_term, log10_pvalue, moduleColor)) %>% # this orders the pvalue correctly for plotting
+                                    # dplyr::mutate(GO_term = sub('___.*$','', GO_term)) %>% # but the line above also adds module color followed by three underscores (strange?!) - omit these easily with gsub
+                                            ggplot(aes(x=GO_term, y= log10_pvalue, size = Gene_ratio)) +
+                                            geom_segment( aes(x=GO_term, xend=GO_term, y=1, yend=log10_pvalue, color=moduleColor, size = 3)) + 
+                                            scale_color_manual(values=c("blue", "green", "greenyellow", 'red', 'salmon', 'tan', 'turquoise')) +
+                                            #scale_color_gradient(low = "orange", high = "blue") +
+                                            geom_point(aes(size = Gene_count), shape =21,  fill = "white") + # shap = 15 (squares)
+                                            coord_flip() +
+                                            theme(
+                                              panel.grid.minor.y = element_blank(),
+                                              panel.grid.major.y = element_blank(),
+                                              legend.position="bottom"
+                                            ) +
+                                            xlab("") +
+                                            ylab("") +
+                                            ggtitle("Biological Process: WGCNA day 18") +
+                                            #geom_label(aes(x = 0.5, y = 0.5, label = paste(num_up, "DEGs"))) +
+                                            theme_bw() + #Set background color 
+                                            theme(panel.border = element_blank(), # Set border
+                                                  panel.grid.major = element_blank(), #Set major gridlines
+                                                  panel.grid.minor = element_blank(), #Set minor gridlines
+                                                  axis.line = element_line(colour = "black"), #Set axes color
+                                                  plot.background=element_blank()) + #Set the plot background #set title attributes
+                                            #geom_hline(yintercept=0.25, linetype="dashed",  color = "black", size=2) +
+                                            facet_wrap(moduleColor ~., scales="free_y", ncol= 1, strip.position="right", shrink = T)
+
+pdf(paste0("Output/WGCNA/day18_spat/GO_analysis/Day18_GO_SegPlot_BiolProcess.pdf"), width=10, height=16)
+plot(BP_Day18)
+dev.off()
+
+```
+
+
 
 # plot the data! 
 ```{r DotPlots} 
+
+
+# load the output from the previous for loop
 setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis")
 
+# load data from the GOslim/GO analysis above
+df_Day2          <- read.csv(file= "Output/WGCNA/day2_larvae/GO_analysis/Day2_GO_Results_Master.csv", sep=',', header=TRUE) 
+df_Day2_hightemp <- read.csv(file= "Output/WGCNA/day2_larvae_hightemp/GO_analysis/Day2_GO_Results_Master.csv", sep=',', header=TRUE) 
+df_Day18         <- read.csv(file= "Output/WGCNA/day18_spat/GO_analysis/Day18_GO_Results_Master.csv", sep=',', header=TRUE) 
+ 
+df_Master_GOResults <- rbind(df_Day2,df_Day2_hightemp, df_Day18)
 
+# list of WCNA sig modules 
+WGCNA_ColorList #  RUN the cluster "{r Load_annot_and_DE_files, include = TRUE}" to get this list of WDCNA modules!
+  
+# fxn in the loop for Dot plots...
 reorder_within <- function(x, by, within, fun = mean) {
   stats::reorder(x, by, FUN = fun) }
 
 
 # Day 18 - modules 'blue', 'turquoise', 'brown'  - these have sig main effects of salinity and temperature! 
 for (i in 1:nrow(WGCNA_ColorList)) {
-DotPlot <-  ggplot(data =unique(df_total %>%
+DotPlot <-  ggplot(data =unique(df_Master_GOResults %>%
                               dplyr::filter(moduleColor %in% WGCNA_ColorList$moduleColor[i]  & Day %in% WGCNA_ColorList$Day[i]) %>% 
                               dplyr::filter(!ontology %in% NA) %>% 
                               dplyr::mutate(moduleColor_Ontology = paste(moduleColor, ontology, sep = '_')) %>%
