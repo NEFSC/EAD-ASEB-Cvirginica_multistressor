@@ -7,8 +7,10 @@ output:
   html_document: default
 ---
 
+# load libraries
 
 ```{r, include=FALSE}
+
 library(ggplot2)
 library(dplyr)
 library(tidyverse)
@@ -21,12 +23,12 @@ library(nlme)
 library(car)
 library(performance)
 library(stargazer)
-
-# library(sjPlot)
-
+library(emmeans)
 ```
 
-## Set Path & load data
+
+# Set Path & load data
+
 ```{r setup}
 #Set Path
 
@@ -43,7 +45,8 @@ head(Av_length.survival_dat)
 ```
 
 
-# 
+# prep data 
+
 ```{r, prep the raw data for stats} 
 # extract the experiment data with coresponding sampke Ids from the averaged data master file...
 Exp_data <-  Av_length.survival_dat %>% filter(Day %in% 1) %>% dplyr::select(c('Temp','OA','Salinity','Replicate','Id.', 'pH', 'AR')) %>% dplyr::rename(Sample.ID = Id., Aragonite_saturation = AR)
@@ -71,13 +74,19 @@ Age8_raw_length  <- merge(raw_length_Age8MELT, Exp_data, by = 'Sample.ID')  %>%
 
 
 ```
+ 
+ 
+ 
+ 
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+# Length ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::  :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
 
+### Age 24 hours ALL DATA ------------
 
-
-#  Age 1 stats (all data) - LARVAE SIZE
-
-```{r, Age 1 raw data Size stats}
+```{r, LENGTH Age 24 hours size - all data}
 
 # Age 1 Length mod - all data -------------------------------------------------------------------------------------- #
 
@@ -148,6 +157,8 @@ print(Age1_ShellLength_Boxplot)
 dev.off()
 
 
+
+
 # -------------------------------------------------------------------------------------------------------------------- #
 
 
@@ -163,39 +174,90 @@ Age1_Length_Table <- Age1_raw_length %>%
 Age1_raw_length %>% 
             dplyr::group_by(random_fact) %>% 
             dplyr::summarise(n = n())
+```
 
+
+### Age 24 hours HIGH TEMP ONLY ------------
+
+
+```{r, LENGTH Age 24 hours - HIGH TEMP ONLY}
+### Age 24 hours HIGH TEMP ONLY  ------------
+# -------------------------------------------------------------------------------------------------------------------- #
+# High temp only 
+
+#data 
+Age1_raw_length_hightemp <- Age1_raw_length %>% dplyr::filter(!Temp %in% 'Low')
+
+# run model
+Age1Length_lme_mod_hightemp <- lme(length_um~OA*Salinity,random=~1|random_fact,data=Age1_raw_length_hightemp) # notice temp is removed...
+pander(anova(Age1Length_lme_mod_hightemp), style='rmarkdown') # anova table of lmer
+
+# |     &nbsp;      | numDF | denDF | F-value |  p-value  |
+# |:---------------:|:-----:|:-----:|:-------:|:---------:|
+# | **(Intercept)** |   1   |  588  | 105297  |     0     |
+# |     **OA**      |   1   |   8   |  58.24  | 6.121e-05 |
+# |  **Salinity**   |   1   |   8   |  105.2  | 7.024e-06 |
+# | **OA:Salinity** |   1   |   8   |  1.258  |  0.2945   |
+
+
+# Levene's test and visuals of the residuals ----------------------------------------------------------------------- #
+
+leveneTest(residuals(Age1Length_lme_mod_hightemp) ~Age1_raw_length_hightemp$OA*Age1_raw_length_hightemp$Salinity) # 0.4058 PASS
+boxplot(residuals(Age1Length_lme_mod_hightemp) ~ Age1_raw_length_hightemp$OA*Age1_raw_length_hightemp$Salinity) # visual of residuals grouped
+qqnorm(resid(Age1Length_lme_mod_hightemp)) # check for normality of residuals       
+
+
+
+
+
+# high temp only
+Age1_ShellLength_Boxplot_hightemp <- ggplot(data=Age1_raw_length_hightemp, aes(x=fct_relevel(OA, c("Low", "High")), 
+                                                                     y=length_um, 
+                                                                     colour=fct_relevel(Salinity, c("Low", "High")))) +
+                                      geom_boxplot() + 
+                                      theme_classic() +  
+                                      stat_summary(fun.y="mean",position = position_dodge2(width = 0.75)) +
+                                      theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+ 
+                                      theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+                                      labs(title="Age = 24 hours (high temp only)", x ="pCO2 level", y = "Larvae size (μm)")+ 
+                                      theme(axis.title.y = element_text(size = rel(1.3), angle =90), axis.title.x = element_text(size = rel(1.3), angle = 0))+
+                                      theme(axis.text=element_text(size=12)) 
+
+# save the plot 
+setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis")
+pdf("Output/Length_Survival/Length_age_24hrs_Boxplots_hightemp.pdf", width=8, height=6)
+print(Age1_ShellLength_Boxplot_hightemp)
+dev.off()
 
 ```
 
 
+### Age 8 days ALL DATA  ------------
 
-
-
-
-#  Age 8 stats (raw data) - LENGTH
-```{r, Age 8 raw data Size stats}
+```{r, LENGTH Age 8 days hours size - all data}
 
 
 # Age 8 Length mod - all data -------------------------------------------------------------------------------------- #
 
 
 Age8Length_lme_mod <- lme(length_um~OA*Salinity*Temp,random=~1|random_fact,data=Age8_raw_length)
-knitr::kable(anova(Age8Length_lme_mod))
+pander(anova(Age8Length_lme_mod), style='rmarkdown') # anova table of lmer
 
-# numDF	denDF	F-value	p-value
-# (Intercept)	1	1050	2432.5393199	0.0000000
-# OA	1	15	17.4957925	0.0008002
-# Salinity	1	15	16.6102860	0.0009943
-# Temp	1	15	5.0352849	0.0403546
-# OA:Salinity	1	15	0.9695073	0.3404198
-# OA:Temp	1	15	7.1194866	0.0175400
-# Salinity:Temp	1	15	4.7663219	0.0453249
-# OA:Salinity:Temp	1	15	4.3224631	0.0551845
+# |        &nbsp;        | numDF | denDF | F-value |  p-value  |
+# |:--------------------:|:-----:|:-----:|:-------:|:---------:|
+# |   **(Intercept)**    |   1   | 1050  |  2433   |     0     |
+# |        **OA**        |   1   |  15   |  17.5   | 0.0008002 |
+# |     **Salinity**     |   1   |  15   |  16.61  | 0.0009943 |
+# |       **Temp**       |   1   |  15   |  5.035  |  0.04035  |
+# |   **OA:Salinity**    |   1   |  15   | 0.9695  |  0.3404   |
+# |     **OA:Temp**      |   1   |  15   |  7.119  |  0.01754  |
+# |  **Salinity:Temp**   |   1   |  15   |  4.766  |  0.04532  |
+# | **OA:Salinity:Temp** |   1   |  15   |  4.322  |  0.05518  |
 
 
 # Levene's test and visuals of the residuals ----------------------------------------------------------------------- #
 
-
+shapiro.test(residuals(Age8Length_lme_mod)) # 0.3748  normal
 leveneTest(residuals(Age8Length_lme_mod) ~ Age8_raw_length$Temp*Age8_raw_length$OA*Age8_raw_length$Salinity) # < 2.2e-16 *** - did not pass
 boxplot(residuals(Age8Length_lme_mod) ~ Age8_raw_length$Temp*Age8_raw_length$OA*Age8_raw_length$Salinity) # visual of residuals grouped
 qqnorm(resid(Age8Length_lme_mod)) # check for normality of residuals - looks okay
@@ -206,38 +268,8 @@ qqnorm(resid(Age8Length_lme_mod)) # check for normality of residuals - looks oka
 
 
 require(emmeans)
-emmeans(Age8Length_lme_mod, list(pairwise ~ OA:Salinity:Temp), adjust = "tukey") #posthoc
-
-# $`pairwise differences of OA, Salinity, Temp`
-#  1                              estimate   SE df t.ratio p.value
-#  High High High - Low High High  -42.819 8.36 15  -5.122  0.0024
-#  High High High - High Low High   13.601 9.35 15   1.454  0.8189
-#  High High High - Low Low High    -3.877 8.36 15  -0.464  0.9997
-#  High High High - High High Low   -2.391 8.36 15  -0.286  1.0000
-#  High High High - Low High Low    -4.329 8.36 15  -0.518  0.9993
-#  High High High - High Low Low    11.457 8.44 15   1.357  0.8625
-#  High High High - Low Low Low     -1.087 8.38 15  -0.130  1.0000
-#  Low High High - High Low High    56.420 9.35 15   6.033  0.0005
-#  Low High High - Low Low High     38.942 8.36 15   4.657  0.0057
-#  Low High High - High High Low    40.428 8.36 15   4.836  0.0041
-#  Low High High - Low High Low     38.490 8.36 15   4.604  0.0063
-#  Low High High - High Low Low     54.277 8.44 15   6.430  0.0002
-#  Low High High - Low Low Low      41.732 8.38 15   4.977  0.0031
-#  High Low High - Low Low High    -17.478 9.36 15  -1.868  0.5891
-#  High Low High - High High Low   -15.992 9.35 15  -1.710  0.6819
-#  High Low High - Low High Low    -17.931 9.35 15  -1.917  0.5604
-#  High Low High - High Low Low     -2.144 9.43 15  -0.227  1.0000
-#  High Low High - Low Low Low     -14.688 9.37 15  -1.567  0.7617
-#  Low Low High - High High Low      1.486 8.36 15   0.178  1.0000
-#  Low Low High - Low High Low      -0.453 8.36 15  -0.054  1.0000
-#  Low Low High - High Low Low      15.334 8.44 15   1.816  0.6199
-#  Low Low High - Low Low Low        2.790 8.39 15   0.333  1.0000
-#  High High Low - Low High Low     -1.938 8.36 15  -0.232  1.0000
-#  High High Low - High Low Low     13.848 8.44 15   1.641  0.7213
-#  High High Low - Low Low Low       1.304 8.38 15   0.156  1.0000
-#  Low High Low - High Low Low      15.787 8.44 15   1.870  0.5879
-#  Low High Low - Low Low Low        3.242 8.38 15   0.387  0.9999
-#  High Low Low - Low Low Low      -12.544 8.46 15  -1.482  0.8054
+emmeans(Age8Length_lme_mod, list(pairwise ~ OA:Temp), adjust = "tukey") #posthoc
+emmeans(Age8Length_lme_mod, list(pairwise ~ Salinity:Temp), adjust = "tukey") #posthoc
 
 
 # plot the data  ----------------------------------------------------------------------------------------------------- #
@@ -262,197 +294,117 @@ pdf("Output/Length_Survival/Length_age_8days_Boxplots.pdf", width=8, height=6)
 print(Age8_ShellLength_Boxplot)
 dev.off()
 
-
-
-
-
-
-
-```
-
-# Start with Endpoint Analysis
-
-### Load Data
-```{r}
-#to look at headers
-head(Av_length.survival_dat)
-View(Av_length.survival_dat)
-#Sturcture of the data - to check that variables are properly assigned to facotr or variable
-str(Av_length.survival_dat)
-
-# We need to make Aragonite a character rather than numberic so that it will plot nicely on the x-axis
-Av_length.survival_dat[,12] <-as.character(Av_length.survival_dat[,12])
-str(Av_length.survival_dat)
 ```
 
 
-#Box Plot
-Color codes for ggPlot2:  http://sape.inf.usi.ch/quick-reference/ggplot2/colour
-This chunk has code for changing the axis titles as well as the size of the axis titles and labels so that you can make them larger and easier to read on the small screen during your presentation. 
+### Age 8 days HIGH TEMP ONLY ------------
 
 
-```{r, echo=FALSE}
-age_1<- Av_length.survival_dat%>%
-  filter(Day=="1")
+```{r LENGTH Age 8 days hours size - HIGH TEMP ONLY}
 
-##Here Low Salinity treatments are in Blue
-Age1_ShellLength_Boxplot <- ggplot(data=age_1, aes(x=AR, y=Average.Length, fill=Treatment)) +
-                              geom_boxplot()+scale_fill_manual(values=c("darkorange3", "darkorange3","royalblue3", "royalblue3","orange2", "orange2","skyblue2", "skyblue2"))+
-                              geom_jitter( width = 0.02) +
-                              theme_bw() +  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+ 
-                              theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
-                              labs(title="Age =24 hours", x ="Aragonite Saturation State", y = "Shell Length (μm)")+ 
-                              theme(axis.title.y = element_text(size = rel(1.3), angle =90), axis.title.x = element_text(size = rel(1.3), angle = 0))+
-                              theme(axis.text=element_text(size=12))
+# High temp only 
+
+#data 
+Age8_raw_length_hightemp <- Age8_raw_length %>% dplyr::filter(!Temp %in% 'Low')
+
+# run model ( LME model)
+Age8Length_lme_mod_hightemp <- lme(length_um~OA*Salinity,random=~1|random_fact,data=Age8_raw_length_hightemp) # notice temp is removed...
+pander(anova(Age8Length_lme_mod_hightemp), style='rmarkdown') # anova table of lmer
+# |     &nbsp;      | numDF | denDF | F-value | p-value  |
+# |:---------------:|:-----:|:-----:|:-------:|:--------:|
+# | **(Intercept)** |   1   |  531  |  1176   |    0     |
+# |     **OA**      |   1   |   7   |  19.48  | 0.003104 |
+# |  **Salinity**   |   1   |   7   |  17.82  | 0.00393  |
+# | **OA:Salinity** |   1   |   7   |  3.686  | 0.09635  |
+
+# Levene's test and visuals of the residuals
+leveneTest(residuals(Age8Length_lme_mod_hightemp) ~Age8_raw_length_hightemp$OA*Age8_raw_length_hightemp$Salinity) # 6.08e-12 *** no pass
+boxplot(residuals(Age8Length_lme_mod_hightemp) ~ Age8_raw_length_hightemp$OA*Age8_raw_length_hightemp$Salinity) # visual of residuals grouped
+qqnorm(resid(Age8Length_lme_mod_hightemp)) # check for normality of residuals       
 
 
-setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis")
-pdf("Output/Length_Survival/Length_age_24hrs.pdf", width=8, height=6)
-print(Age1_ShellLength_Boxplot)
-dev.off()
-  
-  
-```
 
-```{r, echo=FALSE}
-age_1<- Av_length.survival_dat%>%
-  filter(Day=="1", Temp == "High")
+# un lm model
+Age8Length_lm_mod_hightemp <- lm(sqrt(length_um)~OA*Salinity,data=Age8_raw_length_hightemp) # notice temp is removed...
+pander(anova(Age8Length_lm_mod_hightemp), style='rmarkdown') # anova table of lmer
+# |     &nbsp;      | Df  | Sum Sq | Mean Sq | F value |  Pr(>F)   |
+# |:---------------:|:---:|:------:|:-------:|:-------:|:---------:|
+# |     **OA**      |  1  | 113332 | 113332  |  277.2  | 1.649e-50 |
+# |  **Salinity**   |  1  | 101921 | 101921  |  249.3  | 2.008e-46 |
+# | **OA:Salinity** |  1  | 20519  |  20519  |  50.19  | 4.392e-12 |
+# |  **Residuals**  | 538 | 219948 |  408.8  |   NA    |    NA     |
 
-##Here Low Salinity treatments are in Blue
-Age1_ShellLength_Boxplot_hightemp <- ggplot(data=age_1, aes(x=AR, y=Average.Length, fill=Treatment)) +
-                                      geom_boxplot()+scale_fill_manual(values=c("darkorange3", "orange2","royalblue3", "lightblue3"))+
-                                      geom_jitter( width = 0.02) +
-                                      theme_bw() +  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+ 
+
+# Levene's test and visuals of the residuals ----------------------------------------------------------------------- #
+
+shapiro.test(Age8Length_lm_mod_hightemp) # 2.779e-12
+leveneTest(residuals(Age8Length_lm_mod_hightemp) ~Age8_raw_length_hightemp$OA*Age8_raw_length_hightemp$Salinity) # 1.054e-08 *** *** no pass
+boxplot(residuals(Age8Length_lme_mod_hightemp) ~ Age8_raw_length_hightemp$OA*Age8_raw_length_hightemp$Salinity) # visual of residuals grouped
+qqnorm(resid(Age8Length_lme_mod_hightemp)) # check for normality of residuals       
+
+
+
+
+# high temp only
+Age8_ShellLength_Boxplot_hightemp <- ggplot(data=Age8_raw_length_hightemp, aes(x=fct_relevel(OA, c("Low", "High")), 
+                                                                     y=length_um, 
+                                                                     colour=fct_relevel(Salinity, c("Low", "High")))) +
+                                      geom_boxplot() + 
+                                      theme_classic() +  
+                                      stat_summary(fun.y="mean",position = position_dodge2(width = 0.75)) +
+                                      theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+ 
                                       theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
-                                      labs(title="Age =24 hours", x ="Aragonite Saturation State", y = "Shell Length (μm)")+ 
+                                      labs(title="Age = 24 hours (high temp only)", x ="pCO2 level", y = "Larvae size (μm)")+ 
                                       theme(axis.title.y = element_text(size = rel(1.3), angle =90), axis.title.x = element_text(size = rel(1.3), angle = 0))+
-                                      theme(axis.text=element_text(size=12))
-  
+                                      theme(axis.text=element_text(size=12)) 
+
+# save the plot 
 setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis")
-pdf("Output/Length_Survival/Length_age_24hrs_hightemp.pdf", width=8, height=6)
-print(Age1_ShellLength_Boxplot_hightemp)
-dev.off()
-```
-
-
-```{r, echo=FALSE}
-age_8<- Av_length.survival_dat%>%
-  filter(Day=="8")
-
-##Here Low Salinity treatments are in Blue
-Age8_ShellLength_Boxplot <- ggplot(data=age_8, aes(x=AR, y=Average.Length, fill=Treatment)) +
-                            geom_boxplot()+scale_fill_manual(values=c("darkorange3", "darkorange3","royalblue3", "royalblue3","orange2", "orange2","skyblue2", "skyblue2"))+
-                                geom_jitter( width = 0.02) +
-                                theme_bw() +  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+ 
-                                theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
-                                labs(title="Age = 8 days", x ="Aragonite Saturation State", y = "Shell Length (μm)")+ 
-                                theme(axis.title.y = element_text(size = rel(1.3), angle =90), axis.title.x = element_text(size = rel(1.3), angle = 0))+
-                                theme(axis.text=element_text(size=12))
-  
-setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis")
-pdf("Output/Length_Survival/Length_age_8days.pdf", width=8, height=6)
-print(Age8_ShellLength_Boxplot)
-dev.off()
-```
-
-
-
-```{r, echo=FALSE}
-age_8<- Av_length.survival_dat%>%
-  filter(Day=="8", Temp == "High")
-
-##Here Low Salinity treatments are in Blue
-Age8_ShellLength_Boxplot_hightemp <- ggplot(data=age_8, aes(x=AR, y=Average.Length, fill=Treatment)) +
-                                geom_boxplot()+scale_fill_manual(values=c("darkorange3", "orange2","royalblue3", "lightblue3"))+
-                                geom_jitter( width = 0.02) +
-                                theme_bw() +  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+ 
-                                theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
-                                labs(title="Age = 8 days", x ="Aragonite Saturation State", y = "Shell Length (μm)")+ 
-                                theme(axis.title.y = element_text(size = rel(1.3), angle =90), axis.title.x = element_text(size = rel(1.3), angle = 0))+
-                                theme(axis.text=element_text(size=12))
-  
-setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis")
-pdf("Output/Length_Survival/Length_age_8days_hightemp.pdf", width=8, height=6)
+pdf("Output/Length_Survival/Length_age_8days_Boxplots_hightemp.pdf", width=8, height=6)
 print(Age8_ShellLength_Boxplot_hightemp)
 dev.off()
+
+
 ```
 
 
 
 
-### Linear regression of average length by Aragonite saturation 
-We want to look at the adjusted R squared associated F statistics at the bottom of the results
-```{r}
-#Linear Regression
-lmLength <- lm(age_1$Average.Length ~ age_1$AR)
-summary(lmLength)
-
-lmLength <- lm(age_8$Average.Length ~ age_8$AR)
-summary(lmLength)
-```
-```{r}
-library(nlme)
-
-age_1<- Av_length.survival_dat%>%
-  filter(Day=="1")
-
-fit <-lme(Average.Length ~  Salinity*Temp*OA, random =~1|Replicate, data =age_1)
-anova(fit)
-
-age_8<- Av_length.survival_dat%>%
-  filter(Day=="8")
-
-fit <-lme(Average.Length ~  Salinity*Temp*OA, random =~1|Replicate, data =age_8)
-anova(fit)
-```
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+# Survival ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::  :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
 
+### Age 24 hours ALL DATA ------------
 
-
-
-
-
-# Survival
-
-
-
-
-
-
-
-
-
-
-
-```{r, echo=FALSE}
+```{r SURVIVAL Age 24 hours - all data}
 age_1<- Av_length.survival_dat %>%
           filter(Day=="1")
-
-
-
 
 
 # Age 1 Length mod - all data -------------------------------------------------------------------------------------- #
 
 
 Age1_Survival_lme_mod <- lme(Survival~OA*Salinity*Temp,random=~1|random_fact,data=age_1)
-knitr::kable(anova(Age1_Survival_lme_mod))
+pander(anova(Age1_Survival_lme_mod), style='rmarkdown') # anova table of lmer
 
-# numDF	denDF	F-value	p-value
-# (Intercept)	1	16	1834.683980	0.0000000
-# OA	1	16	10.275543	0.0055130
-# Salinity	1	16	1.647040	0.2176396
-# Temp	1	16	22.720469	0.0002102
-# OA:Salinity	1	16	7.527934	0.0144193
-# OA:Temp	1	16	2.486540	0.1343880
-# Salinity:Temp	1	16	2.070019	0.1694945
-# OA:Salinity:Temp	1	16	3.096188	0.0975790
+# |        &nbsp;        | numDF | denDF | F-value |  p-value  |
+# |:--------------------:|:-----:|:-----:|:-------:|:---------:|
+# |   **(Intercept)**    |   1   |  16   |  1835   |     0     |
+# |        **OA**        |   1   |  16   |  10.28  | 0.005513  | *
+# |     **Salinity**     |   1   |  16   |  1.647  |  0.2176   |
+# |       **Temp**       |   1   |  16   |  22.72  | 0.0002102 | *
+# |   **OA:Salinity**    |   1   |  16   |  7.528  |  0.01442  | *
+# |     **OA:Temp**      |   1   |  16   |  2.487  |  0.1344   |
+# |  **Salinity:Temp**   |   1   |  16   |  2.07   |  0.1695   |
+# | **OA:Salinity:Temp** |   1   |  16   |  3.096  |  0.09758  |
 
 
 # Levene's test and visuals of the residuals ----------------------------------------------------------------------- #
 
 
-leveneTest(residuals(Age1_Survival_lme_mod) ~ age_1$Temp*age_1$OA*age_1$Salinity) # 0.8279- did not pass
+leveneTest(residuals(Age1_Survival_lme_mod) ~ age_1$Temp*age_1$OA*age_1$Salinity) # 0.8279- pass
 boxplot(residuals(Age1_Survival_lme_mod) ~ age_1$Temp*age_1$OA*age_1$Salinity) # visual of residuals grouped
 qqnorm(resid(Age1_Survival_lme_mod)) # check for normality of residuals - looks okay
 
@@ -460,44 +412,19 @@ qqnorm(resid(Age1_Survival_lme_mod)) # check for normality of residuals - looks 
 
 # post hoc tests --------------------------------------------------------------------------------------------------- #
 
+posthoc<-lsmeans(Age1_Survival_lme_mod, ~OA*Salinity, adjust="tukey")
+posthoc<-emmeans(Age1_Survival_lme_mod, pairwise~OA*Salinity, adjust="tukey")
 
-require(emmeans)
-emmeans(Age1_Survival_lme_mod, list(pairwise ~ OA:Salinity:Temp), adjust = "tukey") #posthoc
+multcomp::cld(posthoc$emmeans,alpha = 0.5, Letters = letters)
+ # OA   Salinity emmean     SE df lower.CL upper.CL .group
+ # High Low       0.382 0.0215 16    0.336    0.427  a    
+ # High High      0.468 0.0215 16    0.423    0.514   b   
+ # Low  High      0.478 0.0215 16    0.433    0.524   b   
+ # Low  Low       0.509 0.0215 16    0.464    0.555   b 
 
-# $`pairwise differences of OA, Salinity, Temp`
-#  1                               estimate     SE df t.ratio p.value
-#  High High High - Low High High -0.081481 0.0429 16  -1.899  0.5698
-#  High High High - High Low High  0.017778 0.0429 16   0.414  0.9999
-#  High High High - Low Low High  -0.105926 0.0429 16  -2.469  0.2749
-#  High High High - High High Low -0.000185 0.0429 16  -0.004  1.0000
-#  High High High - Low High Low   0.061481 0.0429 16   1.433  0.8296
-#  High High High - High Low Low   0.154815 0.0429 16   3.608  0.0380 *
-#  High High High - Low Low Low    0.023272 0.0429 16   0.542  0.9991
-#  Low High High - High Low High   0.099259 0.0429 16   2.314  0.3437
-#  Low High High - Low Low High   -0.024444 0.0429 16  -0.570  0.9988
-#  Low High High - High High Low   0.081296 0.0429 16   1.895  0.5724
-#  Low High High - Low High Low    0.142963 0.0429 16   3.332  0.0637
-#  Low High High - High Low Low    0.236296 0.0429 16   5.508  0.0010 *
-#  Low High High - Low Low Low     0.104753 0.0429 16   2.442  0.2862
-#  High Low High - Low Low High   -0.123704 0.0429 16  -2.883  0.1415
-#  High Low High - High High Low  -0.017963 0.0429 16  -0.419  0.9998
-#  High Low High - Low High Low    0.043704 0.0429 16   1.019  0.9645
-#  High Low High - High Low Low    0.137037 0.0429 16   3.194  0.0819
-#  High Low High - Low Low Low     0.005494 0.0429 16   0.128  1.0000
-#  Low Low High - High High Low    0.105741 0.0429 16   2.465  0.2766
-#  Low Low High - Low High Low     0.167407 0.0429 16   3.902  0.0216 *
-#  Low Low High - High Low Low     0.260741 0.0429 16   6.077  0.0003 *
-#  Low Low High - Low Low Low      0.129198 0.0429 16   3.011  0.1134
-#  High High Low - Low High Low    0.061667 0.0429 16   1.437  0.8276
-#  High High Low - High Low Low    0.155000 0.0429 16   3.613  0.0376 *
-#  High High Low - Low Low Low     0.023457 0.0429 16   0.547  0.9991
-#  Low High Low - High Low Low     0.093333 0.0429 16   2.175  0.4132
-#  Low High Low - Low Low Low     -0.038210 0.0429 16  -0.891  0.9828
-#  High Low Low - Low Low Low     -0.131543 0.0429 16  -3.066  0.1030
 
 
 # plot the data  ----------------------------------------------------------------------------------------------------- #
-
 
 
 
@@ -512,7 +439,10 @@ Age1_Survival_Boxplot_2 <- age_1 %>%
                                                              colour=fct_relevel(Salinity, c("Low", "High")), 
                                                              linetype = Temp)) +
                               geom_point(aes (fill = fct_relevel(Salinity, c("Low", "High")), shape = Temp), position = "dodge2") +
-                              geom_errorbar(aes(ymin = mean_surv - se_surv, ymax = mean_surv + se_surv), width = 0.5, position= "dodge2") +
+                              geom_errorbar(aes(ymin = mean_surv - se_surv, 
+                                                ymax = mean_surv + se_surv,
+                                                fill = fct_relevel(Salinity, c("Low", "High"))), 
+                                                width = 0.5, position= "dodge2") +
                               theme_classic() +  
                               ylim(0.2,0.6) +
                               theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+ 
@@ -545,7 +475,102 @@ print(Age1_Survival_Boxplot)
 dev.off()
 ```
 
-```{r, echo=FALSE}
+
+### Age 24 hours HIGH TEMP ONLY ------------
+
+```{r, SURVIVAL Age 24 hours - HIGH TEMP ONLY}
+age_1_hightemp <- Av_length.survival_dat %>%
+                      filter(Day=="1") %>% 
+                      dplyr::filter(Temp %in% 'High')
+
+
+# Age 1 Length mod - all data -------------------------------------------------------------------------------------- #
+
+
+Age1_Survival_lme_mod_hightemp <- lme(Survival~OA*Salinity,random=~1|random_fact,data=age_1_hightemp)
+pander(anova(Age1_Survival_lme_mod_hightemp), style='rmarkdown') # anova table of lmer
+
+# |     &nbsp;      | numDF | denDF | F-value |  p-value  |
+# |:---------------:|:-----:|:-----:|:-------:|:---------:|
+# | **(Intercept)** |   1   |   8   |  2296   | 3.977e-11 |
+# |     **OA**      |   1   |   8   |  23.18  |  0.00133  | * main effect of OA 
+# |  **Salinity**   |   1   |   8   | 0.02447 |  0.8796   |
+# | **OA:Salinity** |   1   |   8   | 0.9816  |  0.3508   |
+
+
+Age1_Survival_lm_mod_hightemp <- lm(Survival~OA*Salinity,data=age_1_hightemp)
+pander(anova(Age1_Survival_lm_mod_hightemp), style='rmarkdown') # anova table of lmer
+
+# |     &nbsp;      | Df |  Sum Sq   |  Mean Sq  | F value | Pr(>F)  |
+# |:---------------:|:--:|:---------:|:---------:|:-------:|:-------:|
+# |     **OA**      | 1  |  0.03158  |  0.03158  |  23.18  | 0.00133 | * main effect of OA 
+# |  **Salinity**   | 1  | 3.333e-05 | 3.333e-05 | 0.02447 | 0.8796  |
+# | **OA:Salinity** | 1  | 0.001337  | 0.001337  | 0.9816  | 0.3508  |
+# |  **Residuals**  | 8  |  0.0109   | 0.001362  |   NA    |   NA    |
+
+
+
+# Levene's test and visuals of the residuals ----------------------------------------------------------------------- #
+
+
+leveneTest(residuals(Age1_Survival_lme_mod_hightemp) ~ age_1_hightemp$OA*age_1_hightemp$Salinity) # 0.5608- pass
+boxplot(residuals(Age1_Survival_lme_mod_hightemp) ~ age_1_hightemp$OA*age_1_hightemp$Salinity) # visual of residuals grouped
+qqnorm(resid(Age1_Survival_lme_mod_hightemp)) # check for normality of residuals - looks okay
+
+
+
+# post hoc tests --------------------------------------------------------------------------------------------------- #
+
+posthoc<-lsmeans(Age1_Survival_lme_mod_hightemp, ~OA, adjust="tukey")
+posthoc<-emmeans(Age1_Survival_lme_mod_hightemp, pairwise~OA, adjust="tukey")
+
+multcomp::cld(posthoc$emmeans,alpha = 0.5, Letters = letters)
+ # OA   emmean     SE df lower.CL upper.CL .group
+ # High  0.459 0.0151  8    0.425    0.494  a    
+ # Low   0.562 0.0151  8    0.527    0.597   b 
+
+
+
+# plot the data  ----------------------------------------------------------------------------------------------------- #
+
+
+
+Age1_Survival_Boxplot_2 <- age_1_hightemp %>% 
+  dplyr::group_by(OA,Salinity) %>% 
+  dplyr::summarise(mean_surv = mean(Survival), 
+                   n         = n(),
+                   sd_surv   = sd(Survival),
+                   se_surv   = sd_surv/(sqrt(n))) %>% 
+                              ggplot(aes(x=fct_relevel(OA, c("Low", "High")), 
+                                                             y=mean_surv, 
+                                                             colour=fct_relevel(Salinity, c("Low", "High"))))+
+                              geom_point(aes (fill = fct_relevel(Salinity, c("Low", "High"))), position = "dodge2") +
+                              geom_errorbar(aes(ymin = mean_surv - se_surv, 
+                                                ymax = mean_surv + se_surv,
+                                                fill = fct_relevel(Salinity, c("Low", "High"))), 
+                                                width = 0.5, position= "dodge2") +
+                              theme_classic() +  
+                              ylim(0.2,0.6) +
+                              theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+ 
+                              theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+                              labs(title="Age = 24 hours", x ="pCO2 level", y = "Survival")+ 
+                              theme(axis.title.y = element_text(size = rel(1.3), 
+                                                                angle =90), 
+                                                                axis.title.x = element_text(size = rel(1.3), 
+                                                                angle = 0)) +
+                              theme(axis.text=element_text(size=12)) 
+
+setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis")
+pdf("Output/Length_Survival/Survival_age_24hrs_MeanSE.pdf", width=8, height=6)
+print(Age1_Survival_Boxplot_2)
+dev.off()
+
+```
+
+
+### Age 8 days ALL DATA  ------------
+
+```{r, SURVIVAL Age 8 days - all data}
 age_8<- Av_length.survival_dat%>%
   filter(Day=="8")
 
@@ -578,10 +603,10 @@ qqnorm(resid(Age8_Survival_lme_mod)) # check for normality of residuals - looks 
 
 # post hoc tests --------------------------------------------------------------------------------------------------- #
 
+posthoc<-lsmeans(Age8_Survival_lme_mod, ~OA*Salinity*Temp, adjust="tukey")
+posthoc<-emmeans(Age8_Survival_lme_mod, pairwise~OA*Salinity*Temp, adjust="tukey")
 
-require(emmeans)
-emmeans(Age8_Survival_lme_mod, list(pairwise ~ Salinity), adjust = "tukey") #posthoc
-
+multcomp::cld(posthoc$emmeans,alpha = 0.5, Letters = letters)
 # $`emmeans of Salinity`
 #  Salinity emmean     SE df lower.CL upper.CL
 #  High     0.3775 0.0561 14    0.257    0.498
@@ -605,12 +630,12 @@ Age8_Survival_Boxplot_2 <- age_8 %>%
                               #ylim(0,0.6) +
                               theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+ 
                               theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
-                              labs(title="Age = 24 hours", x ="pCO2 level", y = "Survival")+ 
+                              labs(title="Age = 8 days", x ="pCO2 level", y = "Survival")+ 
                               theme(axis.title.y = element_text(size = rel(1.3), angle =90), axis.title.x = element_text(size = rel(1.3), angle = 0))+
                               theme(axis.text=element_text(size=12)) 
 
 setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis")
-pdf("Output/Length_Survival/Survival_age_24hrs_MeanSE.pdf", width=8, height=6)
+pdf("Output/Length_Survival/Survival_age_8days_MeanSE.pdf", width=8, height=6)
 print(Age8_Survival_Boxplot_2)
 dev.off()
 
@@ -634,72 +659,98 @@ dev.off()
 
 ```
 
-```{r, echo=FALSE}
-age_8<- Av_length.survival_dat%>%
-  filter(Day=="8", Temp == "High")
 
-##Here Low Salinity treatments are in Blue
-Age8_Survival_Boxplot_hightemp <- ggplot(data=age_8, aes(x=AR, y=Survival, fill=Treatment)) +
-                                  geom_boxplot()+scale_fill_manual(values=c("darkorange3", "orange2","royalblue3", "skyblue2"))+
-                                  geom_jitter( width = 0.02) +
-                                  theme_bw() +  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+ 
-                                  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
-                                  labs(title="Age = 8 days", x ="Aragonite Saturation State", y = "Survival (%)")+ 
-                                  theme(axis.title.y = element_text(size = rel(1.3), angle =90), axis.title.x = element_text(size = rel(1.3), angle = 0))+
-                                  theme(axis.text=element_text(size=12))
-  
+### Age 8 days HIGH TEMP ONLY ------------
+
+```{r, SURVIVAL Age 8 days - HIGH TEMP ONLY}
+age_8_hightemp <- Av_length.survival_dat %>%
+                      filter(Day=="8") %>% 
+                      dplyr::filter(Temp %in% 'High')
+
+
+# Age 1 Length mod - all data -------------------------------------------------------------------------------------- #
+
+
+Age8_Survival_lme_mod_hightemp <- lme(Survival~OA*Salinity,random=~1|random_fact,data=age_8_hightemp)
+pander(anova(Age8_Survival_lme_mod_hightemp), style='rmarkdown') # anova table of lmer
+
+# |     &nbsp;      | numDF | denDF | F-value |  p-value  |
+# |:---------------:|:-----:|:-----:|:-------:|:---------:|
+# | **(Intercept)** |   1   |   6   |  46.03  | 0.0005015 |
+# |     **OA**      |   1   |   6   | 0.3174  |  0.5936   |
+# |  **Salinity**   |   1   |   6   |  15.52  |  0.00763  | # main effect of salinity
+# | **OA:Salinity** |   1   |   6   | 0.1175  |  0.7434   |
+
+
+
+Age8_Survival_lm_mod_hightemp <- lm(Survival~OA*Salinity,data=age_8_hightemp)
+pander(anova(Age8_Survival_lm_mod_hightemp), style='rmarkdown') # anova table of lmer
+
+# |     &nbsp;      | Df |  Sum Sq  | Mean Sq  | F value | Pr(>F)  |
+# |:---------------:|:--:|:--------:|:--------:|:-------:|:-------:|
+# |     **OA**      | 1  | 0.00384  | 0.00384  | 0.3174  | 0.5936  |
+# |  **Salinity**   | 1  |  0.1878  |  0.1878  |  15.52  | 0.00763 | # main effect of salinity
+# | **OA:Salinity** | 1  | 0.001422 | 0.001422 | 0.1175  | 0.7434  |
+# |  **Residuals**  | 6  |  0.0726  |  0.0121  |   NA    |   NA    |
+
+
+
+
+# Levene's test and visuals of the residuals ----------------------------------------------------------------------- #
+
+
+leveneTest(residuals(Age8_Survival_lme_mod_hightemp) ~ age_8_hightemp$OA*age_8_hightemp$Salinity) # 0.6261- pass
+boxplot(residuals(Age8_Survival_lm_mod_hightemp) ~ age_8_hightemp$OA*age_8_hightemp$Salinity) # visual of residuals grouped
+qqnorm(resid(Age8_Survival_lm_mod_hightemp)) # check for normality of residuals - looks okay
+
+
+
+# post hoc tests --------------------------------------------------------------------------------------------------- #
+
+posthoc<-lsmeans(Age8_Survival_lme_mod_hightemp, ~Salinity, adjust="tukey")
+posthoc<-emmeans(Age8_Survival_lme_mod_hightemp, pairwise~Salinity, adjust="tukey")
+
+multcomp::cld(posthoc$emmeans,alpha = 0.5, Letters = letters)
+# Salinity emmean     SE df lower.CL upper.CL .group
+#  Low      0.0683 0.0635  6  -0.0871    0.224  a    
+#  High     0.3483 0.0449  6   0.2384    0.458   b   
+
+
+
+# plot the data  ----------------------------------------------------------------------------------------------------- #
+
+
+
+Age8_Survival_Boxplot <- age_8_hightemp %>% 
+  dplyr::group_by(OA,Salinity) %>% 
+  dplyr::summarise(mean_surv = mean(Survival), 
+                   n         = n(),
+                   sd_surv   = sd(Survival),
+                   se_surv   = sd_surv/(sqrt(n))) %>% 
+                              ggplot(aes(x=fct_relevel(OA, c("Low", "High")), 
+                                                             y=mean_surv, 
+                                                             colour=fct_relevel(Salinity, c("Low", "High"))))+
+                              geom_point(aes (fill = fct_relevel(Salinity, c("Low", "High"))), position = "dodge2") +
+                              geom_errorbar(aes(ymin = mean_surv - se_surv, 
+                                                ymax = mean_surv + se_surv,
+                                                fill = fct_relevel(Salinity, c("Low", "High"))), 
+                                                width = 0.5, position= "dodge2") +
+                              theme_classic() +  
+                              #ylim(0.2,0.6) +
+                              theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+ 
+                              theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+                              labs(title="Age = 8 days", x ="pCO2 level", y = "Survival")+ 
+                              theme(axis.title.y = element_text(size = rel(1.3), 
+                                                                angle =90), 
+                                                                axis.title.x = element_text(size = rel(1.3), 
+                                                                angle = 0)) +
+                              theme(axis.text=element_text(size=12)) 
+
 setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis")
-pdf("Output/Length_Survival/Survival_age_8days_hightemp.pdf", width=8, height=6)
-print(Age8_Survival_Boxplot_hightemp)
+pdf("Output/Length_Survival/Survival_age_24hrs_MeanSE.pdf", width=8, height=6)
+print(Age8_Survival_Boxplot)
 dev.off()
+
 ```
 
-### Linear regression of average length by Aragonite saturation 
-We want to look at the adjusted R squared associated F statistics at the bottom of the results
-```{r}
-#Linear Regression
-lmSurvival <- lm(age_1$Survival ~ age_1$AR)
-summary(lmSurvival)
-
-lmSurvival <- lm(age_8$Survival ~ age_8$AR)
-summary(lmSurvival)
-```
-
-```{r}
-library(nlme)
-
-age_1<- Av_length.survival_dat%>%
-  filter(Day=="1")
-
-fit <-lme(Survival.Tans ~  Salinity*Temp*OA, random =~1|Replicate, data =age_1)
-anova(fit)
-
-age_8<- Av_length.survival_dat%>%
-  filter(Day=="8")
-
-fit <-lme(Survival.Tans ~  Salinity*Temp*OA, random =~1|Replicate, data =age_8)
-anova(fit)
-
-fit2 <-lme(Survival.Tans ~  Treatment, random =~1|Replicate, data =age_8)
-anova(fit2)
-#tukey_hsd(fit2)
-```
-
-
-### Linear regression of average length by Aragonite saturation 
-We want to look at the adjusted R squared associated F statistics at the bottom of the results
-```{r}
-#Linear Regression
-lmSurvival <- lm(age_1$Survival ~ age_1$AR)
-summary(lmSurvival)
-
-lmSurvival <- lm(age_8$Survival ~ age_8$AR)
-summary(lmSurvival)
-```
-
-
-#print session info so that you know what versions were used for this analysis
-```{r}
-sessionInfo()
-```
 
