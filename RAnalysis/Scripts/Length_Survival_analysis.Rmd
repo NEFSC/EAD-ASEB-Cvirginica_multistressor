@@ -24,6 +24,7 @@ library(car)
 library(performance)
 library(stargazer)
 library(emmeans)
+library(pander)
 ```
 
 
@@ -49,7 +50,10 @@ head(Av_length.survival_dat)
 
 ```{r, prep the raw data for stats} 
 # extract the experiment data with coresponding sampke Ids from the averaged data master file...
-Exp_data <-  Av_length.survival_dat %>% filter(Day %in% 1) %>% dplyr::select(c('Temp','OA','Salinity','Replicate','Id.', 'pH', 'AR')) %>% dplyr::rename(Sample.ID = Id., Aragonite_saturation = AR)
+Exp_data <-  Av_length.survival_dat %>% 
+                filter(Day %in% 1) %>% 
+                dplyr::select(c('Temp','OA','Salinity','Replicate','Id.', 'pH', 'AR')) %>% 
+                dplyr::rename(Sample.ID = Id., Aragonite_saturation = AR)
 
 # melt the raw data, cean and format it for merging with Exp_data
 
@@ -200,10 +204,10 @@ pander(anova(Age1Length_lme_mod_hightemp), style='rmarkdown') # anova table of l
 # | **OA:Salinity** |   1   |   8   |  1.258  |  0.2945   |
 
 
-# Levene's test and visuals of the residuals ----------------------------------------------------------------------- #
+# Levene's test and visuals of the residuals
 
 leveneTest(residuals(Age1Length_lme_mod_hightemp) ~Age1_raw_length_hightemp$OA*Age1_raw_length_hightemp$Salinity) # 0.4058 PASS
-boxplot(residuals(Age1Length_lme_mod_hightemp) ~ Age1_raw_length_hightemp$OA*Age1_raw_length_hightemp$Salinity) # visual of residuals grouped
+Levenboxplot(residuals(Age1Length_lme_mod_hightemp) ~ Age1_raw_length_hightemp$OA*Age1_raw_length_hightemp$Salinity) # visual of residuals grouped
 qqnorm(resid(Age1Length_lme_mod_hightemp)) # check for normality of residuals       
 
 
@@ -313,18 +317,36 @@ pander(anova(Age8Length_lme_mod_hightemp), style='rmarkdown') # anova table of l
 # |     &nbsp;      | numDF | denDF | F-value | p-value  |
 # |:---------------:|:-----:|:-----:|:-------:|:--------:|
 # | **(Intercept)** |   1   |  531  |  1176   |    0     |
-# |     **OA**      |   1   |   7   |  19.48  | 0.003104 |
-# |  **Salinity**   |   1   |   7   |  17.82  | 0.00393  |
-# | **OA:Salinity** |   1   |   7   |  3.686  | 0.09635  |
-
-# Levene's test and visuals of the residuals
+# |     **OA**      |   1   |   7   |  19.48  | 0.003104 | *
+# |  **Salinity**   |   1   |   7   |  17.82  | 0.00393  | *
+# | **OA:Salinity** |   1   |   7   |  3.686  | 0.09635  | (marginal)
 leveneTest(residuals(Age8Length_lme_mod_hightemp) ~Age8_raw_length_hightemp$OA*Age8_raw_length_hightemp$Salinity) # 6.08e-12 *** no pass
 boxplot(residuals(Age8Length_lme_mod_hightemp) ~ Age8_raw_length_hightemp$OA*Age8_raw_length_hightemp$Salinity) # visual of residuals grouped
 qqnorm(resid(Age8Length_lme_mod_hightemp)) # check for normality of residuals       
 
 
 
-# un lm model
+
+
+
+# transform - see if resolves heterozygosity and changes te results 
+Age8Length_lme_mod_hightempLOG <- lme(log(length_um)~OA*Salinity,random=~1|random_fact,data=Age8_raw_length_hightemp) # notice temp is removed...
+pander(anova(Age8Length_lme_mod_hightempLOG), style='rmarkdown') # anova table of lmer
+# |     &nbsp;      | numDF | denDF | F-value | p-value  |
+# |:---------------:|:-----:|:-----:|:-------:|:--------:|
+# | **(Intercept)** |   1   |  531  |  25161  |    0     |
+# |     **OA**      |   1   |   7   |  17.7   | 0.003998 | *
+# |  **Salinity**   |   1   |   7   |  15.6   | 0.005533 | *
+# | **OA:Salinity** |   1   |   7   |  2.385  |  0.1664  |
+leveneTest(residuals(Age8Length_lme_mod_hightempLOG) ~Age8_raw_length_hightemp$OA*Age8_raw_length_hightemp$Salinity) # 4.876e-07 *** no pass
+boxplot(residuals(Age8Length_lme_mod_hightempLOG) ~ Age8_raw_length_hightemp$OA*Age8_raw_length_hightemp$Salinity) # visual of residuals grouped
+qqnorm(resid(Age8Length_lme_mod_hightempLOG)) # check for normality of residuals       
+
+
+
+
+
+# run lm model
 Age8Length_lm_mod_hightemp <- lm(sqrt(length_um)~OA*Salinity,data=Age8_raw_length_hightemp) # notice temp is removed...
 pander(anova(Age8Length_lm_mod_hightemp), style='rmarkdown') # anova table of lmer
 # |     &nbsp;      | Df  | Sum Sq | Mean Sq | F value |  Pr(>F)   |
@@ -333,10 +355,6 @@ pander(anova(Age8Length_lm_mod_hightemp), style='rmarkdown') # anova table of lm
 # |  **Salinity**   |  1  | 101921 | 101921  |  249.3  | 2.008e-46 |
 # | **OA:Salinity** |  1  | 20519  |  20519  |  50.19  | 4.392e-12 |
 # |  **Residuals**  | 538 | 219948 |  408.8  |   NA    |    NA     |
-
-
-# Levene's test and visuals of the residuals ----------------------------------------------------------------------- #
-
 shapiro.test(Age8Length_lm_mod_hightemp) # 2.779e-12
 leveneTest(residuals(Age8Length_lm_mod_hightemp) ~Age8_raw_length_hightemp$OA*Age8_raw_length_hightemp$Salinity) # 1.054e-08 *** *** no pass
 boxplot(residuals(Age8Length_lme_mod_hightemp) ~ Age8_raw_length_hightemp$OA*Age8_raw_length_hightemp$Salinity) # visual of residuals grouped
@@ -489,34 +507,29 @@ age_1_hightemp <- Av_length.survival_dat %>%
 
 Age1_Survival_lme_mod_hightemp <- lme(Survival~OA*Salinity,random=~1|random_fact,data=age_1_hightemp)
 pander(anova(Age1_Survival_lme_mod_hightemp), style='rmarkdown') # anova table of lmer
-
 # |     &nbsp;      | numDF | denDF | F-value |  p-value  |
 # |:---------------:|:-----:|:-----:|:-------:|:---------:|
 # | **(Intercept)** |   1   |   8   |  2296   | 3.977e-11 |
 # |     **OA**      |   1   |   8   |  23.18  |  0.00133  | * main effect of OA 
 # |  **Salinity**   |   1   |   8   | 0.02447 |  0.8796   |
 # | **OA:Salinity** |   1   |   8   | 0.9816  |  0.3508   |
+leveneTest(residuals(Age1_Survival_lme_mod_hightemp) ~ age_1_hightemp$OA*age_1_hightemp$Salinity) # 0.5608- pass
+boxplot(residuals(Age1_Survival_lme_mod_hightemp) ~ age_1_hightemp$OA*age_1_hightemp$Salinity) # visual of residuals grouped
+qqnorm(resid(Age1_Survival_lme_mod_hightemp)) # check for normality of residuals - looks okay
 
 
+# lm model
 Age1_Survival_lm_mod_hightemp <- lm(Survival~OA*Salinity,data=age_1_hightemp)
-pander(anova(Age1_Survival_lm_mod_hightemp), style='rmarkdown') # anova table of lmer
-
+pander(anova(Age1_Survival_lm_mod_hightemp), style='rmarkdown') # anova table of lm
 # |     &nbsp;      | Df |  Sum Sq   |  Mean Sq  | F value | Pr(>F)  |
 # |:---------------:|:--:|:---------:|:---------:|:-------:|:-------:|
 # |     **OA**      | 1  |  0.03158  |  0.03158  |  23.18  | 0.00133 | * main effect of OA 
 # |  **Salinity**   | 1  | 3.333e-05 | 3.333e-05 | 0.02447 | 0.8796  |
 # | **OA:Salinity** | 1  | 0.001337  | 0.001337  | 0.9816  | 0.3508  |
 # |  **Residuals**  | 8  |  0.0109   | 0.001362  |   NA    |   NA    |
-
-
-
-# Levene's test and visuals of the residuals ----------------------------------------------------------------------- #
-
-
-leveneTest(residuals(Age1_Survival_lme_mod_hightemp) ~ age_1_hightemp$OA*age_1_hightemp$Salinity) # 0.5608- pass
-boxplot(residuals(Age1_Survival_lme_mod_hightemp) ~ age_1_hightemp$OA*age_1_hightemp$Salinity) # visual of residuals grouped
-qqnorm(resid(Age1_Survival_lme_mod_hightemp)) # check for normality of residuals - looks okay
-
+leveneTest(residuals(Age1_Survival_lm_mod_hightemp) ~ age_1_hightemp$OA*age_1_hightemp$Salinity) # 0.5608- pass
+boxplot(residuals(Age1_Survival_lm_mod_hightemp) ~ age_1_hightemp$OA*age_1_hightemp$Salinity) # visual of residuals grouped
+qqnorm(resid(Age1_Survival_lm_mod_hightemp)) # check for normality of residuals - looks okay
 
 
 # post hoc tests --------------------------------------------------------------------------------------------------- #
@@ -673,13 +686,18 @@ age_8_hightemp <- Av_length.survival_dat %>%
 
 Age8_Survival_lme_mod_hightemp <- lme(Survival~OA*Salinity,random=~1|random_fact,data=age_8_hightemp)
 pander(anova(Age8_Survival_lme_mod_hightemp), style='rmarkdown') # anova table of lmer
-
 # |     &nbsp;      | numDF | denDF | F-value |  p-value  |
 # |:---------------:|:-----:|:-----:|:-------:|:---------:|
 # | **(Intercept)** |   1   |   6   |  46.03  | 0.0005015 |
 # |     **OA**      |   1   |   6   | 0.3174  |  0.5936   |
 # |  **Salinity**   |   1   |   6   |  15.52  |  0.00763  | # main effect of salinity
 # | **OA:Salinity** |   1   |   6   | 0.1175  |  0.7434   |
+leveneTest(residuals(Age8_Survival_lme_mod_hightemp) ~ age_8_hightemp$OA*age_8_hightemp$Salinity) # 0.6261- pass
+boxplot(residuals(Age8_Survival_lm_mod_hightemp) ~ age_8_hightemp$OA*age_8_hightemp$Salinity) # visual of residuals grouped
+qqnorm(resid(Age8_Survival_lm_mod_hightemp)) # check for normality of residuals - looks okay
+
+
+
 
 
 
@@ -698,10 +716,6 @@ pander(anova(Age8_Survival_lm_mod_hightemp), style='rmarkdown') # anova table of
 
 # Levene's test and visuals of the residuals ----------------------------------------------------------------------- #
 
-
-leveneTest(residuals(Age8_Survival_lme_mod_hightemp) ~ age_8_hightemp$OA*age_8_hightemp$Salinity) # 0.6261- pass
-boxplot(residuals(Age8_Survival_lm_mod_hightemp) ~ age_8_hightemp$OA*age_8_hightemp$Salinity) # visual of residuals grouped
-qqnorm(resid(Age8_Survival_lm_mod_hightemp)) # check for normality of residuals - looks okay
 
 
 

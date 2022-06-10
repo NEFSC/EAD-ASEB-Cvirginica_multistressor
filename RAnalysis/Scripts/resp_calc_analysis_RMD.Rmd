@@ -118,10 +118,12 @@ head(blanks_total) # view blanks table
 ```{r normalize resp rates by blanks, echo=FALSE}
 Resp.blanks.merge <- merge(resp.data_merged, blanks_total, by=c("Date", "Notes")) %>% # NOTE: this repeats for every distinct length value
   dplyr::filter(!Chamber_tank =='blank') %>% 
-  dplyr::mutate(resp_norm = Lpc - BLANK.mean.Lpc) # calc resp norm - note Lpc is still raw data  - thus a positive resp norm means blank > sample resp - bad data! 
+  dplyr::filter(!Lpc > 0) %>% # onlynegative raw lpc values from LoLinR represent oxygen depletion - positive values are errors
+  dplyr::mutate(resp_norm = abs(Lpc) - BLANK.mean.Lpc)   #  Lpc is still raw data (take abs) then resp - blank,
 
-Resp.blanks.merge_OM <- Resp.blanks.merge %>% dplyr::filter(!resp_norm > 0)  # omits respiration rate values showing an increase in O2 over time 
-Resp.outliers        <- Resp.blanks.merge_OM %>% dplyr::filter(resp_norm > 0)  # lets lopok at this data - possible troubleshootiung to ID these outliers...
+
+Resp.blanks.merge_OM <- Resp.blanks.merge %>% dplyr::filter(resp_norm > 0)  # omits respiration rate values LESS than the blank (resp_norm < 0)
+Resp.outliers        <- Resp.blanks.merge %>% dplyr::filter(resp_norm < 0)  # 10 total samples lower than the blank  
 print(c("number of blank resp > sample resp =",nrow(Resp.outliers)))
 
 count_check_all <- Resp.blanks.merge_OM %>% dplyr::group_by(Date,TempCarbSal) %>% dplyr::summarise(n = n())
@@ -159,7 +161,7 @@ Resp.Master[,c(1:3,12)]
   - d. plot (reconfigure data as needed for plotting; i.e. melt/dcast, etc.)
   
   
-```{r day 1 analysis, echo=TRUE}
+```{r RESP Age 24 hours - all data, echo=TRUE}
 
 # a.
 Resp_age1 <- Resp.Master %>% 
@@ -282,7 +284,7 @@ Resp_age1 %>%
 
 
 
-```{r day 1 analysis - high temp ONLY, echo=TRUE}
+```{r RESP Age 24 hours - HIGH TEMP ONLY, echo=TRUE}
 
 # a.
 Resp_age1_hightemp <- Resp.Master %>% 
@@ -325,7 +327,6 @@ pander(anova(LMmod.age1_hightemp), style='rmarkdown') # anova table of lmer
 # |   **Salinity**    | 1  | 0.00155  | 0.00155  |  1.178  | 0.3094 |
 # | **pCO2:Salinity** | 1  | 0.001599 | 0.001599 |  1.215  | 0.3023 |
 # |   **Residuals**   | 8  | 0.01052  | 0.001316 |   NA    |   NA   |
-
 check_model(LMmod.age1_hightemp) # observe the diagnostics of the model
 shapiro.test(residuals(LMmod.age1_hightemp)) # 0.001365 non normal
 leveneTest(LMmod.age1_hightemp) # 0.3834 good
@@ -333,8 +334,7 @@ leveneTest(LMmod.age1_hightemp) # 0.3834 good
 
 
 # c.2 ommit the high outlier resp value (> 0.14)
-
-Resp_age1_hightempOM   <- Resp_age1_hightemp %>% dplyr::filter(!resp_ng_L_indiv_hr > 0.14)
+Resp_age1_hightempOM   <- Resp_age1_hightemp %>% dplyr::filter(!resp_ng_L_indiv_hr > 0.14) # ommit the outlier at ~ 0.15
 
 LMmod.age1_hightempOM  <- aov(lm( log(resp_ng_L_indiv_hr)~pCO2*Salinity,data=Resp_age1_hightempOM))
 print('LM model  == aov( lm ( resp_ng_L_indiv_hr ~ pCO2 * Salinity, data = Resp_APRIL ) )')
@@ -345,7 +345,6 @@ pander(anova(LMmod.age1_hightempOM), style='rmarkdown') # anova table of lmer
 # |   **Salinity**    | 1  | 0.009019 | 0.009019 | 0.08443 | 0.7798  |
 # | **pCO2:Salinity** | 1  |  0.0363  |  0.0363  | 0.3399  | 0.5782  |
 # |   **Residuals**   | 7  |  0.7477  |  0.1068  |   NA    |   NA    |
-
 check_model(LMmod.age1_hightempOM) # observe the diagnostics of the model
 shapiro.test(residuals(LMmod.age1_hightempOM)) # 0.3748  normal
 leveneTest(LMmod.age1_hightempOM) # 0.915 good
