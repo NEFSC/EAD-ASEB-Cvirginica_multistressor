@@ -17,8 +17,8 @@ Day,Temp,OA,Salinity,Treatment,Replicate,Id.,Average Length,Survival,Survival.Ta
 8,Low,High,Low,Low Temp/High OA/Low Salinity,A,16,79.59625,0.03,0.185452089,7.3,0.2
 8,Low,High,Low,Low Temp/High OA/Low Salinity,B,17,84.9833333,0.03,0.185452089,7.3,0.2
 8,Low,High,Low,Low Temp/High OA/Low Salinity,C,18,91.94975,0.18,0.437758469,7.3,0.2
-8,Low,Low,Low,High Temp/Low OA/Low Salinity,A,19,120.9993103,0.25,0.519431781,7.7,0.6
-8,Low,Low,Low,High Temp/Low OA/Low Salinity,B,20,91.18363636,0.16,0.418024293,7.7,0.6
+8,High,Low,Low,High Temp/Low OA/Low Salinity,A,19,120.9993103,0.25,0.519431781,7.7,0.6
+8,High,Low,Low,High Temp/Low OA/Low Salinity,B,20,91.18363636,0.16,0.418024293,7.7,0.6
 8,High,Low,Low,High Temp/Low OA/Low Salinity,C,21,104.1041176,0.07,0.273777445,7.7,0.6
 8,Low,Low,Low,Low Temp/Low OA/Low Salinity,A,22,94.3473333,0.11,0.329993665,7.6,0.5
 8,Low,Low,Low,Low Temp/Low OA/Low Salinity,B,23,115.7223529,0.16,0.409877717,7.6,0.5
