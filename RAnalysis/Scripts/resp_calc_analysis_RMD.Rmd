@@ -199,82 +199,77 @@ Resp_Age1_Boxplot
 # c.
 LMmod.age1   <- aov(lm( resp_ng_L_indiv_hr~Temp*pCO2*Salinity,data=Resp_age1))
 print('LM model  == aov( lm ( resp_ng_L_indiv_hr ~ Temp * pCO2 * Salinity, data = Resp_APRIL ) )')
-pander(anova(LMmod.age1), style='rmarkdown') # anova table of lmer
+pander(anova(LMmod.age1), style='rmarkdown') # anova table of lme
 # |      &nbsp;       | Df |  Sum Sq   |  Mean Sq  | F value | Pr(>F) |
 # |:-----------------:|:--:|:---------:|:---------:|:-------:|:------:|
-# |     **Temp**      | 1  | 0.009424  | 0.009424  |  3.062  | 0.1037 |
-# |     **pCO2**      | 1  | 0.0003786 | 0.0003786 |  0.123  | 0.7314 |
-# |   **Salinity**    | 1  | 0.002827  | 0.002827  | 0.9185  | 0.3554 |
-# |   **Temp:pCO2**   | 1  | 0.007665  | 0.007665  |  2.491  | 0.1385 |
-# | **Temp:Salinity** | 1  | 0.001349  | 0.001349  | 0.4385  | 0.5194 |
-# | **pCO2:Salinity** | 1  | 0.001566  | 0.001566  | 0.5089  | 0.4882 |
+# |     **Temp**      | 1  | 0.008991  | 0.008991  |  2.921  | 0.1112 |
+# |     **pCO2**      | 1  | 0.0003919 | 0.0003919 | 0.1273  | 0.7269 |
+# |   **Salinity**    | 1  | 0.002814  | 0.002814  | 0.9143  | 0.3564 |
+# |   **Temp:pCO2**   | 1  | 0.007718  | 0.007718  |  2.508  | 0.1373 |
+# | **Temp:Salinity** | 1  | 0.001345  | 0.001345  | 0.4372  |  0.52  |
+# | **pCO2:Salinity** | 1  | 0.001578  | 0.001578  | 0.5126  | 0.4867 |
 # |   **Residuals**   | 13 |  0.04001  | 0.003078  |   NA    |   NA   |
-
+shapiro.test(residuals(LMmod.age1)) # 0.05381
 check_model(LMmod.age1) # observe the diagnostics of the model
-shapiro.test(residuals(LMmod.age1)) # 0.0107 non normal
-leveneTest(LMmod.age1) # 0.3331 good
-
-# POst-hoc tests and exploration of sig effects
-TukeyHSD(LMmod.age1, 'Temp:pCO2')
+leveneTest(LMmod.age1) # 0.3871 good
 
 
-# d. 
-Resp_age1_select  <- Resp_age1 %>% dplyr::select(c('resp_ng_L_indiv_hr', 'Temp', 'pCO2', 'Salinity', 'Aragonite_saturation'))
-Resp_age1L_melt    <- tidyr::gather(Resp_age1_select, variable, value, -resp_ng_L_indiv_hr)
-
-# MAIN EFFECT PLOT
-# ggplot(Resp_APRIL_melt, aes(value , resp_ng_L_indiv_hr , fill = factor(value ))) +
-#   theme(panel.grid=element_blank()) +
-#   scale_color_manual(values=c("#56B4E9","#D55E00")) +
-#   geom_point(shape = 21, size = 2, position = position_jitterdodge(jitter.width = 0.5))+
-#   geom_boxplot(size=0.2, alpha=0.1) +
-#   theme_bw() +
-#   facet_wrap(~variable, scales = "free_y")
-
-# INTERACTION PLOT
-Resp_age1 %>%
-  dplyr::mutate(full.treatment = (paste(Temp, pCO2, Salinity,sep=''))) %>%
-  dplyr::mutate(full.treatment = fct_relevel(full.treatment,
-                            "HHH", "HLH", "LHH",'LLH',
-                            "HHL", "HLL", "LHL", 'LLL')) %>%
-  ggplot(aes(meanAragonite, resp_ng_L_indiv_hr , group =full.treatment, fill = factor(Temp))) +
-  geom_point(shape = 21, size = 2, position = position_jitterdodge(jitter.width = 0.05))+
-  #geom_boxplot(size=.2, alpha=0.1, width =0.2) +
-  scale_fill_manual(values=c("#D55E00","#56B4E9", "#D55E00","#56B4E9", 
-                             "#D55E00","#56B4E9", "#D55E00","#56B4E9")) +
-  labs(title = "Respiration rates; C virginica day 1", 
-       y = expression(Respiration~rate~"("~ng~L^{-1}~O[2]%.%indiv^{-1}%.% hr^{-1}~")"), 
-       x = "Aragonite saturation") +
-  annotate("text", x=0.3, y=0.2, label = "Low Salinity") +
-  annotate("rect", xmin = 0, xmax = 0.62, ymin = 0, ymax = 0.25, alpha = .1) +
-  geom_smooth(method = "lm", level = 0.95, alpha = .15, aes(group=Temp,colour = factor(Temp))) +
-  theme_classic() 
+# d. plot the high temp resp dat (with outlier ommitted - pCO2 effect!)
 
 
-pd <- position_dodge(0.1) # adjust the jitter for the different treatments   
-library(Rmisc)
-Resp_age1 %>% 
-  dplyr::mutate(full.treatment = (paste(Temp, pCO2, Salinity,sep=''))) %>%
-  dplyr::mutate(full.treatment = fct_relevel(full.treatment,
-                            "HHH", "HLH", "LHH",'LLH',
-                            "HHL", "HLL", "LHL", 'LLL')) %>%
-  summarySE(measurevar="resp_ng_L_indiv_hr", groupvars=c("full.treatment", "meanAragonite", "Temp")) %>% 
-  ggplot(aes(meanAragonite, resp_ng_L_indiv_hr , group =full.treatment, fill = factor(Temp))) +     
-    geom_point(shape = 21, size = 2, position = position_jitterdodge(jitter.width = 0.05))+
-    geom_errorbar(aes(ymin=resp_ng_L_indiv_hr-se, ymax=resp_ng_L_indiv_hr+se), colour="black", width=.1, position=pd) +
-    geom_line(position=pd) +
-    scale_fill_manual(values=c("#D55E00","#56B4E9", "#D55E00","#56B4E9", 
-                               "#D55E00","#56B4E9", "#D55E00","#56B4E9")) +
-    labs(title = "Respiration rates; C virginica day 1", 
-         y = expression(Respiration~rate~"("~ng~L^{-1}~O[2]%.%indiv^{-1}%.% hr^{-1}~")"), 
-         x = "Aragonite saturation") +
-    annotate("text", x=0.3, y=0.24, label = "Low Salinity") +
-    annotate("text", x=1.25, y=0.24, label = "High Salinity") +
-    annotate("text", x=1.58, y=0.14, label = "a") +
-    annotate("text", x=1.65, y=0.018, label = "b") +
-    annotate("rect", xmin = 0, xmax = 0.62, ymin = 0, ymax = 0.25, alpha = .05) +
-    # geom_smooth(method = "lm", level = 0.95, alpha = .15, aes(group=Temp,colour = factor(Temp))) +
-    theme_classic() 
+Age24hrs_Resp.Box <- ggplot(data=Resp_age1, aes(x=fct_relevel(pCO2, c("L", "H")), 
+                                        y=resp_ng_L_indiv_hr, 
+                                        colour=fct_relevel(Salinity, c("L", "H")), 
+                                        linetype = Temp)) +
+                                          geom_boxplot() + 
+                                          theme_classic() +  
+                                          geom_jitter(position = position_dodge2(width = 0.75))+
+                                          ylim(0,0.25) +
+                                          stat_summary(fun.y="mean",position = position_dodge2(width = 0.75)) +
+                                          theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+ 
+                                          theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+                                          labs(title="Age = 24 hours (all data)", 
+                                               x ="pCO2 level", 
+                                               y = expression(Respiration~rate~"("~ng~L^{-1}~O[2]%.%indiv^{-1}%.% hr^{-1}~")")) + 
+                                          theme(axis.title.y = element_text(size = rel(1.3), angle =90), 
+                                                axis.title.x = element_text(size = rel(1.3), angle = 0)) +
+                                          theme(axis.text=element_text(size=12)) 
+
+setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis")
+pdf("Output/Respiration/Respiration_age_24hrs.pdf", width=8, height=6)
+print(Age24hrs_Resp.Box)
+dev.off()
+
+
+Age24hrs_Res.MEANSE <- Resp_age1 %>% 
+                                    dplyr::group_by(pCO2,Salinity, Temp) %>% 
+                                    dplyr::summarise(mean_resp = mean(resp_ng_L_indiv_hr), 
+                                                     n         = n(),
+                                                     sd_resp   = sd(resp_ng_L_indiv_hr),
+                                                     se_resp   = sd_resp/(sqrt(n))) %>% 
+                                        ggplot(aes(x=fct_relevel(pCO2, c("L", "H")), 
+                                                                       y=mean_resp, 
+                                                                       colour=fct_relevel(Salinity, c("L", "H")), 
+                                                                       linetype = Temp)) +
+                                        geom_point(aes (fill = fct_relevel(Salinity, c("Low", "High")), shape = Temp), position = "dodge2") +
+                                        geom_errorbar(aes(ymin = mean_resp - se_resp, ymax = mean_resp + se_resp), width = 0.5, position= "dodge2") +
+                                        theme_classic() +  
+                                        ylim(0,0.25) +
+                                        theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+ 
+                                        theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+                                        labs(title="Age = 24 hours (all data)", 
+                                             x ="pCO2 level", 
+                                             y = expression(Respiration~rate~"("~ng~L^{-1}~O[2]%.%indiv^{-1}%.% hr^{-1}~")"))+ 
+                                        theme(axis.title.y = element_text(size = rel(1.3), 
+                                                                          angle =90), 
+                                                                          axis.title.x = element_text(size = rel(1.3), 
+                                                                          angle = 0)) +
+                                theme(axis.text=element_text(size=12)) 
+#print
+setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis")
+pdf("Output/Respiration/Respiration_age_24hrs_MeanSE.pdf", width=8, height=6)
+print(Age24hrs_Res.MEANSE)
+dev.off()
 
 
 
@@ -333,6 +328,18 @@ shapiro.test(residuals(LMmod.age1_hightemp)) # 0.7201  normal
 leveneTest(LMmod.age1_hightemp) # 0.5707 good
 
 
+# post hoc tests --------------------------------------------------------------------------------------------------- #
+
+posthoc<-emmeans(LMmod.age1_hightemp, pairwise~pCO2:Salinity, adjust="tukey")
+multcomp::cld(posthoc$emmeans,alpha = 0.5, Letters = letters)
+ # pCO2 Salinity emmean    SE df lower.CL upper.CL .group
+ # L    L         -5.51 0.406  8    -6.44    -4.57  a    
+ # L    H         -5.47 0.406  8    -6.41    -4.53  a    
+ # H    H         -4.05 0.406  8    -4.99    -3.12   b   
+ # H    L         -3.21 0.406  8    -4.15    -2.28   b   
+
+
+
 
 # c.2 ommit the high outlier resp value (> 0.14)
 Resp_age1_hightempOM   <- Resp_age1_hightemp %>% dplyr::filter(!resp_ng_L_indiv_hr > 0.14) # ommit the outlier at ~ 0.15
@@ -366,7 +373,7 @@ Age24hrs_Resp_hightemp.Box <- ggplot(data=Resp_age1_hightempOM, aes(x=fct_releve
                                           geom_boxplot() + 
                                           theme_classic() +  
                                           geom_jitter(width = 0.1)+
-                                          ylim(0,0.03) +
+                                          ylim(0,0.15) +
                                           stat_summary(fun.y="mean",position = position_dodge2(width = 0.75)) +
                                           theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+ 
                                           theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
@@ -451,7 +458,7 @@ Resp_age8 <- Resp.Master %>%
 
 # b.
 Resp_age8 <- merge(Resp_age8, aragonite_dat, by = 'TempCarbSal') # merge with the mean aragonite saturation state
-
+Resp_age8 %>% dplyr::group_by(TempCarbSal) %>% dplyr::summarise(n = n()) 
 
 ## Plot geeom boxlot with jitter
 Resp_Age8_Boxplot <- ggplot(data=Resp_age8, 
@@ -475,51 +482,88 @@ Resp_Age8_Boxplot
 
 
 # c.
-LMmod.age8   <- aov(lm(resp_ng_L_indiv_hr~Temp*pCO2*Salinity,data=Resp_age8))
+LMmod.age8   <- aov(lm(log(resp_ng_L_indiv_hr)~Temp*pCO2*Salinity,data=Resp_age8))
 print('LM model  == aov( lm ( resp_ng_L_indiv_hr ~ Temp * pCO2 * Salinity, data = Resp_APRIL ) )')
-summary(LMmod.age8)
-# check_model(LMmod.age8) # observe the diagnostics of the model
-shapiro.test(residuals(LMmod.age8)) # non normal
-leveneTest(LMmod.age8) # good
+pander(anova(LMmod.age8), style='rmarkdown') # anova table of lmer#              
+# |      &nbsp;       | Df | Sum Sq | Mean Sq | F value | Pr(>F)  |
+# |:-----------------:|:--:|:------:|:-------:|:-------:|:-------:|
+# |     **Temp**      | 1  | 3.162  |  3.162  |  4.161  | 0.07178 |
+# |     **pCO2**      | 1  | 0.0298 | 0.0298  | 0.03922 | 0.8474  |
+# |   **Salinity**    | 1  | 7.171  |  7.171  |  9.437  | 0.01331 |
+# |   **Temp:pCO2**   | 1  | 0.7171 | 0.7171  | 0.9437  | 0.3567  |
+# | **Temp:Salinity** | 1  | 0.3488 | 0.3488  |  0.459  | 0.5151  |
+# | **pCO2:Salinity** | 1  | 5.668  |  5.668  |  7.459  | 0.02318 |
+# |   **Residuals**   | 9  | 6.839  | 0.7599  |   NA    |   NA    |
+shapiro.test(residuals(LMmod.age8)) # 0.6974 normal
+leveneTest(LMmod.age8) # 0.6983 good
 
-# LME model here however we do only have one rep per chamber_tank in some cases, thus the lm (above is the same)
-# MEmod.APRIL    <- lmer(resp_ng_L_indiv_hr~Temp*pCO2*Salinity + (1|Chamber_tank),REML=F, data=Resp_APRIL)
-# summary(MEmod.APRIL)
-# check_model(MEmod.APRIL)
-# shapiro.test(residuals(MEmod.APRIL)) # non normal
-# leveneTest(MEmod.APRIL) # good
+# post hoc tests --------------------------------------------------------------------------------------------------- #
+
+posthoc<-emmeans(LMmod.age8, pairwise~pCO2:Salinity, adjust="tukey")
+multcomp::cld(posthoc$emmeans,alpha = 0.5, Letters = letters)
+ # pCO2 Salinity emmean    SE df lower.CL upper.CL .group
+ # H    H         -4.76 0.503  9    -5.90    -3.62  a    
+ # L    H         -3.14 0.398  9    -4.04    -2.24   b   
+ # H    L         -2.20 0.503  9    -3.34    -1.06    c  
+ # L    L        nonEst    NA NA       NA       NA     
 
 
-# d. 
-Resp_age8_select  <- Resp_age8 %>% dplyr::select(c('resp_ng_L_indiv_hr', 'Temp', 'pCO2', 'Salinity'))
-Resp_age8_melt    <- tidyr::gather(Resp_age8_select, variable, value, -resp_ng_L_indiv_hr)
 
-# MAIN EFFECT PLOT
-# ggplot(Resp_APRIL_melt, aes(value , resp_ng_L_indiv_hr , fill = factor(value ))) +
-#   theme(panel.grid=element_blank()) +
-#   scale_color_manual(values=c("#56B4E9","#D55E00")) +
-#   geom_point(shape = 21, size = 2, position = position_jitterdodge(jitter.width = 0.5))+
-#   geom_boxplot(size=0.2, alpha=0.1) +
-#   theme_bw() +
-#   facet_wrap(~variable, scales = "free_y")
+# d. plot the high temp resp dat (with outlier ommitted - pCO2 effect!)
 
-# INTERACTION PLOT
-Resp_age8 %>%
-  dplyr::mutate(full.treatment = (paste(Temp, pCO2, Salinity,sep=''))) %>%
-  dplyr::mutate(full.treatment = fct_relevel(full.treatment,
-                            "HHH", "HLH", "LHH",'LLH',
-                            "HHL", "LHL", 'LLL')) %>%
-  ggplot(aes(meanAragonite, resp_ng_L_indiv_hr , group =full.treatment, fill = factor(Temp))) +
-  geom_point(shape = 21, size = 2, position = position_jitterdodge(jitter.width = 0.05))+
-  #geom_boxplot(size=.2, alpha=0.1, width =0.2) +
-  scale_fill_manual(values=c("#D55E00","#56B4E9", "#D55E00","#56B4E9", 
-                             "#D55E00","#56B4E9", "#D55E00","#56B4E9")) +
-  labs(title = "Respiration rates; C virginica day 8", 
-       y = expression(Respiration~rate~"("~ng~L^{-1}~O[2]%.%indiv^{-1}%.% hr^{-1}~")"), 
-       x = "Aragonite saturation") +
-  annotate("text", x=0.3, y=0.55, label = "Low Salinity") +
-  annotate("rect", xmin = 0, xmax = 0.62, ymin = 0, ymax = 0.6, alpha = .1) +
-  geom_smooth(method = "lm", level = 0.95, alpha = .15, aes(group=Temp,colour = factor(Temp))) +
-  theme_classic() 
+
+Age8days_Resp.Box <- ggplot(data=Resp_age8, aes(x=fct_relevel(pCO2, c("L", "H")), 
+                                        y=resp_ng_L_indiv_hr, 
+                                        colour=fct_relevel(Salinity, c("L", "H")), 
+                                        linetype = Temp)) +
+                                          geom_boxplot() + 
+                                          theme_classic() +  
+                                          geom_jitter(position = position_dodge2(width = 0.75))+
+                                          ylim(0,0.45) +
+                                          stat_summary(fun.y="mean",position = position_dodge2(width = 0.75)) +
+                                          theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+ 
+                                          theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+                                          labs(title="Age = 8 days (all data)", 
+                                               x ="pCO2 level", 
+                                               y = expression(Respiration~rate~"("~ng~L^{-1}~O[2]%.%indiv^{-1}%.% hr^{-1}~")")) + 
+                                          theme(axis.title.y = element_text(size = rel(1.3), angle =90), 
+                                                axis.title.x = element_text(size = rel(1.3), angle = 0)) +
+                                          theme(axis.text=element_text(size=12)) 
+
+setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis")
+pdf("Output/Respiration/Respiration_age_8days.pdf", width=8, height=6)
+print(Age8days_Resp.Box)
+dev.off()
+
+
+Age8days_Res.MEANSE <- Resp_age8 %>% 
+                                    dplyr::group_by(pCO2,Salinity, Temp) %>% 
+                                    dplyr::summarise(mean_resp = mean(resp_ng_L_indiv_hr), 
+                                                     n         = n(),
+                                                     sd_resp   = sd(resp_ng_L_indiv_hr),
+                                                     se_resp   = sd_resp/(sqrt(n))) %>% 
+                                        ggplot(aes(x=fct_relevel(pCO2, c("L", "H")), 
+                                                                       y=mean_resp, 
+                                                                       colour=fct_relevel(Salinity, c("L", "H")), 
+                                                                       linetype = Temp)) +
+                                        geom_point(aes (fill = fct_relevel(Salinity, c("Low", "High")), shape = Temp), position = "dodge2") +
+                                        geom_errorbar(aes(ymin = mean_resp - se_resp, ymax = mean_resp + se_resp), width = 0.5, position= "dodge2") +
+                                        theme_classic() +  
+                                        ylim(0,0.45) +
+                                        theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+ 
+                                        theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+                                        labs(title="Age = 24 hours (all data)", 
+                                             x ="pCO2 level", 
+                                             y = expression(Respiration~rate~"("~ng~L^{-1}~O[2]%.%indiv^{-1}%.% hr^{-1}~")"))+ 
+                                        theme(axis.title.y = element_text(size = rel(1.3), 
+                                                                          angle =90), 
+                                                                          axis.title.x = element_text(size = rel(1.3), 
+                                                                          angle = 0)) +
+                                theme(axis.text=element_text(size=12)) 
+#print
+setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis")
+pdf("Output/Respiration/Respiration_age_8days_MeanSE.pdf", width=8, height=6)
+print(Age8days_Res.MEANSE)
+dev.off()
 
 ```
