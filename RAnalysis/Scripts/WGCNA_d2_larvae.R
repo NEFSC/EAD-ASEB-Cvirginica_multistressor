@@ -1283,6 +1283,7 @@ for(i in 1:nrow(modcolor)) {
   
   
   # Assemble these together =========================================================================================== #
+  #library(ggpubr)
   single.factor.plot <-  ggarrange(Temperature.rlog.Mod, Salinity.rlog.Mod,  pCO2.rlog.Mod,      
                                     plotlist = NULL,
                                     ncol = 3,
@@ -1299,10 +1300,10 @@ for(i in 1:nrow(modcolor)) {
     dplyr::mutate(Salinity    = forcats::fct_relevel(Salinity, 'Low', 'High')) %>%
     dplyr::mutate(pCO2        = forcats::fct_relevel(pCO2, 'Low', 'High')) %>%
     dplyr::mutate(Temperature = forcats::fct_relevel(Temperature, 'Low', 'High')) %>%
-        ggplot(aes(x=pCO2, y=mean, fill=Salinity, group=Salinity)) + # group aesthetic connect line (Slaintiy) and color - the x axis in this case is pCO2 
+        ggplot(aes(x=pCO2, y=mean, group=Temperature)) + # group aesthetic connect line (Slaintiy) and color - the x axis in this case is pCO2 
         theme_classic() +
         geom_errorbar(aes(ymin=mean-se, ymax=mean+se), colour="black", width=.1, position=pd) +
-        geom_line(position=pd) +
+        geom_line(aes(linetype=Temperature), position=pd) +
         geom_point(position=pd, size = 4, shape=21) +            
         xlab("pCO2") +
         ylab("rlog gene expression") +                 # note the mean was first by sample ID THEN by treatment
@@ -1310,7 +1311,7 @@ for(i in 1:nrow(modcolor)) {
         scale_fill_manual(values=c("#56B4E9", "#E69F00")) +
         scale_y_continuous(limits=c((min_p4), (max_p4))) +
         theme(text = element_text(size=15)) + 
-        facet_wrap(~Temperature) # facetted by temperature
+        facet_wrap(~Salinity) # facetted by temperature
   
   # output   ======================================================================================================== #
   pdf(paste("Output/WGCNA/day2_larvae/ModuleExpression_Treatment/day2_Exp_Module_",modcolor[i,],".pdf", sep = ''), width=9, height=8)
