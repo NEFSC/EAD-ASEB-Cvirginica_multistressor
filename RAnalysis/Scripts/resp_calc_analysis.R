@@ -15,6 +15,7 @@ library(patchwork)
 library(forcats)
 library(lawstat)
 library(car)
+library(bestNormalize)
 
 # SET WORKING DIRECTORY :::::::::::::::::::::::::::::::::::::::::::::::
 
@@ -99,6 +100,19 @@ mean(Resp.Master$resp_ng_L_indiv_hr) # mean = 0.4994656
 sd(Resp.Master$resp_ng_L_indiv_hr) # sd= 0.8197345
 
 
+
+
+
+# write master Resp file ::::::::::::::::::::::::::::::::::;
+write.csv(Resp.Master, 
+          "Output/Respiration/RespirationMaster.csv")# write
+
+
+
+
+
+
+
 # ANALYSIS :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
 # model effect of treatment on resp rate 20210507
@@ -106,20 +120,45 @@ Resp_APRIL <- Resp.Master %>%
   dplyr::filter(Date %in% '4/30/2021') %>% 
   dplyr::filter(!resp_ng_L_indiv_hr >1)
 
+
 # Stats
+# Factorial ANOVA: has two or more categorical independent variables 
+# (either with or without the interactions) and a single normally distributed interval dependent variable
 LMmod.APRIL   <- aov(lm(resp_ng_L_indiv_hr~Temp*pCO2*Salinity,data=Resp_APRIL))
 summary(LMmod.APRIL)
 check_model(LMmod.APRIL) # observe the diagnostics of the model
 shapiro.test(residuals(LMmod.APRIL)) # non normal
+MASS::truehist(Resp_APRIL$resp_ng_L_indiv_hr, nbins = 12) # left skew
 leveneTest(LMmod.APRIL) # good
 
+# transformation, check for normality of historgram 
+library('bestNormalize')
+(boxcox_April      <- boxcox(Resp_APRIL$resp_ng_L_indiv_hr))
+(archsign_April    <- arcsinh_x(Resp_APRIL$resp_ng_L_indiv_hr))
+(yeojohnson_April  <- yeojohnson(Resp_APRIL$resp_ng_L_indiv_hr))
+(orderNorm_April   <- orderNorm(Resp_APRIL$resp_ng_L_indiv_hr))
+par(mfrow = c(2,2))
+MASS::truehist(boxcox_April$x.t, main = "YBoxcox transformation", nbins = 12) #looks good
+MASS::truehist(archsign_April$x.t, main = "Archsign transformation", nbins = 12)
+MASS::truehist(yeojohnson_April$x.t, main = "Yeo-Johnson transformation", nbins = 12)
+MASS::truehist(orderNorm_April$x.t, main = "orderNorm transformation", nbins = 12)
 
-MEmod.APRIL    <- lmer(resp_ng_L_indiv_hr~Temp*pCO2*Salinity + (1|Chamber_tank),REML=TRUE, data=Resp_APRIL)
+Resp_APRIL$resp_ng_L_indiv_hr_T <- boxcox_April$x.t
+LMmod.APRILboxcox   <- aov(lm(resp_ng_L_indiv_hr_T~Temp*pCO2*Salinity,data=Resp_APRIL))
+summary(LMmod.APRILboxcox)
+check_model(LMmod.APRILboxcox) # observe the diagnostics of the model
+shapiro.test(residuals(LMmod.APRILboxcox)) # 0.09613 normal
+leveneTest(LMmod.APRILboxcox) # 0.7158 good
+
+
+
+
+MEmod.APRIL    <- lmer(resp_ng_L_indiv_hr_T~Temp*pCO2*Salinity + (1|Chamber_tank),REML=TRUE, data=Resp_APRIL)
 summary(MEmod.APRIL)
 check_model(MEmod.APRIL)
 leveneTest(MEmod.APRIL) # good
 
-# POst-hoc tests and exploration of sig effects
+# Post-hoc tests and exploration of sig effects
 TukeyHSD(AOV_APRIL)
 
 # Figures
@@ -157,23 +196,46 @@ Plot
 
 
 
+
+
+
+
+
 # model effect of treatment on resp rate 20210507
 Resp_MAY <- Resp.Master %>% 
   dplyr::filter(Date %in% '5/7/2021') %>% 
   dplyr::filter(!resp_ng_L_indiv_hr >1)
 
+
 # Stats
+# Factorial ANOVA: has two or more categorical independent variables 
+# (either with or without the interactions) and a single normally distributed interval dependent variable
 LMmod.MAY   <- aov(lm(resp_ng_L_indiv_hr~Temp*pCO2*Salinity,data=Resp_MAY))
 summary(LMmod.MAY)
 check_model(LMmod.MAY)
+shapiro.test(residuals(LMmod.MAY)) # 0.0008179
+leveneTest(LMmod.MAY) # 0.2802 good
 
-plot(LMmod.MAY)
-MEmod.MAY    <- lmer(resp_ng_L_indiv_hr~Temp*pCO2*Salinity + (1|Chamber_tank),REML=TRUE, data=Resp_MAY)
-summary(MEmod.MAY)
-check_model(MEmod.MAY)
+# transformation, check for normality of historgram using 'bestNormalize
+(boxcox_May      <- boxcox(Resp_MAY$resp_ng_L_indiv_hr))
+(archsign_May    <- arcsinh_x(Resp_MAY$resp_ng_L_indiv_hr))
+(yeojohnson_May  <- yeojohnson(Resp_MAY$resp_ng_L_indiv_hr))
+(orderNorm_May   <- orderNorm(Resp_MAY$resp_ng_L_indiv_hr))
+par(mfrow = c(2,2))
+MASS::truehist(boxcox_May$x.t, main = "YBoxcox transformation", nbins = 12) #looks good
+MASS::truehist(archsign_May$x.t, main = "Archsign transformation", nbins = 12)
+MASS::truehist(yeojohnson_May$x.t, main = "Yeo-Johnson transformation", nbins = 12)
+MASS::truehist(orderNorm_May$x.t, main = "orderNorm transformation", nbins = 12)
 
-# POst-hoc tests and exploration of sig effects
-TukeyHSD(AOV_MAY)
+Resp_MAY$resp_ng_L_indiv_hr_T <- boxcox_May$x.t
+LMmod.Mayboxcox   <- aov(lm(resp_ng_L_indiv_hr_T~Temp*pCO2*Salinity,data=Resp_MAY))
+summary(LMmod.Mayboxcox)
+check_model(LMmod.Mayboxcox) # observe the diagnostics of the model
+shapiro.test(residuals(LMmod.Mayboxcox)) # 0.5787 normal
+leveneTest(LMmod.Mayboxcox) # 0.7022 good
+plot(LMmod.Mayboxcox)
+
+
 
 # Figures
 Resp_MAY_select  <- Resp_MAY %>% dplyr::select(c('resp_ng_L_indiv_hr', 'Temp', 'pCO2', 'Salinity'))

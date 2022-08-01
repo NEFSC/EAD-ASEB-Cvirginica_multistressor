@@ -7,6 +7,9 @@ output:
   html_document: default
 ---
 
+
+
+
 # load libraries
 
 ```{r, include=FALSE}
@@ -29,6 +32,7 @@ library(survival)
 library(adjustedCurves)
 library(riskRegression)
 library(pammtools)
+library(bestNormalize)
 ```
 
 
@@ -190,6 +194,61 @@ setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAn
 pdf("Output/Length_Survival/Length_all_MeanSE.pdf", width=11, height=6)
 print(Length_all_MeanSE_plot)
 dev.off()
+
+
+# length data for scallops days 1 and 4 
+Length_Day1.4_MeanSE_plot <- Length_means %>% 
+                                dplyr::filter(Age %in% c(1, 4)) %>% 
+                                ggplot(aes(x = Age,
+                                           y=mean_length, 
+                                           colour=fct_relevel(Salinity, c("Low", "High")), 
+                                           linetype = Temp)) +
+                                geom_point(aes(fill = fct_relevel(Salinity, c("Low", "High")), 
+                                           shape = fct_relevel(OA, c("Low", "High"))),
+                                           position = "dodge2") +
+                                geom_line(aes(x = Age,
+                                           y=mean_length, 
+                                           colour=fct_relevel(Salinity, c("Low", "High")), 
+                                           linetype = Temp)) +
+                                geom_errorbar(aes(ymin = mean_length - se_length, 
+                                                  ymax = mean_length + se_length), 
+                                              width = 0.5, position= "dodge2") +
+                                theme_classic() +  
+                                facet_wrap(~(fct_relevel(OA, c("Low", "High"))))
+setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis")
+pdf("Output/Length_Survival/Length_Day1.4_MeanSE.pdf", width=11, height=6)
+print(Length_Day1.4_MeanSE_plot)
+dev.off()
+
+
+
+# length data for scallops days after day 4
+Length_Days8.11.15_MeanSE_plot <- Length_means %>% 
+                                dplyr::filter(Age > 4) %>% 
+                                ggplot(aes(x = Age,
+                                           y=mean_length, 
+                                           colour=fct_relevel(Salinity, c("Low", "High")), 
+                                           linetype = Temp)) +
+                                geom_point(aes(fill = fct_relevel(Salinity, c("Low", "High")), 
+                                           shape = fct_relevel(OA, c("Low", "High"))),
+                                           position = "dodge2") +
+                                geom_line(aes(x = Age,
+                                           y=mean_length, 
+                                           colour=fct_relevel(Salinity, c("Low", "High")), 
+                                           linetype = Temp)) +
+                                geom_errorbar(aes(ymin = mean_length - se_length, 
+                                                  ymax = mean_length + se_length), 
+                                              width = 0.5, position= "dodge2") +
+                                theme_classic() +  
+                                facet_wrap(~(fct_relevel(OA, c("Low", "High"))))
+setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis")
+pdf("Output/Length_Survival/Length_Days8.11.15_MeanSE.pdf", width=11, height=6)
+print(Length_Days8.11.15_MeanSE_plot)
+dev.off()
+
+
+
+
 
 # statistical approach test
 Length_lme_mod<- lmer(length_um~OA*Temp*Salinity + (1+Age|random_fact),data=Master_Lengths)
@@ -383,8 +442,14 @@ pander(anova(Age1Length_lme_mod), style='rmarkdown') # anova table of lmer
 leveneTest(residuals(Age1Length_lme_mod) ~ Age1_raw_length$Temp*Age1_raw_length$OA*Age1_raw_length$Salinity) # 0.2716 PASS
 boxplot(residuals(Age1Length_lme_mod) ~ Age1_raw_length$Temp*Age1_raw_length$OA*Age1_raw_length$Salinity) # visual of residuals grouped
 qqnorm(resid(Age1Length_lme_mod)) # check for normality of residuals       
-
-
+# post hoc tests --------------------------------------------------------------------------------------------------- #
+posthoc<-emmeans(Age1Length_lme_mod, pairwise~OA:Salinity, adjust="tukey")
+multcomp::cld(posthoc$emmeans,alpha = 0.5, Letters = letters)
+ # OA   Salinity emmean    SE df lower.CL upper.CL .group
+ # High Low        67.7 0.371 16     66.9     68.5  a    
+ # Low  Low        72.5 0.371 16     71.7     73.3   b   
+ # High High       72.7 0.371 16     71.9     73.5   b   
+ # Low  High       75.6 0.371 16     74.9     76.4    c 
 
 # run model (lm mod)
 Age1Length_lm_mod <- lm(length_um~OA*Temp*Salinity,data=Age1_raw_length)

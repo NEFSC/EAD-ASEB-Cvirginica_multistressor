@@ -1089,7 +1089,16 @@ d2.Treatment.data <- read.csv(file="Data/TagSeq/day2.exp.data_hightemp.csv", sep
                                       (substr(Aragonite_saturation,1,1)), sep = '')) %>% 
   dplyr::mutate(pCO2_Salinity = substr(All_treatment, 2,3)) # experiment treatment data
 
+
+# cut the samples we do not need from dds.d2 for rlog transofrmation
+dim(d2.Treatment.data) # REMEBER! sample tree cut some of these samples out (2 here!) so we need to do the same beofre plotting 
+length(rownames(dds.d2_vst)) # 11 total samples
+
+
 dds.d2_rlogtrans <- as.data.frame(rlogTransformation(assay(dds.d2))) # rlog transoform the expression data matrix (dds object)
+dim(dds.d2_rlogtrans) # 4820   24 - note there are 12 samples here, not ommitted from when run WGCNA (want 11!)
+dds.d2_rlogtrans <- dds.d2_rlogtrans[,rownames(dds.d2_vst)]
+dim(dds.d2_rlogtrans) # 4858      11 - we now have the correct number of samples!
 dds.d2_rlogtrans <- tibble::rownames_to_column(dds.d2_rlogtrans,"TranscriptID") # rownames as first column
 
 

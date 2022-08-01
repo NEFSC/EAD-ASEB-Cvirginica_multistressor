@@ -1138,9 +1138,19 @@ d2.Treatment.data <- read.csv(file="Data/TagSeq/day2.exp.data.csv", sep=',', hea
                                        (substr(Salinity,1,1)), sep = '')) %>% 
   dplyr::mutate(pCO2_Salinity = substr(All_treatment, 2,3)) # experiment treatment data
 
+# cut the samples we do not need from dds.d2 for rlog transofrmation
+dim(d2.Treatment.data) # REMEBER! sample tree cut some of these samples out (2 here!) so we need to do the same beofre plotting 
+length(rownames(dds.d2_vst)) # 22 total samples
+
+
 dds.d2_rlogtrans <- as.data.frame(rlogTransformation(assay(dds.d2))) # rlog transoform the expression data matrix (dds object)
+dim(dds.d2_rlogtrans) # 4820   24 - note there are 24 samples here, not ommitted from when run WGCNA
+dds.d2_rlogtrans <- dds.d2_rlogtrans[,rownames(dds.d2_vst)]
+dim(dds.d2_rlogtrans) # 4820   22 - we now have the correct number of samples!
 dds.d2_rlogtrans <- tibble::rownames_to_column(dds.d2_rlogtrans,"TranscriptID") # rownames as first column
 
+# write out this rlog tranformed master data (used for plotting below1) 
+write.csv(dds.d2_rlogtrans, file = "Output/WGCNA/day2_larvae/d2_rlog_transformed.csv")
 
 # call the module colors 
 modcolor <- as.data.frame(unique(day2_ModuleMembership$moduleColor))
@@ -1323,4 +1333,4 @@ for(i in 1:nrow(modcolor)) {
   dev.off()
   
 }
-
+ 

@@ -1024,9 +1024,19 @@ d18.Treatment.data <- read.csv(file="Data/TagSeq/day18.exp.data.csv", sep=',', h
                                       (substr(Aragonite_saturation,1,1)), sep = '')) %>% 
   dplyr::mutate(pCO2_Salinity = substr(All_treatment, 2,3)) # experiment treatment data
 
+# cut the samples we do not need from dds.d2 for rlog transofrmation
+dim(d18.Treatment.data) # REMEBER! sample tree cut some of these samples out (2 here!) so we need to do the same beofre plotting 
+length(rownames(dds.d18_vst)) # 10 total samples (need to cut one) 
+
+
 dds.d18_rlogtrans <- as.data.frame(rlogTransformation(assay(dds.d18))) # rlog transoform the expression data matrix (dds object)
+dim(dds.d18_rlogtrans) # 4936   11 - note there are 11 samples here, not ommitted from when run WGCNA (want 10!)
+dds.d18_rlogtrans <- dds.d18_rlogtrans[,rownames(dds.d18_vst)]
+dim(dds.d18_rlogtrans) # now we have 10!!!
 dds.d18_rlogtrans <- tibble::rownames_to_column(dds.d18_rlogtrans,"TranscriptID") # rownames as first column
 
+# write out this rlog tranformed master data (used for plotting below1) 
+write.csv(dds.d18_rlogtrans, file = "Output/WGCNA/day18_spat/d18_rlog_transformed.csv")
 
 # call the module colors 
 modcolor <- as.data.frame(unique(day18_ModuleMembership$moduleColor))
