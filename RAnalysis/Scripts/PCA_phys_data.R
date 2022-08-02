@@ -68,18 +68,25 @@ d2.Seq_SampleKey  <- read.csv(file="Data/TagSeq/Seq_details/Sample_Key.csv", sep
                         dplyr::rename('Chamber_tank' = 'ID') %>%   
                         dplyr::select(-c('SampleName', 'Treatment', 'Replicate')) %>% 
                         dplyr::filter(Age.days %in% 2)
-ModMem_D1       <- read.csv(file="Output/WGCNA/day2_larvae/d2.WGCNA_ModulMembership.csv", header=T) %>%  na.omit()
+d2.Aragsat        <- read.csv(file="Data/TagSeq/day2.exp.data.csv", sep=',', header=TRUE) %>% 
+                          dplyr::select(c(2,7)) %>% 
+                          dplyr::rename('SampleID' = 'SapleName_readmatrix') %>%
+                          dplyr::mutate(Aragonite_saturation = case_when(Aragonite_saturation < 0.5 ~ 'Low', 
+                                                                         (Aragonite_saturation > 0.5 & Aragonite_saturation < 1.0) ~ 'Mid', 
+                                                                         Aragonite_saturation > 1.0 ~ 'High'))
+d2.Seq_SampleKey  <- merge(d2.Seq_SampleKey,d2.Aragsat, by = 'SampleID')
+ModMem_D1         <- read.csv(file="Output/WGCNA/day2_larvae/d2.WGCNA_ModulMembership.csv", header=T) %>%  na.omit()
 
 
 # data frames and loop sets for the for statement below;
-D1_modCols        <- as.data.frame(unique(ModMem_D1$moduleColor))
+D1_modCols        <- as.data.frame(unique(ModMem_D1$moduleColor)) %>% dplyr::filter(.[[1]] %in% c('black', 'blue', 'brown', 'pink', 'red', 'turquoise')) # yellow and green were NOT significant
 meanExp_total     <- data.frame()
 meanExp_statsloop <- data.frame(matrix(nrow = 1, ncol = 5)) # create dataframe to save cumunalitively during for loop
 colnames(meanExp_statsloop) <- c('Day', 'modColor', 'Gene.count', 'Gene.count.MM<0.5', 'Percent_MM<0.05') # names for comuns in the for loop
 meanExp_stats     <- data.frame()
 
 for (i in 1:nrow(D1_modCols)) {
-   loopModCol     <- x[i,]
+   loopModCol     <- D1_modCols[i,]
    loopModCol_cor <- paste("MM.", loopModCol, sep = '')
    loopModCol_p   <- paste("p.MM.", loopModCol, sep = '')
    
@@ -117,16 +124,30 @@ meanExp_total_wide <- reshape2::dcast(meanExp_total, SampleID ~ modcolor, value.
 meanExp_Master     <- merge(d2.Seq_SampleKey, meanExp_total_wide) %>% select(-c(Temperature, OA, Salinity, Age.days))
 
 
-meanExp_stats # percent contribution of Module member threhsold cutoff to the total modul emembersip 
+meanExp_stats # percent contribution of Module member threshold cutoff to the total module membership 
+colMeans(meanExp_stats[c(4:5)])
+meanExp_stats %>% summarise(sd_Gene_count = sd(meanExp_stats$Gene.count.MM.0.5),
+                            sd_Perc = sd(meanExp_stats$Percent_MM.0.05))
+# > 0.8 Pearson's cor and > 0.05 P value 
+# Gene.count.MM.0.5   Percent_MM.0.05 
+# 70.50000          12.01422
 
+# > 0.6 Pearson's cor and > 0.05 P value 
+# Gene.count.MM.0.5   Percent_MM.0.05 
+# 240.00000          42.05936 + - 5.293175
+
+# > 0.4 Pearson's cor and > 0.05 P value 
+# Gene.count.MM.0.5   Percent_MM.0.05 
+# 417.00000          73.28806
 
 # master phys (merge resp and shell length + survival data )
-Master_Days1.8_phys  <- merge(resp_master_RepMean,length_survival_D1.8) %>%  dplyr::mutate(AllTreat = paste(Temp, pCO2, Salinity, sep = ''))
+Master_Days1.8_phys  <- merge(resp_master_RepMean,length_survival_D1.8) %>%  
+                            dplyr::mutate(AllTreat = paste(Temp, pCO2, Salinity, sep = ''))
 Master_Day1          <- Master_Days1.8_phys %>%  dplyr::filter(Day %in% 1)
 Master_Day8          <- Master_Days1.8_phys %>%  dplyr::filter(Day %in% 8)
 
 
-Master_Days1.8_phys_cors <- Master_Days1.8_phys %>% 
+Master_Days1.8_phys_cors <- Master_Days1.8_phys %>% # Master_Days1.8_phys_cors = corrected for the treatment day - to run PCA regardless of time point!
                       dplyr::mutate(Length_Cor = ifelse( (Day == 1) | (Day == 8), 
                                                          Average.Length/mean(Master_Day1$Average.Length), 
                                                          Average.Length/mean(Master_Day8$Average.Length))) %>% 
@@ -136,15 +157,14 @@ Master_Days1.8_phys_cors <- Master_Days1.8_phys %>%
                       dplyr::mutate(Resp_Cor = ifelse( (Day == 1) | (Day == 8), 
                                                        mean_resp/mean(Master_Day1$mean_resp), 
                                                        mean_resp/mean(Master_Day8$mean_resp))) 
-nrow(Master_Days1.8_phys) # n = 42 - from the limiting factor of the resp data 
 
 
 # Run a PCA for Day 1 
 Master_Day1$Day <- as.factor(Master_Day1$Day) # convert Day into a factor
-Day1PCA         <- (merge(Master_Day1, meanExp_Master) %>% dplyr::select(-c(green,yellow)))[-9,]
+Day1PCA         <- (merge(Master_Day1, meanExp_Master))[-9,]
 
 # PCA Day 1 
-phys_pca1   <- prcomp(Day1PCA[,c(3,7,8,11:16)], # all numeric (phys + all modules) - PCA 1 = 0.4133 , PCA 2 0.1786  (cumulative 0.5919)
+phys_pca1   <- prcomp(Day1PCA[,c(3,7,8,13:18)], # all numeric (phys + all modules) - PCA 1 = 0.4133 , PCA 2 0.1786  (cumulative 0.5919)
                       center = TRUE,
                       scale. = TRUE)
 phys_pca1   <- prcomp(Day1PCA[,c(3,7,8)],   # phys only  - PCA 1 = 0.5805  PCA 2 0.2946   (cumulative 0.8751 )
@@ -153,24 +173,36 @@ phys_pca1   <- prcomp(Day1PCA[,c(3,7,8)],   # phys only  - PCA 1 = 0.5805  PCA 2
 phys_pca1   <- prcomp(Day1PCA[,c(11:16)],   # modules only   (cumulative 0.6990 )
                       center = TRUE,
                       scale. = TRUE)
-
-
 phys_pca1   <- prcomp(Day1PCA[,c(3,7,8,12,13,17)],   # main effect modules only (brown blur, turquoise)   (cumulative 96.28)
                       center = TRUE,
                       scale. = TRUE)
 
 
 print(phys_pca1)
+
 summary(phys_pca1)
 
+
+# > 0.8 Pearson's cor and > 0.05 P value 
+# Cumulative Proportion PC1+PC2 == 0.6097 (0.6392 without row 9 outlier) < 1% to 0.6 cor coeff
+
+# > 0.6 Pearson's cor and > 0.05 P value 
+# Cumulative Proportion PC1+PC2 == 0.6032 (0.6373 without row 9 outlier) > 1% to 0.4 cor coeff; < 1% to 0.8 cor coeff
+
+# > 0.4 Pearson's cor and > 0.05 P value 
+# Cumulative Proportion PC1+PC2 == 0.5919 (0.6268 without row 9 outlier) > 1% to 0.6 cor coeff
+
+# summary: the histogram of cor coeffs for DEGs overlapped with WGCNA module indicates 0.6 as a good cut off
+# we confirm here that 0.6 cor coeff and < 0.05 p value can increase explanatory variance relative to 0.4 cor coeff
+# however more conservative threshold (0.8) does not make a difference, albeit these (cor coeff cutoffs) change the number of genes contr'ing to the mean by >2 fold!
 p1pCO2 <- ggbiplot(phys_pca1,
                   obs.scale = 1,
                   var.scale = 1,
                   groups = as.factor(Day1PCA$pCO2),
                   ellipse = TRUE,
                   circle = TRUE,
-                  ellipse.prob = 0.5) +
-  scale_color_discrete(name = '') +  theme_classic() +   ggtitle("day1, pcO2") +
+                  ellipse.prob = 0.67) +
+  scale_color_discrete(name = '') +  theme_classic() +   ggtitle("day1, pCO2") +
   theme(legend.direction = 'horizontal',
         legend.position = 'top')
 
@@ -180,7 +212,7 @@ p1Sal <- ggbiplot(phys_pca1,
                   groups = Day1PCA$Salinity,
                   ellipse = TRUE,
                   circle = TRUE,
-                  ellipse.prob = 0.5) +
+                  ellipse.prob = 0.67) +
   scale_color_discrete(name = '') +  theme_classic() +  ggtitle("day1, salinity") +
   theme(legend.direction = 'horizontal',
         legend.position = 'top')
@@ -191,8 +223,19 @@ p1Temp <- ggbiplot(phys_pca1,
                    groups = Day1PCA$Temp,
                    ellipse = TRUE,
                    circle = TRUE,
-                   ellipse.prob = 0.5) +
+                   ellipse.prob = 0.67) +
   scale_color_discrete(name = '') +  theme_classic() +  ggtitle("day1, temp") +
+  theme(legend.direction = 'horizontal',
+        legend.position = 'top')
+
+p1Arag <- ggbiplot(phys_pca1,
+                   obs.scale = 1,
+                   var.scale = 1,
+                   groups = Day1PCA$Aragonite_saturation.y,
+                   ellipse = TRUE,
+                   circle = TRUE,
+                   ellipse.prob = 0.67) +
+  scale_color_discrete(name = '') +  theme_classic() +  ggtitle("day1, aragonite saturation") +
   theme(legend.direction = 'horizontal',
         legend.position = 'top')
 
