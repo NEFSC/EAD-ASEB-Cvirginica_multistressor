@@ -1,6 +1,6 @@
 
 # LOAD PACKAGES :::::::::::::::::::::::::::::::::::::::::::::::::::::::
-library('rlang')
+library(rlang)
 library(dplyr)
 library(ggplot2)
 library(ggfortify)
@@ -140,12 +140,16 @@ meanExp_stats %>% summarise(sd_Gene_count = sd(meanExp_stats$Gene.count.MM.0.5),
 # Gene.count.MM.0.5   Percent_MM.0.05 
 # 417.00000          73.28806
 
+
+
+
+
+
 # master phys (merge resp and shell length + survival data )
 Master_Days1.8_phys  <- merge(resp_master_RepMean,length_survival_D1.8) %>%  
                             dplyr::mutate(AllTreat = paste(Temp, pCO2, Salinity, sep = ''))
 Master_Day1          <- Master_Days1.8_phys %>%  dplyr::filter(Day %in% 1)
 Master_Day8          <- Master_Days1.8_phys %>%  dplyr::filter(Day %in% 8)
-
 
 Master_Days1.8_phys_cors <- Master_Days1.8_phys %>% # Master_Days1.8_phys_cors = corrected for the treatment day - to run PCA regardless of time point!
                       dplyr::mutate(Length_Cor = ifelse( (Day == 1) | (Day == 8), 
@@ -164,7 +168,7 @@ Master_Day1$Day <- as.factor(Master_Day1$Day) # convert Day into a factor
 Day1PCA         <- (merge(Master_Day1, meanExp_Master))[-9,]
 
 # PCA Day 1 
-phys_pca1   <- prcomp(Day1PCA[,c(3,7,8,13:18)], # all numeric (phys + all modules) - PCA 1 = 0.4133 , PCA 2 0.1786  (cumulative 0.5919)
+phys_pca1   <- prcomp(Day1PCA[,c(3,7,8,12:17)], # all numeric (phys + all modules) - PCA 1 = 0.4133 , PCA 2 0.1786  (cumulative 0.5919)
                       center = TRUE,
                       scale. = TRUE)
 phys_pca1   <- prcomp(Day1PCA[,c(3,7,8)],   # phys only  - PCA 1 = 0.5805  PCA 2 0.2946   (cumulative 0.8751 )
@@ -177,11 +181,9 @@ phys_pca1   <- prcomp(Day1PCA[,c(3,7,8,12,13,17)],   # main effect modules only 
                       center = TRUE,
                       scale. = TRUE)
 
-
 print(phys_pca1)
 
 summary(phys_pca1)
-
 
 # > 0.8 Pearson's cor and > 0.05 P value 
 # Cumulative Proportion PC1+PC2 == 0.6097 (0.6392 without row 9 outlier) < 1% to 0.6 cor coeff
@@ -234,7 +236,7 @@ p1Arag <- ggbiplot(phys_pca1,
                    groups = Day1PCA$Aragonite_saturation.y,
                    ellipse = TRUE,
                    circle = TRUE,
-                   ellipse.prob = 0.67) +
+                   ellipse.prob = 0.5) +
   scale_color_discrete(name = '') +  theme_classic() +  ggtitle("day1, aragonite saturation") +
   theme(legend.direction = 'horizontal',
         legend.position = 'top')

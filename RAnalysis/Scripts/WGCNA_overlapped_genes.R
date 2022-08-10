@@ -27,7 +27,7 @@ Cvirginica_annot_reference  <- read.csv(file="Data/TagSeq/Seq_details/seq_id_mas
 
 # WGCNA results -fromat and merge with the GO terms
 
-# Day 2 - all including low nad high temperature :::::::::::::::::::::::::::::::::::::::::::::::; #
+# Day 2 - all including low and high temperature :::::::::::::::::::::::::::::::::::::::::::::::; #
 
 d2_Annot_ModuleMembership      <- read.csv("Output/WGCNA/day2_larvae/d2.WGCNA_ModulMembership.csv") %>% 
                                     dplyr::select(c('TranscriptID','geneSymbol','Protein_name','moduleColor')) %>%  
