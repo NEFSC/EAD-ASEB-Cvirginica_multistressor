@@ -1,0 +1,4 @@
+"","TranscriptID","slim_term","over_represented_pvalue","GO_terms","term","ontology","moduleColor","GeneID","Protein_name"
+"1","XM_022459435.1","structural molecule activity",0.0494317314825531,"GO:0003735","structural constituent of ribosome","MF","pink","LOC111119359"," 40S ribosomal protein S24-like"
+"2","XM_022469477.1","structural molecule activity",0.0494317314825531,"GO:0003735","structural constituent of ribosome","MF","pink","LOC111125548"," 40S ribosomal protein S5"
+"3","XM_022480126.1","structural molecule activity",0.0494317314825531,"GO:0003735","structural constituent of ribosome","MF","pink","LOC111132297"," 60S ribosomal protein L15-like"

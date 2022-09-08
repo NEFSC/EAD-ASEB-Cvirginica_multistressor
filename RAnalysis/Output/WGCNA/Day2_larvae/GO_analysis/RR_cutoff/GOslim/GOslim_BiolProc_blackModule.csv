@@ -1,0 +1,4 @@
+"","slim_term","slim_cat","GO_list","Gene_IDs","module_day"
+"1","mRNA metabolic process","GO:0006397","GO:0006397","XM_022441654.1;XM_022445844.1;XM_022446537.1;XM_022463499.1;XM_022470306.1;XM_022475115.1","Day2_black"
+"2","membrane organization","GO:0007009","GO:0007009","XM_022478917.1;XM_022479011.1","Day2_black"
+"3","protein-containing complex assembly","GO:0022618","GO:0022618","XM_022445844.1;XM_022470306.1","Day2_black"

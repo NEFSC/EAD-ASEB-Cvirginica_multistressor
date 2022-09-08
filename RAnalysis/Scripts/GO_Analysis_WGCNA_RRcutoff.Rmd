@@ -31,11 +31,12 @@ library(tidyr)
 library(zoo)
 library(ComplexHeatmap)
 library(circlize)
-library(GSEABase)
+library(GSEABase) # getOBOCollection to get GOslim terms
 library(data.table)
 library(stringr)
 library(tidyverse)
 library(readxl)
+library(data.table)
 ```
 
 SETWD & LOAD DATA:
@@ -63,8 +64,8 @@ Cvirginica_annot_reference  <- read.csv(file="Data/TagSeq/Seq_details/seq_id_mas
 
 # Day 2 - all including low nad high temperature :::::::::::::::::::::::::::::::::::::::::::::::; #
 
-d2_Annot_ModuleMembership      <- read.csv("Output/WGCNA/day2_larvae/d2.WGCNA_ModulMembership.csv") %>% 
-                                       dplyr::select(c('TranscriptID','geneSymbol','Protein_name','moduleColor')) %>%  
+d2_Annot_ModuleMembership      <- read.csv("Output/WGCNA/day2_larvae/d2.WGCNA_ModulMembership_RRcutoff.csv") %>% 
+                                       dplyr::select(c('TranscriptID','GO.terms', 'KEGG_ID', 'Protein_name','moduleColor')) %>%  
                                        na.omit() %>% 
                                        dplyr::mutate(Day = "Day2")
 
@@ -77,28 +78,10 @@ d2ModCols                      <- data.frame(moduleColor = unique(d2_Annot_Modul
                                                                                       'red')) %>% # sig modules
                                                     dplyr::mutate(Day = "Day2")
 
-
-
-# Day 2 - high temperature ONLY ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::; #
-
-d2_Annot_ModuleMembership_hightemp  <- read.csv("Output/WGCNA/day2_larvae_hightemp/d2.WGCNA_ModulMembership.csv") %>% 
-                                               dplyr::select(c('TranscriptID','geneSymbol','Protein_name','moduleColor')) %>%  
-                                               na.omit() %>% 
-                                               dplyr::mutate(Day = "Day2_hightemp")
-
-d2ModCols_hightemp                  <- data.frame(moduleColor = unique(d2_Annot_ModuleMembership_hightemp$moduleColor)) %>% # unique modules
-                                                    dplyr::filter(moduleColor %in% c('red', 
-                                                                                      'greenyellow', 
-                                                                                      'brown', 
-                                                                                      'pink', 
-                                                                                      'magenta')) %>% # sig modules
-                                                    dplyr::mutate(Day = "Day2_hightemp")
-
-
 # Day 18  ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::; #
 
-d18_Annot_ModuleMembership     <- read.csv("Output/WGCNA/day18_spat/d18.WGCNA_ModulMembership.csv") %>% 
-                                           dplyr::select(c('TranscriptID','geneSymbol','Protein_name','moduleColor')) %>%  
+d18_Annot_ModuleMembership     <- read.csv("Output/WGCNA/day18_spat/d18.WGCNA_ModulMembership_RRcutoff.csv") %>% 
+                                       dplyr::select(c('TranscriptID','GO.terms', 'KEGG_ID', 'Protein_name','moduleColor')) %>%  
                                            na.omit() %>% 
                                            dplyr::mutate(Day = "Day18")
 
@@ -117,20 +100,16 @@ d18ModCols                     <- data.frame(moduleColor = unique(d18_Annot_Modu
 
 # master WGCNA module data for for loops! 
 WGCNA_MasterModData   <-  merge( (as.data.frame(rbind(d2_Annot_ModuleMembership, 
-                                                      d2_Annot_ModuleMembership_hightemp, 
                                                       d18_Annot_ModuleMembership)) %>% 
                                       dplyr::rename(Cvirginica_TranscriptID=TranscriptID)), 
                                    Master_ref, by="Cvirginica_TranscriptID")
 
-WGCNA_ColorList       <-  rbind(d2ModCols, d2ModCols_hightemp, d18ModCols) # master WGCNA color list - use this to loop all the analysis 
+WGCNA_ColorList       <-  rbind(d2ModCols, d18ModCols) # master WGCNA color list - use this to loop all the analysis 
 
 
 
 #  mapped read counts for each Day (addressed separately in DESeq2)
 d2.counts            <- read.csv(file="Data/TagSeq/Filtered_counts/filtered_counts_5cpm_50perc/day2.filtered_5cpm50perc.csv", sep=',', header=TRUE) %>%   
-                  dplyr::rename("TranscriptID" = "X")
-
-d2.counts_hightemp   <- read.csv(file="Data/TagSeq/Filtered_counts/filtered_counts_5cpm_50perc/day2.filtered_5cpm50perc_hightemp.csv", sep=',', header=TRUE) %>%   
                   dplyr::rename("TranscriptID" = "X")
 
 d18.counts           <- read.csv(file="Data/TagSeq/Filtered_counts/filtered_counts_5cpm_50perc/day18.filtered_5cpm50perc.csv", sep=',', header=TRUE) %>% 
@@ -234,55 +213,13 @@ for (i in 1:nrow(WGCNA_ColorList)) {
                           dplyr::mutate(numDEInCat = as.numeric(numDEInCat)) %>% 
                           dplyr::filter(!(numDEInCat<2 & ontology == "BP"), !(numDEInCat<2 & ontology == "MF"))
         # write csv
-        write.csv(GO.05, file = paste("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Output/WGCNA/day2_larvae/GO_analysis/GO.05",WGCNA_ColorList[i,1], "Module_unfiltered.csv", sep ='')) # save csv
+        write.csv(GO.05, file = paste("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Output/WGCNA/day2_larvae/GO_analysis/RR_cutoff/GO.05",WGCNA_ColorList[i,1], "Module_unfiltered.csv", sep ='')) # save csv
         
-        write.csv(GO.05_filtered, file = paste("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Output/WGCNA/day2_larvae/GO_analysis/GO.05",WGCNA_ColorList[i,1], "Module.csv", sep ='')) # save csv 
+        write.csv(GO.05_filtered, file = paste("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Output/WGCNA/day2_larvae/GO_analysis/RR_cutoff/GO.05",WGCNA_ColorList[i,1], "Module.csv", sep ='')) # save csv 
         
         #print as we go
         print(paste(WGCNA_ColorList[i,2], WGCNA_ColorList[i,1], "done", sep = ' '))
         
-        
-        
-        
-# .... close the if below to 'else if' day 2 high temp only data...        
-        
-# :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: #
-# Day 2 data  HIGH TEMP ONLY        :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: #
-# :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: #
-        
-        } else if (WGCNA_ColorList[i,2] == "Day2_hightemp") {
-        Mod         <- d2_Annot_ModuleMembership_hightemp %>% dplyr::filter(moduleColor %in% WGCNA_ColorList[i,1]) # call the WGCNA Day - essential here!
-        Modgenes    <- Mod[1] # TranscriptID
-        Mod_integer <- as.integer(GO_unique.genes.all %in% (Modgenes$TranscriptID)) # w/o day-specific ID vector
-        names(Mod_integer)=GO_unique.genes.all # rename
-        
-        pwf       <- nullp(Mod_integer,    id=GO_unique.genes.all, bias.data=length_vector) # make figure margins large enough for this to run...
-        goseq     <- goseq(pwf, gene2cat=GO.terms, test.cats=c("GO:CC", "GO:BP", "GO:MF"), method="Wallenius", use_genes_without_cat=TRUE)
-        
-        GO.05           <- data.frame(goseq$category[goseq$over_represented_pvalue<.05]) # change twice here
-        colnames(GO.05) <- c("category")
-        GO.05           <- merge(GO.05, goseq, by="category") # change here
-        GO.05           <- GO.05[order(GO.05$ontology, GO.05$over_represented_pvalue,-GO.05$numDEInCat),] %>% 
-                              dplyr::mutate(term = as.factor(term)) %>% 
-                              dplyr::mutate(moduleColor = WGCNA_ColorList[i,1]) %>% 
-                              dplyr::mutate(Day = 'Day2_hightemp')
-
-        # remove Biological Process GO terms with < 10 genesand  Molecular Function terms with < 2 genes in the module (with that term)
-        GO.05_filtered <- GO.05 %>% 
-                          dplyr::mutate(numDEInCat = as.numeric(numDEInCat)) %>% 
-                          dplyr::filter(!(numDEInCat<2 & ontology == "BP"), !(numDEInCat<2 & ontology == "MF"))
-       
-         # write csv
-        write.csv(GO.05, file = paste("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Output/WGCNA/day2_larvae_hightemp/GO_analysis/GO.05",WGCNA_ColorList[i,1], "Module_unfiltered.csv", sep ='')) # save csv 
-       
-         write.csv(GO.05_filtered, file = paste("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Output/WGCNA/day2_larvae_hightemp/GO_analysis/GO.05",WGCNA_ColorList[i,1], "Module.csv", sep ='')) # save csv 
-       
-        #print as we go
-        print(paste(WGCNA_ColorList[i,2], WGCNA_ColorList[i,1], "done", sep = ' '))
-        
-        
-        
-# .... close the else if below to start day 18 data...
         
 # ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: #
 # Day 18 data              :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: #
@@ -313,9 +250,9 @@ for (i in 1:nrow(WGCNA_ColorList)) {
                           dplyr::filter(!(numDEInCat<2 & ontology == "BP"), !(numDEInCat<2 & ontology == "MF"))
        
          # write csv
-        write.csv(GO.05, file = paste("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Output/WGCNA/day18_spat/GO_analysis/GO.05",WGCNA_ColorList[i,1], "Module_unfiltered.csv", sep ='')) # save csv 
+        write.csv(GO.05, file = paste("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Output/WGCNA/day18_spat/GO_analysis/RR_cutoff/GO.05",WGCNA_ColorList[i,1], "Module_unfiltered.csv", sep ='')) # save csv 
        
-         write.csv(GO.05_filtered, file = paste("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Output/WGCNA/day18_spat/GO_analysis/GO.05",WGCNA_ColorList[i,1], "Module.csv", sep ='')) # save csv 
+         write.csv(GO.05_filtered, file = paste("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Output/WGCNA/day18_spat/GO_analysis/RR_cutoff/GO.05",WGCNA_ColorList[i,1], "Module.csv", sep ='')) # save csv 
        
         #print as we go
         print(paste(WGCNA_ColorList[i,2], WGCNA_ColorList[i,1], "done", sep = ' ')) }
@@ -341,35 +278,25 @@ it's goSlim time!!!
 # load the output from the previous for loop
 setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis")
 
-d2_GO.05blackModule        <- read.csv("Output/WGCNA/day2_larvae/GO_analysis/GO.05blackModule.csv")
-d2_GO.05blueModule         <- read.csv("Output/WGCNA/day2_larvae/GO_analysis/GO.05blueModule.csv")
-d2_GO.05brownModule        <- read.csv("Output/WGCNA/day2_larvae/GO_analysis/GO.05brownModule.csv")
-d2_GO.05pinkModule         <- read.csv("Output/WGCNA/day2_larvae/GO_analysis/GO.05pinkModule.csv")
-d2_GO.05redModule          <- read.csv("Output/WGCNA/day2_larvae/GO_analysis/GO.05redModule.csv")
-d2_GO.05turquoiseModule    <- read.csv("Output/WGCNA/day2_larvae/GO_analysis/GO.05turquoiseModule.csv")
+d2_GO.05blackModule        <- read.csv("Output/WGCNA/day2_larvae/GO_analysis/RR_cutoff/GO.05blackModule.csv")
+d2_GO.05blueModule         <- read.csv("Output/WGCNA/day2_larvae/GO_analysis/RR_cutoff/GO.05blueModule.csv")
+d2_GO.05brownModule        <- read.csv("Output/WGCNA/day2_larvae/GO_analysis/RR_cutoff/GO.05brownModule.csv")
+d2_GO.05pinkModule         <- read.csv("Output/WGCNA/day2_larvae/GO_analysis/RR_cutoff/GO.05pinkModule.csv")
+d2_GO.05redModule          <- read.csv("Output/WGCNA/day2_larvae/GO_analysis/RR_cutoff/GO.05redModule.csv")
+d2_GO.05turquoiseModule    <- read.csv("Output/WGCNA/day2_larvae/GO_analysis/RR_cutoff/GO.05turquoiseModule.csv")
 
-d2_hightemp_GO.05greenyellowModule  <- read.csv("Output/WGCNA/day2_larvae_hightemp/GO_analysis/GO.05greenyellowModule.csv")
-d2_hightemp_GO.05magentaModule      <- read.csv("Output/WGCNA/day2_larvae_hightemp/GO_analysis/GO.05magentaModule.csv")
-d2_hightemp_GO.05brownModule        <- read.csv("Output/WGCNA/day2_larvae_hightemp/GO_analysis/GO.05brownModule.csv")
-d2_hightemp_GO.05pinkModule         <- read.csv("Output/WGCNA/day2_larvae_hightemp/GO_analysis/GO.05pinkModule.csv")
-d2_hightemp_GO.05redModule          <- read.csv("Output/WGCNA/day2_larvae_hightemp/GO_analysis/GO.05redModule.csv")
-
-d18_GO.05blueModule        <- read.csv("Output/WGCNA/day18_spat/GO_analysis/GO.05blueModule.csv")
-d18_GO.05greenModule       <- read.csv("Output/WGCNA/day18_spat/GO_analysis/GO.05greenModule.csv")
-d18_GO.05greenyellowModule <- read.csv("Output/WGCNA/day18_spat/GO_analysis/GO.05greenyellowModule.csv")
-d18_GO.05redModule         <- read.csv("Output/WGCNA/day18_spat/GO_analysis/GO.05redModule.csv")
-d18_GO.05salmonModule      <- read.csv("Output/WGCNA/day18_spat/GO_analysis/GO.05salmonModule.csv")
-d18_GO.05tanModule         <- read.csv("Output/WGCNA/day18_spat/GO_analysis/GO.05tanModule.csv")
-d18_GO.05turquoiseModule   <- read.csv("Output/WGCNA/day18_spat/GO_analysis/GO.05turquoiseModule.csv")
+d18_GO.05blueModule        <- read.csv("Output/WGCNA/day18_spat/GO_analysis/RR_cutoff/GO.05blueModule.csv")
+d18_GO.05greenModule       <- read.csv("Output/WGCNA/day18_spat/GO_analysis/RR_cutoff/GO.05greenModule.csv")
+d18_GO.05redModule         <- read.csv("Output/WGCNA/day18_spat/GO_analysis/RR_cutoff/GO.05redModule.csv")
+d18_GO.05salmonModule      <- read.csv("Output/WGCNA/day18_spat/GO_analysis/RR_cutoff/GO.05salmonModule.csv")
+d18_GO.05tanModule         <- read.csv("Output/WGCNA/day18_spat/GO_analysis/RR_cutoff/GO.05tanModule.csv")
+d18_GO.05turquoiseModule   <- read.csv("Output/WGCNA/day18_spat/GO_analysis/RR_cutoff/GO.05turquoiseModule.csv")
 
 # Master ALL WGCNA significant modules with treatment
 Master_goseq_results      <- rbind(d2_GO.05blackModule, d2_GO.05blueModule, d2_GO.05brownModule,
                                    d2_GO.05pinkModule,d2_GO.05redModule,d2_GO.05turquoiseModule,
                                    
-                                   d2_hightemp_GO.05greenyellowModule,d2_hightemp_GO.05magentaModule,
-                                   d2_hightemp_GO.05brownModule, d2_hightemp_GO.05pinkModule, d2_hightemp_GO.05redModule,
-                                   
-                                   d18_GO.05blueModule, d18_GO.05greenModule, d18_GO.05greenyellowModule,d18_GO.05redModule,
+                                   d18_GO.05blueModule, d18_GO.05greenModule,d18_GO.05redModule,
                                    d18_GO.05salmonModule, d18_GO.05tanModule,d18_GO.05turquoiseModule)
 # View(Master_goseq_results)
 
@@ -528,52 +455,29 @@ for (i in 1:nrow(GOslimLoop_vars)) {
                             # save GOslim final datasets for BP and MF of each  module in their respective folder(s) by Day
     if (GOslimLoop_vars[i,2] == 'Day2') {
           if (nrow(MFslim_final) > 0) {
-                  write.csv(MFslim_final, file = paste("Output/WGCNA/day2_larvae/GO_analysis/GOslim/GOslim_MolFunction_",GOslimLoop_vars[i,1], "Module.csv", sep ='')) # save csv file
-                  write.csv(MFslim_GOterm_summary_final, file = paste("Output/WGCNA/day2_larvae/GO_analysis/GOslim/GOterms_and_GOslim_MolFunction_",GOslimLoop_vars[i,1], "Module.csv", sep =''))
-                  write.csv(MF_master_gene_reference, file = paste("Output/WGCNA/day2_larvae/GO_analysis/GOslim/GOterms_and_GOslim_MolFunction_",GOslimLoop_vars[i,1], "Module_GENE_REFERENCE.csv", sep ='')) 
+                  write.csv(MFslim_final, file = paste("Output/WGCNA/day2_larvae/GO_analysis/RR_cutoff/GOslim/GOslim_MolFunction_",GOslimLoop_vars[i,1], "Module.csv", sep ='')) # save csv file
+                  write.csv(MFslim_GOterm_summary_final, file = paste("Output/WGCNA/day2_larvae/GO_analysis/RR_cutoff/GOslim/GOterms_and_GOslim_MolFunction_",GOslimLoop_vars[i,1], "Module.csv", sep =''))
+                  write.csv(MF_master_gene_reference, file = paste("Output/WGCNA/day2_larvae/GO_analysis/RR_cutoff/GOslim/GOterms_and_GOslim_MolFunction_",GOslimLoop_vars[i,1], "Module_GENE_REFERENCE.csv", sep ='')) 
             } else { }
           
-          
           if (nrow(BPslim_final) > 0) {
-                  write.csv(BPslim_final, file = paste("Output/WGCNA/day2_larvae/GO_analysis/GOslim/GOslim_BiolProc_",GOslimLoop_vars[i,1], "Module.csv", sep ='')) # save csv file
-                  write.csv(BPslim_GOterm_summary_final, file = paste("Output/WGCNA/day2_larvae/GO_analysis/GOslim/GOterms_and_GOslim_BiolProc_",GOslimLoop_vars[i,1], "Module.csv", sep =''))
-                  write.csv(BP_master_gene_reference, file = paste("Output/WGCNA/day2_larvae/GO_analysis/GOslim/GOterms_and_GOslim_BiolProc_",GOslimLoop_vars[i,1], "Module_GENE_REFERENCE.csv", sep =''))         
+                  write.csv(BPslim_final, file = paste("Output/WGCNA/day2_larvae/GO_analysis/RR_cutoff/GOslim/GOslim_BiolProc_",GOslimLoop_vars[i,1], "Module.csv", sep ='')) # save csv file
+                  write.csv(BPslim_GOterm_summary_final, file = paste("Output/WGCNA/day2_larvae/GO_analysis/RR_cutoff/GOslim/GOterms_and_GOslim_BiolProc_",GOslimLoop_vars[i,1], "Module.csv", sep =''))
+                  write.csv(BP_master_gene_reference, file = paste("Output/WGCNA/day2_larvae/GO_analysis/RR_cutoff/GOslim/GOterms_and_GOslim_BiolProc_",GOslimLoop_vars[i,1], "Module_GENE_REFERENCE.csv", sep =''))         
           } else { }
             
-   
-      
-      
-      
-       } else if (GOslimLoop_vars[i,2] == 'Day2_hightemp') {
-          if (nrow(MFslim_final) > 0) {
-                  write.csv(MFslim_final, file = paste("Output/WGCNA/day2_larvae_hightemp/GO_analysis/GOslim/GOslim_MolFunction_",GOslimLoop_vars[i,1], "Module.csv", sep ='')) # save csv file
-                  write.csv(MFslim_GOterm_summary_final, file = paste("Output/WGCNA/day2_larvae_hightemp/GO_analysis/GOslim/GOterms_and_GOslim_MolFunction_",GOslimLoop_vars[i,1], "Module.csv", sep =''))
-                  write.csv(MF_master_gene_reference, file = paste("Output/WGCNA/day2_larvae_hightemp/GO_analysis/GOslim/GOterms_and_GOslim_MolFunction_",GOslimLoop_vars[i,1], "Module_GENE_REFERENCE.csv", sep =''))
-            } else { }
-            
-      
-          if (nrow(BPslim_final) > 0) {
-                  write.csv(BPslim_final, file = paste("Output/WGCNA/day2_larvae_hightemp/GO_analysis/GOslim/GOslim_BiolProc_",GOslimLoop_vars[i,1], "Module.csv", sep ='')) # save csv file
-                  write.csv(BPslim_GOterm_summary_final, file = paste("Output/WGCNA/day2_larvae_hightemp/GO_analysis/GOslim/GOterms_and_GOslim_BiolProc_",GOslimLoop_vars[i,1], "Module.csv", sep =''))
-                  write.csv(BP_master_gene_reference, file = paste("Output/WGCNA/day2_larvae_hightemp/GO_analysis/GOslim/GOterms_and_GOslim_BiolProc_",GOslimLoop_vars[i,1], "Module_GENE_REFERENCE.csv", sep =''))
-            } else { }
-          
-    
-      
-      
-      
       }  else if (GOslimLoop_vars[i,2] == 'Day18') {
           if (nrow(MFslim_final) > 0) {
-                  write.csv(MFslim_final, file = paste("Output/WGCNA/day18_spat/GO_analysis/GOslim/GOslim_MolFunction_",GOslimLoop_vars[i,1], "Module.csv", sep ='')) # save csv file
-                  write.csv(MFslim_GOterm_summary_final, file = paste("Output/WGCNA/day18_spat/GO_analysis/GOslim/GOterms_and_GOslim_MolFunction_",GOslimLoop_vars[i,1], "Module.csv", sep =''))
-                  write.csv(MF_master_gene_reference, file = paste("Output/WGCNA/day18_spat/GO_analysis/GOslim/GOterms_and_GOslim_MolFunction_",GOslimLoop_vars[i,1], "Module_GENE_REFERENCE.csv", sep =''))
+                  write.csv(MFslim_final, file = paste("Output/WGCNA/day18_spat/GO_analysis/RR_cutoff/GOslim/GOslim_MolFunction_",GOslimLoop_vars[i,1], "Module.csv", sep ='')) # save csv file
+                  write.csv(MFslim_GOterm_summary_final, file = paste("Output/WGCNA/day18_spat/GO_analysis/RR_cutoff/GOslim/GOterms_and_GOslim_MolFunction_",GOslimLoop_vars[i,1], "Module.csv", sep =''))
+                  write.csv(MF_master_gene_reference, file = paste("Output/WGCNA/day18_spat/GO_analysis/RR_cutoff/GOslim/GOterms_and_GOslim_MolFunction_",GOslimLoop_vars[i,1], "Module_GENE_REFERENCE.csv", sep =''))
             } else { }
             
       
           if (nrow(BPslim_final) > 0) {
-                  write.csv(BPslim_final, file = paste("Output/WGCNA/day18_spat/GO_analysis/GOslim/GOslim_BiolProc_",GOslimLoop_vars[i,1], "Module.csv", sep ='')) # save csv file
-                  write.csv(BPslim_GOterm_summary_final, file = paste("Output/WGCNA/day18_spat/GO_analysis/GOslim/GOterms_and_GOslim_BiolProc_",GOslimLoop_vars[i,1], "Module.csv", sep =''))
-                  write.csv(BP_master_gene_reference, file = paste("Output/WGCNA/day18_spat/GO_analysis/GOslim/GOterms_and_GOslim_BiolProc_",GOslimLoop_vars[i,1], "Module_GENE_REFERENCE.csv", sep =''))
+                  write.csv(BPslim_final, file = paste("Output/WGCNA/day18_spat/GO_analysis/RR_cutoff/GOslim/GOslim_BiolProc_",GOslimLoop_vars[i,1], "Module.csv", sep ='')) # save csv file
+                  write.csv(BPslim_GOterm_summary_final, file = paste("Output/WGCNA/day18_spat/GO_analysis/RR_cutoff/GOslim/GOterms_and_GOslim_BiolProc_",GOslimLoop_vars[i,1], "Module.csv", sep =''))
+                  write.csv(BP_master_gene_reference, file = paste("Output/WGCNA/day18_spat/GO_analysis/RR_cutoff/GOslim/GOterms_and_GOslim_BiolProc_",GOslimLoop_vars[i,1], "Module_GENE_REFERENCE.csv", sep =''))
             } else { }
           
     }  else (NULL)
@@ -589,36 +493,25 @@ Save GO_Results_Master files
 # load the output from the previous for loop
 setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis")
 
-d2_GO.05blackModule        <- read.csv("Output/WGCNA/day2_larvae/GO_analysis/GO.05blackModule.csv")
-d2_GO.05blueModule         <- read.csv("Output/WGCNA/day2_larvae/GO_analysis/GO.05blueModule.csv")
-d2_GO.05brownModule        <- read.csv("Output/WGCNA/day2_larvae/GO_analysis/GO.05brownModule.csv")
-d2_GO.05pinkModule         <- read.csv("Output/WGCNA/day2_larvae/GO_analysis/GO.05pinkModule.csv")
-d2_GO.05redModule          <- read.csv("Output/WGCNA/day2_larvae/GO_analysis/GO.05redModule.csv")
-d2_GO.05turquoiseModule    <- read.csv("Output/WGCNA/day2_larvae/GO_analysis/GO.05turquoiseModule.csv")
+d2_GO.05blackModule        <- read.csv("Output/WGCNA/day2_larvae/GO_analysis/RR_cutoff/GO.05blackModule.csv")
+d2_GO.05blueModule         <- read.csv("Output/WGCNA/day2_larvae/GO_analysis/RR_cutoff/GO.05blueModule.csv")
+d2_GO.05brownModule        <- read.csv("Output/WGCNA/day2_larvae/GO_analysis/RR_cutoff/GO.05brownModule.csv")
+d2_GO.05pinkModule         <- read.csv("Output/WGCNA/day2_larvae/GO_analysis/RR_cutoff/GO.05pinkModule.csv")
+d2_GO.05redModule          <- read.csv("Output/WGCNA/day2_larvae/GO_analysis/RR_cutoff/GO.05redModule.csv")
+d2_GO.05turquoiseModule    <- read.csv("Output/WGCNA/day2_larvae/GO_analysis/RR_cutoff/GO.05turquoiseModule.csv")
 
-d2_hightemp_GO.05greenyellowModule  <- read.csv("Output/WGCNA/day2_larvae_hightemp/GO_analysis/GO.05greenyellowModule.csv")
-d2_hightemp_GO.05magentaModule      <- read.csv("Output/WGCNA/day2_larvae_hightemp/GO_analysis/GO.05magentaModule.csv")
-d2_hightemp_GO.05brownModule        <- read.csv("Output/WGCNA/day2_larvae_hightemp/GO_analysis/GO.05brownModule.csv")
-d2_hightemp_GO.05pinkModule         <- read.csv("Output/WGCNA/day2_larvae_hightemp/GO_analysis/GO.05pinkModule.csv")
-d2_hightemp_GO.05redModule          <- read.csv("Output/WGCNA/day2_larvae_hightemp/GO_analysis/GO.05redModule.csv")
-
-d18_GO.05blueModule        <- read.csv("Output/WGCNA/day18_spat/GO_analysis/GO.05blueModule.csv")
-d18_GO.05greenModule       <- read.csv("Output/WGCNA/day18_spat/GO_analysis/GO.05greenModule.csv")
-d18_GO.05greenyellowModule <- read.csv("Output/WGCNA/day18_spat/GO_analysis/GO.05greenyellowModule.csv")
-d18_GO.05redModule         <- read.csv("Output/WGCNA/day18_spat/GO_analysis/GO.05redModule.csv")
-d18_GO.05salmonModule      <- read.csv("Output/WGCNA/day18_spat/GO_analysis/GO.05salmonModule.csv")
-d18_GO.05tanModule         <- read.csv("Output/WGCNA/day18_spat/GO_analysis/GO.05tanModule.csv")
-d18_GO.05turquoiseModule   <- read.csv("Output/WGCNA/day18_spat/GO_analysis/GO.05turquoiseModule.csv")
-
+d18_GO.05blueModule        <- read.csv("Output/WGCNA/day18_spat/GO_analysis/RR_cutoff/GO.05blueModule.csv")
+d18_GO.05greenModule       <- read.csv("Output/WGCNA/day18_spat/GO_analysis/RR_cutoff/GO.05greenModule.csv")
+d18_GO.05redModule         <- read.csv("Output/WGCNA/day18_spat/GO_analysis/RR_cutoff/GO.05redModule.csv")
+d18_GO.05salmonModule      <- read.csv("Output/WGCNA/day18_spat/GO_analysis/RR_cutoff/GO.05salmonModule.csv")
+d18_GO.05tanModule         <- read.csv("Output/WGCNA/day18_spat/GO_analysis/RR_cutoff/GO.05tanModule.csv")
+d18_GO.05turquoiseModule   <- read.csv("Output/WGCNA/day18_spat/GO_analysis/RR_cutoff/GO.05turquoiseModule.csv")
 
 # Master ALL WGCNA significant modules with treatment
 Master_goseq_results      <- rbind(d2_GO.05blackModule, d2_GO.05blueModule, d2_GO.05brownModule,
                                    d2_GO.05pinkModule,d2_GO.05redModule,d2_GO.05turquoiseModule,
                                    
-                                   d2_hightemp_GO.05greenyellowModule,d2_hightemp_GO.05magentaModule,
-                                   d2_hightemp_GO.05brownModule, d2_hightemp_GO.05pinkModule, d2_hightemp_GO.05redModule,
-                                   
-                                   d18_GO.05blueModule, d18_GO.05greenModule, d18_GO.05greenyellowModule,d18_GO.05redModule,
+                                   d18_GO.05blueModule, d18_GO.05greenModule,d18_GO.05redModule,
                                    d18_GO.05salmonModule, d18_GO.05tanModule,d18_GO.05turquoiseModule)
 
 #  for the for loop...
@@ -644,7 +537,7 @@ for (i in 1:nrow(WGCNA_ColorList)) {
                           dplyr::filter(moduleColor %in% WGCNA_ColorList$moduleColor[i] & Day %in% WGCNA_ColorList$Day[i]) %>% 
                           dplyr::rename(GO_ID = category, pvalue = over_represented_pvalue)
 
-  Master <- rbind(GO.table, (as.data.frame(merge(Moduel.GO.results, Ref.GO.terms, by = c("GO_ID", 'moduleColor', 'Day')))[,c(3,2,6,1,7,4,5,8,9,10,11)]) )
+  Master <- rbind(GO.table, (as.data.frame(merge(Moduel.GO.results, Ref.GO.terms, by = c("GO_ID", 'moduleColor', 'Day')))[,c(3,2,6,1,7,4,5,8,9,12,11)]) )
   
   df       <- data.frame(Master) # name dataframe for this single row
   df_total <- rbind(df_total,df) #bind to a cumulative list dataframe
@@ -656,16 +549,13 @@ for (i in 1:nrow(WGCNA_ColorList)) {
 Day2_larvae_master          <- df_total %>%  
                                 dplyr::filter(Day %in% 'Day2')  %>% 
                                 dplyr::arrange(moduleColor, ontology, pvalue, GO_term, Protein_name) 
-Day2_larvae_hightemp_master <- df_total %>%  
-                                dplyr::filter(Day %in% 'Day2_hightemp')  %>% 
-                                dplyr::arrange(moduleColor, ontology, pvalue, GO_term, Protein_name) 
+
 Day18_spat_master  <- df_total %>%  
                                 dplyr::filter(Day %in% 'Day18') %>% 
                                 dplyr::arrange(moduleColor, ontology, pvalue, GO_term, Protein_name) 
 
-write.csv(Day2_larvae_master, file = "Output/WGCNA/day2_larvae/GO_analysis/Day2_GO_Results_Master.csv", row.names = FALSE)
-write.csv(Day2_larvae_hightemp_master, file = "Output/WGCNA/day2_larvae_hightemp/GO_analysis/Day2_GO_Results_Master.csv", row.names = FALSE)
-write.csv(Day18_spat_master, file = "Output/WGCNA/day18_spat/GO_analysis/Day18_GO_Results_Master.csv", row.names = FALSE)
+write.csv(Day2_larvae_master, file = "Output/WGCNA/day2_larvae/GO_analysis/RR_cutoff/Day2_GO_Results_Master.csv", row.names = FALSE)
+write.csv(Day18_spat_master, file = "Output/WGCNA/day18_spat/GO_analysis/RR_cutoff/Day18_GO_Results_Master.csv", row.names = FALSE)
 ```
 
 # Seqment plots 
@@ -674,15 +564,14 @@ write.csv(Day18_spat_master, file = "Output/WGCNA/day18_spat/GO_analysis/Day18_G
 
 # load this for the reorder_within command
 require(tidytext)
-
+# install.packages('tidytext')
 
 # load the output from the previous for loop
 setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis")
 
 # load data from the GOslim/GO analysis above
-df_Day2          <- read.csv(file= "Output/WGCNA/day2_larvae/GO_analysis/Day2_GO_Results_Master.csv", sep=',', header=TRUE) 
-df_Day2_hightemp <- read.csv(file= "Output/WGCNA/day2_larvae_hightemp/GO_analysis/Day2_GO_Results_Master.csv", sep=',', header=TRUE) 
-df_Day18         <- read.csv(file= "Output/WGCNA/day18_spat/GO_analysis/Day18_GO_Results_Master.csv", sep=',', header=TRUE) 
+df_Day2          <- read.csv(file= "Output/WGCNA/day2_larvae/GO_analysis/RR_cutoff/Day2_GO_Results_Master.csv", sep=',', header=TRUE) 
+df_Day18         <- read.csv(file= "Output/WGCNA/day18_spat/GO_analysis/RR_cutoff/Day18_GO_Results_Master.csv", sep=',', header=TRUE) 
  
 
 
@@ -724,7 +613,7 @@ MF_Day2      <- as.data.frame(unique(df_Day2  %>%
                                                   plot.background=element_blank()) + #Set the plot background #set title attributes
                                             #geom_hline(yintercept=0.25, linetype="dashed",  color = "black", size=2) +
                                             facet_wrap(moduleColor ~., scales="free_y", ncol= 1, strip.position="right", shrink = T)
-pdf(paste0("Output/WGCNA/day2_larvae/GO_analysis/Day2_GO_SegPlot_MolFunction.pdf"), width=10, height=16)
+pdf(paste0("Output/WGCNA/day2_larvae/GO_analysis/RR_cutoff/Day2_GO_SegPlot_MolFunction.pdf"), width=10, height=16)
 plot(MF_Day2)
 dev.off()
 
@@ -762,106 +651,9 @@ BP_Day2      <- as.data.frame(unique(df_Day2 %>%
                                             #geom_hline(yintercept=0.25, linetype="dashed",  color = "black", size=2) +
                                             facet_wrap(moduleColor ~., scales="free_y", ncol= 1, strip.position="right", shrink = T)
 
-pdf(paste0("Output/WGCNA/day2_larvae/GO_analysis/Day2_GO_SegPlot_BiolProcess.pdf"), width=10, height=16)
+pdf(paste0("Output/WGCNA/day2_larvae/GO_analysis/RR_cutoff/Day2_GO_SegPlot_BiolProcess.pdf"), width=10, height=16)
 plot(BP_Day2)
 dev.off()
-
-
-
-
-
-
-
-
-
-
-# ==================================================================================== #
-# Day 2 high temp only 
-# ==================================================================================== #
-
-
-
-
-
-#  MOLECULAR FUNCTION
-MF_Day2_hightemp <- as.data.frame(unique(df_Day2_hightemp  %>%  
-                                     dplyr::select(c('Day', 'GO_term', 'moduleColor', 'ontology', 'pvalue', 'Gene_count',  'Gene_ratio')))) %>% 
-                                     dplyr::filter(!ontology %in% 'CC' & ontology %in% 'MF') %>%  # omit the cellular component enriched GO terms - CALL THE MOLECUALR FUNCTION TERMS
-                                     dplyr::mutate(log10_pvalue = -log10(pvalue)) %>% 
-                                     na.omit() %>% 
-                                     dplyr::mutate(GO_term = reorder_within(GO_term, log10_pvalue, moduleColor)) %>% # this orders the pvalue correctly for plotting
-                                    # dplyr::mutate(GO_term = sub('___.*$','', GO_term)) %>% # but the line above also adds module color followed by three underscores (strange?!) - omit these easily with gsub
-                                            ggplot(aes(x=GO_term, y= log10_pvalue, size = Gene_ratio)) +
-                                            geom_segment( aes(x=GO_term, xend=GO_term, y=1, yend=log10_pvalue, color=moduleColor, size = 3)) + 
-                                            scale_color_manual(values=c("brown", "green", "magenta", 'pink', 'red')) +
-                                            #scale_color_gradient(low = "orange", high = "blue") +
-                                            geom_point(aes(size = Gene_count), shape =21,  fill = "white") + # shap = 15 (squares)
-                                            coord_flip() +
-                                            theme(
-                                              panel.grid.minor.y = element_blank(),
-                                              panel.grid.major.y = element_blank(),
-                                              legend.position="bottom"
-                                            ) +
-                                            xlab("") +
-                                            ylab("") +
-                                            ggtitle("Molecular Function: WGCNA day 2 (high temp only)") +
-                                            #geom_label(aes(x = 0.5, y = 0.5, label = paste(num_up, "DEGs"))) +
-                                            theme_bw() + #Set background color 
-                                            theme(panel.border = element_blank(), # Set border
-                                                  panel.grid.major = element_blank(), #Set major gridlines
-                                                  panel.grid.minor = element_blank(), #Set minor gridlines
-                                                  axis.line = element_line(colour = "black"), #Set axes color
-                                                  plot.background=element_blank()) + #Set the plot background #set title attributes
-                                            #geom_hline(yintercept=0.25, linetype="dashed",  color = "black", size=2) +
-                                            facet_wrap(moduleColor ~., scales="free_y", ncol= 1, strip.position="right", shrink = T)
-
-pdf(paste0("Output/WGCNA/day2_larvae_hightemp/GO_analysis/Day2_GO_SegPlot_MolFunction.pdf"), width=10, height=16)
-plot(MF_Day2_hightemp)
-dev.off()
-
-
-#  BIOLOGICAL PROCESS
-BP_Day2_hightemp <- as.data.frame(unique(df_Day2_hightemp  %>%  
-                                     dplyr::select(c('Day', 'GO_term', 'moduleColor', 'ontology', 'pvalue', 'Gene_count',  'Gene_ratio')))) %>% 
-                                     dplyr::filter(!ontology %in% 'CC' & ontology %in% 'BP') %>%  # omit the cellular component enriched GO terms - CALL THE MOLECUALR FUNCTION TERMS
-                                     dplyr::mutate(log10_pvalue = -log10(pvalue)) %>% 
-                                     na.omit() %>% 
-                                     dplyr::mutate(GO_term = reorder_within(GO_term, log10_pvalue, moduleColor)) %>% # this orders the pvalue correctly for plotting
-                                    # dplyr::mutate(GO_term = sub('___.*$','', GO_term)) %>% # but the line above also adds module color followed by three underscores (strange?!) - omit these easily with gsub
-                                            ggplot(aes(x=GO_term, y= log10_pvalue, size = Gene_ratio)) +
-                                            geom_segment( aes(x=GO_term, xend=GO_term, y=1, yend=log10_pvalue, color=moduleColor, size = 3)) + 
-                                            scale_color_manual(values=c("brown", "green", "magenta", 'pink', 'red')) +
-                                            #scale_color_gradient(low = "orange", high = "blue") +
-                                            geom_point(aes(size = Gene_count), shape =21,  fill = "white") + # shap = 15 (squares)
-                                            coord_flip() +
-                                            theme(
-                                              panel.grid.minor.y = element_blank(),
-                                              panel.grid.major.y = element_blank(),
-                                              legend.position="bottom"
-                                            ) +
-                                            xlab("") +
-                                            ylab("") +
-                                            ggtitle("Biological Process: WGCNA day 2 (high temp only)") +
-                                            #geom_label(aes(x = 0.5, y = 0.5, label = paste(num_up, "DEGs"))) +
-                                            theme_bw() + #Set background color 
-                                            theme(panel.border = element_blank(), # Set border
-                                                  panel.grid.major = element_blank(), #Set major gridlines
-                                                  panel.grid.minor = element_blank(), #Set minor gridlines
-                                                  axis.line = element_line(colour = "black"), #Set axes color
-                                                  plot.background=element_blank()) + #Set the plot background #set title attributes
-                                            #geom_hline(yintercept=0.25, linetype="dashed",  color = "black", size=2) +
-                                            facet_wrap(moduleColor ~., scales="free_y", ncol= 1, strip.position="right", shrink = T)
-
-pdf(paste0("Output/WGCNA/day2_larvae_hightemp/GO_analysis/Day2_GO_SegPlot_BiolProcess.pdf"), width=10, height=16)
-plot(BP_Day2_hightemp)
-dev.off()
-
-
-
-
-
-
-
 
 
 
@@ -912,7 +704,7 @@ MF_Day18     <- as.data.frame(unique(df_Day18  %>%
                                             #geom_hline(yintercept=0.25, linetype="dashed",  color = "black", size=2) +
                                             facet_wrap(moduleColor ~., scales="free_y", ncol= 1, strip.position="right", shrink = T)
 
-pdf(paste0("Output/WGCNA/day18_spat/GO_analysis/Day18_GO_SegPlot_MolFunction.pdf"), width=10, height=16)
+pdf(paste0("Output/WGCNA/day18_spat/GO_analysis/RR_cutoff/Day18_GO_SegPlot_MolFunction.pdf"), width=10, height=16)
 plot(MF_Day18)
 dev.off()
 
@@ -950,7 +742,7 @@ BP_Day18     <- as.data.frame(unique(df_Day18  %>%
                                             #geom_hline(yintercept=0.25, linetype="dashed",  color = "black", size=2) +
                                             facet_wrap(moduleColor ~., scales="free_y", ncol= 1, strip.position="right", shrink = T)
 
-pdf(paste0("Output/WGCNA/day18_spat/GO_analysis/Day18_GO_SegPlot_BiolProcess.pdf"), width=10, height=16)
+pdf(paste0("Output/WGCNA/day18_spat/GO_analysis/RR_cutoff/Day18_GO_SegPlot_BiolProcess.pdf"), width=10, height=16)
 plot(BP_Day18)
 dev.off()
 
@@ -966,11 +758,10 @@ dev.off()
 setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis")
 
 # load data from the GOslim/GO analysis above
-df_Day2          <- read.csv(file= "Output/WGCNA/day2_larvae/GO_analysis/Day2_GO_Results_Master.csv", sep=',', header=TRUE) 
-df_Day2_hightemp <- read.csv(file= "Output/WGCNA/day2_larvae_hightemp/GO_analysis/Day2_GO_Results_Master.csv", sep=',', header=TRUE) 
-df_Day18         <- read.csv(file= "Output/WGCNA/day18_spat/GO_analysis/Day18_GO_Results_Master.csv", sep=',', header=TRUE) 
+df_Day2          <- read.csv(file= "Output/WGCNA/day2_larvae/GO_analysis/RR_cutoff/Day2_GO_Results_Master.csv", sep=',', header=TRUE) 
+df_Day18         <- read.csv(file= "Output/WGCNA/day18_spat/GO_analysis/RR_cutoff/Day18_GO_Results_Master.csv", sep=',', header=TRUE) 
  
-df_Master_GOResults <- rbind(df_Day2,df_Day2_hightemp, df_Day18)
+df_Master_GOResults <- rbind(df_Day2, df_Day18)
 
 # list of WCNA sig modules 
 WGCNA_ColorList #  RUN the cluster "{r Load_annot_and_DE_files, include = TRUE}" to get this list of WDCNA modules!
@@ -1001,19 +792,12 @@ DotPlot <-  ggplot(data =unique(df_Master_GOResults %>%
                 facet_wrap(~moduleColor_Ontology, scales = "free",switch = "y") 
 
         if (WGCNA_ColorList$Day[i] == 'Day2') {
-          pdf(paste0("Output/WGCNA/day2_larvae/GO_analysis/Day2_GO_DotPlot", WGCNA_ColorList$moduleColor[i], ".pdf", sep = ''), width=14, height=6)
+          pdf(paste0("Output/WGCNA/day2_larvae/GO_analysis/RR_cutoff/Day2_GO_DotPlot", WGCNA_ColorList$moduleColor[i], ".pdf", sep = ''), width=14, height=6)
           plot(DotPlot)
           dev.off()
-          
-          
-        } else if (WGCNA_ColorList$Day[i] == 'Day2_hightemp')  {  
-              pdf(paste0("Output/WGCNA/day2_larvae_hightemp/GO_analysis/Day2_GO_DotPlot", WGCNA_ColorList$moduleColor[i], ".pdf", sep = ''), width=14, height=6)
-              plot(DotPlot)
-              dev.off() 
-              
               
             } else if (WGCNA_ColorList$Day[i] == 'Day18')  {  
-              pdf(paste0("Output/WGCNA/day18_spat/GO_analysis/Day18_GO_DotPlot", WGCNA_ColorList$moduleColor[i], ".pdf", sep = ''), width=14, height=6)
+              pdf(paste0("Output/WGCNA/day18_spat/GO_analysis/RR_cutoff/Day18_GO_DotPlot", WGCNA_ColorList$moduleColor[i], ".pdf", sep = ''), width=14, height=6)
               plot(DotPlot)
               dev.off() 
               } else (NULL)
@@ -1040,7 +824,7 @@ Day18_DotPlot <-  ggplot(data =unique(Day18_spat_master %>%
                 ggtitle("GO enrichment analysis") + 
                 scale_x_continuous(limits=c(0,0.5)) +
                 facet_wrap(~moduleColor_Ontology, scales = "free",switch = "y") 
-pdf(paste0("Output/WGCNA/day18_spat/GO_analysis/Day18_GO_DotPlot.pdf"), width=22, height=10)
+pdf(paste0("Output/WGCNA/day18_spat/GO_analysis/RR_cutoff/Day18_GO_DotPlot.pdf"), width=22, height=10)
 plot(Day18_DotPlot)
 dev.off()
 

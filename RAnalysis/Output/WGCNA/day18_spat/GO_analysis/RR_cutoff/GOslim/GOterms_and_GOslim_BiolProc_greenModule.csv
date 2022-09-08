@@ -1,0 +1,2 @@
+"","GO_terms","X","over_represented_pvalue","under_represented_pvalue","numDEInCat","numInCat","term","ontology","moduleColor","Day","slim_term","Gene_IDs"
+"1","GO:0006397",3,5.95126899417594e-05,0.999993275326057,7,186,"mRNA processing","BP","green","Day18","mRNA metabolic process","XM_022449232.1;XM_022457762.1;XM_022461504.1;XM_022463317.1;XM_022475231.1;XM_022485704.1;XM_022490290.1"

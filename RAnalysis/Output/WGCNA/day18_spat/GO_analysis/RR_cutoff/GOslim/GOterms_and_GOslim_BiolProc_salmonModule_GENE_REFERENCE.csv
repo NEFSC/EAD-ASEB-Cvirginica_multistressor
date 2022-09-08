@@ -1,0 +1,8 @@
+"","TranscriptID","slim_term","over_represented_pvalue","GO_terms","term","ontology","moduleColor","GeneID","Protein_name"
+"1","XM_022458865.1","mRNA metabolic process",0.0441409023114313,"GO:0006397","mRNA processing","BP","salmon","LOC111119055"," U6 snRNA-associated Sm-like protein LSm4"
+"2","XM_022464277.1","mRNA metabolic process",0.0441409023114313,"GO:0006397","mRNA processing","BP","salmon","LOC111122502"," splicing factor U2AF 26 kDa subunit-like"
+"3","XM_022475115.1","mRNA metabolic process",0.0441409023114313,"GO:0006397","mRNA processing","BP","salmon","LOC111129054"," U6 snRNA-associated Sm-like protein LSm6"
+"4","XM_022476416.1","intracellular protein transport",0.0106272064398692,"GO:0006605","protein targeting","BP","salmon","LOC111129897"," mitochondrial import receptor subunit TOM20 homolog"
+"5","XM_022480101.1","mRNA metabolic process",0.0441409023114313,"GO:0006397","mRNA processing","BP","salmon","LOC111132304"," uncharacterized"
+"6","XM_022488825.1","intracellular protein transport",0.0106272064398692,"GO:0006605","protein targeting","BP","salmon","LOC111137382"," mitochondrial import inner membrane translocase subunit Tim22-like"
+"7","XM_022490152.1","intracellular protein transport",0.0106272064398692,"GO:0006605","protein targeting","BP","salmon","LOC111138275"," mitochondrial import inner membrane translocase subunit Tim10-B-like"

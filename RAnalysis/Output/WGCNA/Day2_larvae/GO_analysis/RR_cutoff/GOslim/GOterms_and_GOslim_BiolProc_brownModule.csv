@@ -1,0 +1,4 @@
+"","GO_terms","X","over_represented_pvalue","under_represented_pvalue","numDEInCat","numInCat","term","ontology","moduleColor","Day","slim_term","Gene_IDs"
+"1","GO:0006397",2,1.01718201444373e-07,0.999999991307494,10,186,"mRNA processing","BP","brown","Day2","mRNA metabolic process","XM_022447390.1;XM_022449232.1;XM_022453791.1;XM_022461883.1;XM_022463317.1;XM_022464900.1;XM_022465018.1;XM_022466084.1;XM_022467522.1;XM_022485704.1"
+"2","GO:0006605",5,0.0126972427520605,0.999321621834837,2,47,"protein targeting","BP","brown","Day2","intracellular protein transport","XM_022441013.1;XR_002638562.1"
+"3","GO:0140014",7,0.0348885412925977,0.996824240626689,2,43,"mitotic nuclear division","BP","brown","Day2","mitotic cell cycle","XM_022469350.1;XM_022471276.1"

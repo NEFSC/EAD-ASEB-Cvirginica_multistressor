@@ -1,0 +1,2 @@
+"","GO_terms","X","over_represented_pvalue","under_represented_pvalue","numDEInCat","numInCat","term","ontology","moduleColor","Day","slim_term","Gene_IDs"
+"1","GO:0003735",19,0.0494317314825531,0.990588765264969,3,176,"structural constituent of ribosome","MF","pink","Day2","structural molecule activity","XM_022459435.1;XM_022469477.1;XM_022480126.1"
