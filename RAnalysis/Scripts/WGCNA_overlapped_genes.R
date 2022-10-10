@@ -1,3 +1,10 @@
+---
+  # title: "WGCNA overlapped genes"
+  # author: "Samuel Gurr"
+  # date: "Oct 5, 2022"
+---
+
+#  LOAD LIBRARIES
 library(dplyr)
 library(forcats)
 library(ggplot2)
@@ -9,9 +16,6 @@ library(tidyverse)
 # SET WORKING DIRECTORY AND LOAD DATA
 setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis")
 path_out = 'C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Output/WGCNA/' # personnal computer
-
-
-
 
 # master reference view te master ref R script for details
 Master_ref  <- read.csv(file= "Data/TagSeq/Seq_details/Seq_Reference_Master.csv", sep=',', header=TRUE) %>% 
@@ -29,10 +33,7 @@ Cvirginica_annot_reference  <- read.csv(file="Data/TagSeq/Seq_details/seq_id_mas
 
 # Day 2 - all including low and high temperature :::::::::::::::::::::::::::::::::::::::::::::::; #
 
-d2_Annot_ModuleMembership      <- read.csv("Output/WGCNA/day2_larvae/d2.WGCNA_ModulMembership.csv") %>% 
-                                    dplyr::select(c('TranscriptID','geneSymbol','Protein_name','moduleColor')) %>%  
-                                    na.omit() %>% 
-                                    dplyr::mutate(Day = "Day2")
+d2_Annot_ModuleMembership      <- read.csv("Output/WGCNA/day2_larvae/d2.WGCNA_ModulMembership.csv")
 
 d2ModCols                      <- data.frame(moduleColor = unique(d2_Annot_ModuleMembership$moduleColor)) %>% # unique module colors 
                                     dplyr::filter(moduleColor %in% c('pink', 
@@ -43,6 +44,18 @@ d2ModCols                      <- data.frame(moduleColor = unique(d2_Annot_Modul
                                                                      'red')) %>% # sig modules
                                     dplyr::mutate(Day = "Day2")
 
+for (i in 1:nrow(d2ModCols)) {
+  # start with loop by calling the row value common with the 'Master_KEGG_BPTerms' data frind from rbind above 
+  modColor         <- d2ModCols[i,1]
+  loopmodColor_cor <- paste("MM.", modColor, sep = '') # column name for mod color - PEarsons correlation value 
+  loopmodColor_p   <- paste("p.MM.", modColor, sep = '') # column name for mod color - Students asymptotic p value 
+  
+  Mod_loop_d2            <- d2_Annot_ModuleMembership %>% 
+    dplyr::filter(moduleColor %in% modColor) %>% 
+    dplyr::select(c('TranscriptID','geneSymbol','Protein_name','moduleColor', loopmodColor_cor,loopmodColor_p))
+  Mod_Loop_d2_RRcutoff   <- as.data.frame(Mod_loop_d2 %>% 
+                                            dplyr::filter(.[[5]] <  0.6 & .[[6]] > 0.05) %>% 
+                           dplyr::mutate(Day = "Day2"))
 
 
 # Day 2 - high temperature ONLY ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::; #

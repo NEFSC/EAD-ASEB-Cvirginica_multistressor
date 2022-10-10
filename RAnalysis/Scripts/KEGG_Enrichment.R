@@ -260,11 +260,14 @@ Day18_WGCNA_sigmodules <- as.data.frame(c('tan',
 for (i in 1:nrow(Day18_WGCNA_sigmodules)) {
   # start with loop by calling the row value common with the 'Master_KEGG_BPTerms' data frind from rbind above 
   modColor <- Day18_WGCNA_sigmodules[i,1]
+  loopmodColor_cor <- paste("MM.", modColor, sep = '')
+  loopmodColor_p   <- paste("p.MM.", modColor, sep = '')
   
   # call the module color in the Day 7 data
-  ModuleLoop              <- d18_WGCNA.data %>% dplyr::filter(moduleColor %in% modColor)
-  genes_per_module        <- length(unique(ModuleLoop$geneSymbol)) # nrow(ModuleLoop) # use this for the looped print out 
-  annotgenes_per_module   <- nrow(ModuleLoop %>% dplyr::filter(!KEGG_ID %in% NA)) # nrow(ModuleLoop) # use this for the looped print out 
+  ModuleLoop                     <- d18_WGCNA.data %>% dplyr::filter(moduleColor %in% modColor)  %>% 
+    dplyr::select(c('TranscriptID', 'KEGG_ID', 'geneSymbol', moduleColor, loopmodColor_p, loopmodColor_cor)) 
+  genes_per_module               <- length(unique(ModuleLoop$geneSymbol)) # nrow(ModuleLoop) # use this for the looped print out 
+  annotgenes_per_module          <- nrow(ModuleLoop %>% dplyr::filter(!KEGG_ID %in% NA)) # nrow(ModuleLoop) # use this for the looped print out 
   
   
   genes_per_module_blasthit      <- na.omit(ModuleLoop)  %>% # ommit  genes without gene name annotation 
@@ -281,6 +284,7 @@ for (i in 1:nrow(Day18_WGCNA_sigmodules)) {
   
   # Run KEGG analysis
   ModuleLoop_KEGGIDs       <- as.data.frame(ModuleLoop %>% 
+                                              dplyr::filter(.[[5]] < 0.05 & .[[6]] > 0.6) %>%
                                               dplyr::select(c('TranscriptID', 'KEGG_ID')) %>% 
                                               na.omit() %>% 
                                               dplyr::mutate(KEGG_ID = str_split(KEGG_ID,";")) %>% 
@@ -300,7 +304,7 @@ for (i in 1:nrow(Day18_WGCNA_sigmodules)) {
             KEGGoutput$GeneRatio_18 <- gsub("/"," of ", KEGGoutput$GeneRatio)
             KEGGoutput$Rich_Factor <- (  (as.numeric(sub("/.*", "", KEGGoutput$GeneRatio))) / (as.numeric(sub("/.*", "", KEGGoutput$BgRatio)))  ) 
             
-            write.csv(KEGGoutput, file = paste("Output/WGCNA/day18_spat/KEGG/Day18_",modColor,"_KEGG_allgenes.csv", sep ='')) 
+            write.csv(KEGGoutput, file = paste("Output/WGCNA/day18_spat/KEGG/RR_cutoff/Day18_",modColor,"_KEGG_allgenes.csv", sep ='')) 
             
             # Plot
             plot<- KEGGoutput %>%  
@@ -317,7 +321,7 @@ for (i in 1:nrow(Day18_WGCNA_sigmodules)) {
                    y = "Rich Factor",
                    subtitle=paste("WGCNA Module:", modColor, sep =' ')) +
               coord_flip()
-            pdf(paste("Output/WGCNA/day18_spat/KEGG/Day18_",modColor,"_RichFactorPlot.pdf", sep =''), width=5, height=6)
+            pdf(paste("Output/WGCNA/day18_spat/KEGG/RR_cutoff/Day18_",modColor,"_RichFactorPlot.pdf", sep =''), width=5, height=6)
             print(plot)
             dev.off()
             
@@ -330,7 +334,7 @@ for (i in 1:nrow(Day18_WGCNA_sigmodules)) {
             df_3$Cgigas_KEGG_IDs <- paste("crg:", df_3$gene_IDs, sep='')
             Crass_gigas_ref      <- Crass_gigas_genome_dataframe %>% mutate(Cgigas_KEGG_IDs = Crass_gigas_genome_dataframe$sseqid) %>% select(c('Cgigas_KEGG_IDs','Gene_name'))
             df_final             <- merge(df_3, Crass_gigas_ref, by='Cgigas_KEGG_IDs')
-            write.csv(df_final, file = paste("Output/WGCNA/day18_spat/KEGG/Day18_",modColor,"_KEGG_allgenes_unlisted.csv", sep ='')) 
+            write.csv(df_final, file = paste("Output/WGCNA/day18_spat/KEGG/RR_cutoff/Day18_",modColor,"_KEGG_allgenes_unlisted.csv", sep ='')) 
             
           } else {}
   
