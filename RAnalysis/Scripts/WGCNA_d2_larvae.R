@@ -3,7 +3,7 @@
 # author: "Samuel Gurr"
 # date: "January 8, 2021"
 ---
-  
+
 # LOAD PACKAGES
 library(WGCNA) # note: this was previously installed with the command `BiocManager::install("WGCNA")`
 library(dplyr)
@@ -61,7 +61,8 @@ d2.Treatment.data <- read.csv(file="Data/TagSeq/day2.exp.data.csv", sep=',', hea
                                                              (substr(Salinity,1,1)), sep = '')) %>% 
                         dplyr::mutate(pCO2_Salinity = substr(All_treatment, 2,3)) %>% 
                         dplyr::mutate(Aragonite_saturation = case_when(Aragonite_saturation < 0.5 ~ 'Low', 
-                                                                       (Aragonite_saturation > 0.5 & Aragonite_saturation < 1.0) ~ 'Mid', 
+                                                                       (Aragonite_saturation > 0.5 & Aragonite_saturation < 1.0 & Salinity == 'High') ~ 'Mid_CO2', # assign 'mid' category as  pCO2 driven (Salinity is HIGH, pCO2 HIGH is driving the reduced Arag)
+                                                                       (Aragonite_saturation > 0.5 & Aragonite_saturation < 1.0 & Salinity == 'Low') ~ 'Mid_Sal', # assign 'mid' category as  Salinity driven (Salinity is LOW and pCO2 LOW, thus Salinty is driving low  Arag)
                                                                        Aragonite_saturation > 1.0 ~ 'High'))
 
 View(d2.Treatment.data)
@@ -185,9 +186,10 @@ d2.Traits.pCO2  # final dataset of 0,1 for treatment groups - Primary only!
 
 # pCO2 groups  ===================================================== #
 d2.Traits.AragoniteSat <-  d2.Traits %>% dplyr::select('Aragonite_saturation')  %>% # primary treatment as Ambient (A) vs. Moderate (M)
-  dplyr::mutate(High = as.factor(as.numeric(Aragonite_saturation == "High")))  %>%  # call occurrence of 'A' as 0s and 1s (factor)
-  dplyr::mutate(Mid = as.factor(as.numeric(Aragonite_saturation == "Mid")))    %>%  # call occurrence of 'M'  as 0s and 1s (factor)
-  dplyr::mutate(Low = as.factor(as.numeric(Aragonite_saturation == "Low")))    %>%  # call occurrence of 'M'  as 0s and 1s (factor)
+  dplyr::mutate(High    = as.factor(as.numeric(Aragonite_saturation == "High")))  %>%  # call occurrence of 'A' as 0s and 1s (factor)
+  dplyr::mutate(Mid_CO2 = as.factor(as.numeric(Aragonite_saturation == "Mid_CO2")))    %>%  # call occurrence of 'M'  as 0s and 1s (factor)
+  dplyr::mutate(Mid_Sal = as.factor(as.numeric(Aragonite_saturation == "Mid_Sal")))    %>%  # call occurrence of 'M'  as 0s and 1s (factor)
+  dplyr::mutate(Low     = as.factor(as.numeric(Aragonite_saturation == "Low")))    %>%  # call occurrence of 'M'  as 0s and 1s (factor)
   dplyr::select(-Aragonite_saturation)
 d2.Traits.AragoniteSat  # final dataset of 0,1 for treatment groups - Primary only!
 
@@ -1031,7 +1033,7 @@ HHH_GSPvalue = as.data.frame(corPvalueStudent(as.matrix(HHH_geneTraitSignificanc
 names(HHH_geneTraitSignificance) = paste("GS.", names(HHH), sep=""); # MA_geneTraitSignificance - pearsons correlation between reads and the MA grop
 names(HHH_GSPvalue) = paste("p.GS.", names(HHH), sep=""); # corPvalueStudent
 
-#  PLOT mean.µmol.CRE.g.protein in the MAGENTA module
+#  PLOT mean.?mol.CRE.g.protein in the MAGENTA module
 # unique(moduleColors)
 # module = "brown"
 # column = match(module, modNames);
