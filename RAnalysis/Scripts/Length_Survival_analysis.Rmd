@@ -86,7 +86,7 @@ head(Av_length.survival_dat)
 # prep data 
 
 ```{r, prep the raw data for stats} 
-# extract the experiment data with coresponding sampke Ids from the averaged data master file...
+# extract the experiment data with corresponding sample Ids from the averaged data master file...
 Exp_data <-  Av_length.survival_dat %>% 
                 filter(Day %in% 1) %>% 
                 dplyr::select(c('Temp','OA','Salinity','Replicate','Id.', 'pH', 'AR')) %>% 
@@ -140,7 +140,7 @@ Age11_raw_length      <- merge(raw_length_Age11MELT, Exp_data, by = 'Sample.ID')
                         dplyr::mutate(Age = 11)
 
 # Age 15
-raw_length_Age15MELT <-  reshape2::melt((as.data.frame(Masterlengthdata) %>% dplyr::filter(Age == 15))) %>% 
+raw_length_Age15MELT <- reshape2::melt((as.data.frame(Masterlengthdata) %>% dplyr::filter(Age == 15))) %>% 
                         na.omit %>% 
                         dplyr::rename(length_um = value , Sample.ID =variable) %>% 
                         dplyr::mutate(Sample.ID = gsub('.*Sample.','', Sample.ID))
@@ -172,7 +172,63 @@ Length_means <- Master_Lengths %>%
                                            n           = n(),
                                            sd_length   = sd(length_um),
                                            se_length   = sd_length/(sqrt(n))) 
+
+
+GR_means <- as.data.frame(Length_means %>% 
+  filter(Age %in% c(1,15)) %>% 
+  dplyr::select(c(Age, OA, Salinity, Temp, mean_length)) %>% 
+  dplyr::group_by(OA, Salinity, Temp)  %>% 
+  tidyr::spread(Age, mean_length) %>%  # new columns titled 1 and 15 for he Age and with values for the 
+  # length data grouped by treatment 
+  dplyr::mutate(Growth_rate_umday = (`15` - `1`) / 14) %>% 
+  dplyr::select(!c(`1`,`15`))) # note 1 missing value for OA High Temp Low Salinity Low
+
+getNA <- as.data.frame(Length_means %>% 
+  filter(Age %in% c(1,11)) %>% 
+  dplyr::select(c(Age, OA, Salinity, Temp, mean_length)) %>% 
+  dplyr::group_by(OA, Salinity, Temp)  %>% 
+  tidyr::spread(Age, mean_length) %>%  # new columns titled 1 and 15 for he Age and with values for the 
+  # length data grouped by treatment 
+  dplyr::mutate(Growth_rate_umday = (`11` - `1`) / 13) %>% 
+  dplyr::select(!c(`1`,`11`))) # 2.612424 for OA High Temp Low Salinity Low, insert into the other table
+
+GR_means[4,4] = 2.612424
+
+GR_means$Growth_rate_umday <- as.numeric(GR_means$Growth_rate_umday)
+
+Length_means_MASTER <- merge(Length_means, GR_means, by=c('OA', 'Salinity', 'Temp'))
+
 # plot - length
+data <- Length_means_MASTER %>% 
+                      dplyr::mutate(OA_Sal = paste(substr(OA,1,1),
+                                              substr(Salinity,1,1),
+                                                  sep = ''))
+p <- data %>% 
+       ggplot(aes(x = Age,
+                  y = mean_length)) + 
+       geom_point(color = 'grey80') +
+       geom_line(aes(x = Age,
+                     y = mean_length)) +
+       geom_errorbar(aes(ymin = mean_length - se_length, 
+                         ymax = mean_length + se_length), 
+                         width = 0.5, position= "dodge2") +
+       geom_smooth(method = "lm", se = FALSE, size = 0.5, color = 'white') +
+       theme_bw() +  
+       facet_grid(vars(Temp), vars(fct_relevel(OA_Sal, c("HL", "LL", "HH", "LH"))))
+p <- p + geom_rect(data = data, aes(fill = Growth_rate_umday), xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf, alpha = 0.3)
+p <- p + geom_text(data = data, size = 2, aes(x = 5, y = 300, label = paste0(round(Growth_rate_umday,2),"um day-1")))
+p <- p + scale_fill_gradient(low = "orange", high = "forestgreen", aesthetics = "fill")
+p
+setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis")
+pdf("Output/Length_Survival/Length_all_facetted.pdf", width=11, height=6)
+print(p)
+dev.off()
+
+```
+
+```{r}
+
+
 Length_all_MeanSE_plot <- Length_means %>% 
                                 ggplot(aes(x = Age,
                                            y=mean_length, 
@@ -335,6 +391,9 @@ ShellLength_Boxplot_Days11.15 <-  Master_Lengths %>%  dplyr::filter(Age %in% c(1
 ShellLength_Boxplot_Days11.15
 ```
 
+
+
+
 ```{r survival plot all} 
 p<-ggplot(data=data, aes(x=interval, y=OR, colour=Drug)) + geom_point() + geom_line()
 p<-p+geom_ribbon(aes(ymin=data$lower, ymax=data$upper), linetype=2, alpha=0.1)
@@ -383,6 +442,52 @@ Survival_means <- Av_length.survival_dat %>%
                                            n           = n(),
                                            sd_survival   = sd(Survival),
                                            se_survival   = sd_survival/(sqrt(n)))
+
+
+
+Mortality_rate_means <- as.data.frame(Survival_means %>% 
+  filter(Day %in% 15) %>% 
+  dplyr::select(c(Day, OA, Salinity, Temp, mean_survival)) %>% 
+  dplyr::group_by(OA, Salinity, Temp)  %>% 
+  tidyr::spread(Day, mean_survival) %>%  # new columns titled 1 and 15 for he Age and with values for the 
+  # length data grouped by treatment 
+  dplyr::mutate(Mortality_rate_percday = (`15`) *100 ) %>% 
+  dplyr::select(!`15`)) 
+
+Survival_means_MASTER <- merge(Survival_means, Mortality_rate_means, by=c('OA', 'Salinity', 'Temp'))
+
+# plot - length
+data <- Survival_means_MASTER %>% 
+                      dplyr::mutate(OA_Sal = paste(substr(OA,1,1),
+                                              substr(Salinity,1,1),
+                                                  sep = ''))
+p <- data %>% 
+       ggplot(aes(x = Day,
+                  y = mean_survival)) + 
+       geom_point(color = 'grey80') +
+       geom_line(aes(x = Day,
+                     y = mean_survival)) +
+       geom_errorbar(aes(ymin = mean_survival - se_survival, 
+                         ymax = mean_survival + se_survival), 
+                         width = 0.5, position= "dodge2") +
+       geom_smooth(method = "lm", se = FALSE, size = 0.5, color = 'white') +
+       theme_bw() +  
+       facet_grid(vars(Temp), vars(fct_relevel(OA_Sal, c("HL", "LL", "HH", "LH"))))
+p <- p + geom_rect(data = data, aes(fill = Mortality_rate_percday), 
+                   xmin = -Inf, 
+                   xmax = Inf, 
+                   ymin = -Inf, 
+                   ymax = Inf, 
+                   alpha = 0.3)
+p <- p + geom_text(data = data, size = 2, 
+                   aes(x = 12, 
+                       y = 0.8, 
+                       label = paste0(round(Mortality_rate_percday,2),"% day-1")))
+p <-p + scale_fill_gradient(low = "forestgreen", high = "orange", aesthetics = "fill")
+setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis")
+pdf("Output/Length_Survival/Survival_all_facetted.pdf", width=11, height=6)
+print(p)
+dev.off()
 
 
 Survival_all_MeanSE_plot <- Survival_means %>% 
