@@ -1,7 +1,7 @@
 ---
-title: "Length_Survival_analysis.Rmd"
+title: "Length_analysis.Rmd"
 author: "Sam Gurr"
-date: "7/23/2021"
+date: "11/2/2022"
 output:
   pdf_document: default
   html_document: default
@@ -16,23 +16,23 @@ output:
 library(ggplot2)
 library(dplyr)
 library(tidyverse)
-library(multcompView)
-library(agricolae)
+# library(multcompView)
+# library(agricolae)
 library(dplyr)
 library(lme4)
 library(ggplot2)
 library(nlme)
 library(car)
 library(performance)
-library(stargazer)
+# library(stargazer)
 library(emmeans)
 library(pander)
-library(survminer)
+# library(survminer)
 library(survival)
-library(adjustedCurves)
-library(riskRegression)
-library(pammtools)
-library(bestNormalize)
+# library(adjustedCurves)
+# library(riskRegression)
+# library(pammtools)
+# library(bestNormalize)
 ```
 
 
@@ -43,27 +43,34 @@ library(bestNormalize)
 setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis")
 
 # day 1 - length data
-raw_length_dat_Age1    <- read.csv("Data/Length_Survival/timepoint_1_Day1.csv", header = T,nrows=50) %>% dplyr::mutate(Age = 1)
+raw_length_dat_Age1    <- read.csv("Data/Length/timepoint_1_Day1.csv", header = T,nrows=50) %>% dplyr::mutate(Age = 1)
 
 
 # day 1 - length data
-raw_length_dat_Age4    <- read.csv("Data/Length_Survival/timepoint_2_Day4.csv", header = T) %>% dplyr::mutate(Age = 4)
+raw_length_dat_Age4    <- read.csv("Data/Length/timepoint_2_Day4.csv", header = T) %>% dplyr::mutate(Age = 4)
 
 # day 8 - length data
-raw_length_dat_Age8_1  <- read.csv("Data/Length_Survival/timepoint_3_Day8.csv", header = T) %>% dplyr::mutate(Age = 8)
-raw_length_dat_Age8_2  <- read.csv("Data/Length_Survival/timepoint_3_Day8_additional_lengths.csv", header = T) %>% dplyr::mutate(Age = 8)
+raw_length_dat_Age8_1  <- read.csv("Data/Length/timepoint_3_Day8.csv", header = T) %>% dplyr::mutate(Age = 8)
+raw_length_dat_Age8_2  <- read.csv("Data/Length/timepoint_3_Day8_additional_lengths.csv", header = T) %>% dplyr::mutate(Age = 8)
 rbind(raw_length_dat_Age8_1,raw_length_dat_Age8_2)
 
 
 # day 11 - length data
-raw_length_dat_Age11   <- read.csv("Data/Length_Survival/timepoint_4_Day11.csv", header = T) %>% 
+raw_length_dat_Age11   <- read.csv("Data/Length/timepoint_4_Day11.csv", header = T) %>% 
                                     dplyr::mutate(Age = 11)
 
 # day 15 - length data
-raw_length_dat_Age15   <- read.csv("Data/Length_Survival/timepoint_5_Day15.csv", header = T) %>% 
+raw_length_dat_Age15   <- read.csv("Data/Length/timepoint_5_Day15.csv", header = T) %>% 
                                     dplyr::select(-X) %>% 
                                     dplyr::mutate(Age = 15)
 
+
+```
+
+
+# prep data 
+
+```{r, prep the raw data for stats} 
 # master raw length file
 
 Masterlengthdata    <- rbind(sapply(raw_length_dat_Age1, as.numeric),
@@ -72,30 +79,6 @@ Masterlengthdata    <- rbind(sapply(raw_length_dat_Age1, as.numeric),
                                 sapply(raw_length_dat_Age8_2, as.numeric),
                                 sapply(raw_length_dat_Age11, as.numeric),
                                 sapply(raw_length_dat_Age15, as.numeric))
-
-
-# average data - survival and length
-Av_length.survival_dat <- read.csv("Data/Length_Survival/LengthSurvival_master.csv", header = T) %>% 
-                            dplyr::mutate(random_fact = paste( substr(Temp,1,1), 
-                                                               substr(OA,1,1), 
-                                                               substr(Salinity,1,1), '_', Replicate, sep = ''))
-head(Av_length.survival_dat)
-```
-
-
-# prep data 
-
-```{r, prep the raw data for stats} 
-# extract the experiment data with corresponding sample Ids from the averaged data master file...
-Exp_data <-  Av_length.survival_dat %>% 
-                filter(Day %in% 1) %>% 
-                dplyr::select(c('Temp','OA','Salinity','Replicate','Id.', 'pH', 'AR')) %>% 
-                dplyr::rename(Sample.ID = Id., Aragonite_saturation = AR)
-
-# melt the raw data, cean and format it for merging with Exp_data
-
-
-
 
 # Age 1
 raw_length_Age1MELT <-  reshape2::melt((as.data.frame(Masterlengthdata) %>% dplyr::filter(Age == 1))) %>% 
@@ -199,36 +182,53 @@ GR_means$Growth_rate_umday <- as.numeric(GR_means$Growth_rate_umday)
 Length_means_MASTER <- merge(Length_means, GR_means, by=c('OA', 'Salinity', 'Temp'))
 
 # plot - length
-data <- Length_means_MASTER %>% 
-                      dplyr::mutate(OA_Sal = paste(substr(OA,1,1),
-                                              substr(Salinity,1,1),
-                                                  sep = ''))
-p <- data %>% 
-       ggplot(aes(x = Age,
-                  y = mean_length)) + 
-       geom_point(color = 'grey80') +
-       geom_line(aes(x = Age,
-                     y = mean_length)) +
-       geom_errorbar(aes(ymin = mean_length - se_length, 
-                         ymax = mean_length + se_length), 
-                         width = 0.5, position= "dodge2") +
-       geom_smooth(method = "lm", se = FALSE, size = 0.5, color = 'white') +
-       theme_bw() +  
-       facet_grid(vars(Temp), vars(fct_relevel(OA_Sal, c("HL", "LL", "HH", "LH"))))
-p <- p + geom_rect(data = data, aes(fill = Growth_rate_umday), xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf, alpha = 0.3)
-p <- p + geom_text(data = data, size = 2, aes(x = 5, y = 300, label = paste0(round(Growth_rate_umday,2),"um day-1")))
-p <- p + scale_fill_gradient(low = "orange", high = "forestgreen", aesthetics = "fill")
-p
+
+Heatplot <- Length_means_MASTER %>% 
+              dplyr::mutate(OA_Sal = 
+                              paste(substr(OA,1,1),
+                              substr(Salinity,1,1),
+                              sep = '')) %>% 
+               ggplot(aes(x = Age,
+                          y = mean_length)) + 
+               geom_rect(aes(fill = Growth_rate_umday), 
+                           xmin = -Inf, 
+                           xmax = Inf, 
+                           ymin = -Inf, 
+                           ymax = Inf, 
+                           alpha = 0.3) +
+              geom_point(color = 'black') +
+              geom_line(aes(x = Age,
+                            y = mean_length)) +
+               geom_errorbar(aes(ymin = mean_length - se_length, 
+                                 ymax = mean_length + se_length), 
+                                width = 0.5, 
+                                position= "dodge2") +
+              geom_smooth(method = "lm", 
+                          se = FALSE, 
+                          size = 1, 
+                          color = 'white') +
+              theme_bw() +  
+              theme(panel.grid.major = element_blank(),
+                    panel.grid.minor = element_blank()) +
+              facet_grid(vars(Temp), 
+                         vars(fct_relevel(OA_Sal, c("HL", "LL", "HH", "LH")))) +
+              geom_text(size = 2, 
+                           aes(x = 12, 
+                               y = 0.8, 
+                               label = paste0(round(Growth_rate_umday,2),"um day-1"))) +
+              scale_fill_gradient(low = "orange", 
+                                   high = "forestgreen", 
+                                   aesthetics = "fill")
+
+       
 setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis")
-pdf("Output/Length_Survival/Length_all_facetted.pdf", width=11, height=6)
-print(p)
+pdf("Output/Length/plots/Length_all_facetted.pdf", width=11, height=5)
+print(Heatplot)
 dev.off()
 
 ```
 
 ```{r}
-
-
 Length_all_MeanSE_plot <- Length_means %>% 
                                 ggplot(aes(x = Age,
                                            y=mean_length, 
@@ -247,7 +247,7 @@ Length_all_MeanSE_plot <- Length_means %>%
                                 theme_classic() +  
                                 facet_wrap(~(fct_relevel(OA, c("Low", "High"))))
 setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis")
-pdf("Output/Length_Survival/Length_all_MeanSE.pdf", width=11, height=6)
+pdf("Output/Length/Length_all_MeanSE.pdf", width=11, height=6)
 print(Length_all_MeanSE_plot)
 dev.off()
 
@@ -272,7 +272,7 @@ Length_Day1.4_MeanSE_plot <- Length_means %>%
                                 theme_classic() +  
                                 facet_wrap(~(fct_relevel(OA, c("Low", "High"))))
 setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis")
-pdf("Output/Length_Survival/Length_Day1.4_MeanSE.pdf", width=11, height=6)
+pdf("Output/Length/Length_Day1.4_MeanSE.pdf", width=11, height=6)
 print(Length_Day1.4_MeanSE_plot)
 dev.off()
 
@@ -298,7 +298,7 @@ Length_Days8.11.15_MeanSE_plot <- Length_means %>%
                                 theme_classic() +  
                                 facet_wrap(~(fct_relevel(OA, c("Low", "High"))))
 setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis")
-pdf("Output/Length_Survival/Length_Days8.11.15_MeanSE.pdf", width=11, height=6)
+pdf("Output/Length/Length_Days8.11.15_MeanSE.pdf", width=11, height=6)
 print(Length_Days8.11.15_MeanSE_plot)
 dev.off()
 
@@ -482,7 +482,7 @@ p <- p + geom_text(data = data, size = 2,
                        label = paste0(round(Mortality_rate_percday,2),"% day-1")))
 p <-p + scale_fill_gradient(low = "orange", high = "forestgreen", aesthetics = "fill")
 setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis")
-pdf("Output/Length_Survival/Survival_all_facetted.pdf", width=11, height=6)
+pdf("Output/Length/Survival_all_facetted.pdf", width=11, height=6)
 print(p)
 dev.off()
 
@@ -510,7 +510,7 @@ Survival_all_MeanSE_plot <- Survival_means %>%
                                 facet_wrap(~(fct_relevel(OA, c("Low", "High"))))
 Survival_all_MeanSE_plot # view the plot
 setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis")
-pdf("Output/Length_Survival/Survival_all_MeanSE.pdf", width=11, height=6)
+pdf("Output/Length/Survival_all_MeanSE.pdf", width=11, height=6)
 print(Survival_all_MeanSE_plot)
 dev.off()
 ```
@@ -606,7 +606,7 @@ Age1_ShellLength_Boxplot <- ggplot(data=Age1_raw_length, aes(x=fct_relevel(OA, c
 
 # save the plot 
 setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis")
-pdf("Output/Length_Survival/Length_age_24hrs_Boxplots.pdf", width=8, height=6)
+pdf("Output/Length/Length_age_24hrs_Boxplots.pdf", width=8, height=6)
 print(Age1_ShellLength_Boxplot)
 dev.off()
 
@@ -688,7 +688,7 @@ Age1_ShellLength_Boxplot_hightemp <- ggplot(data=Age1_raw_length_hightemp, aes(x
 
 # save the plot 
 setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis")
-pdf("Output/Length_Survival/Length_age_24hrs_Boxplots_hightemp.pdf", width=8, height=6)
+pdf("Output/Length/Length_age_24hrs_Boxplots_hightemp.pdf", width=8, height=6)
 print(Age1_ShellLength_Boxplot_hightemp)
 dev.off()
 
@@ -778,7 +778,7 @@ Age4_ShellLength_Boxplot <- ggplot(data=Age4_raw_length, aes(x=fct_relevel(OA, c
                               theme(axis.text=element_text(size=12)) 
 
 setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis")
-pdf("Output/Length_Survival/Length_age_4days_Boxplots.pdf", width=4, height=6)
+pdf("Output/Length/Length_age_4days_Boxplots.pdf", width=4, height=6)
 print(Age4_ShellLength_Boxplot)
 dev.off()
 
@@ -873,7 +873,7 @@ Age8_ShellLength_Boxplot <- ggplot(data=Age8_raw_length, aes(x=fct_relevel(OA, c
                               theme(axis.text=element_text(size=12)) 
 
 setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis")
-pdf("Output/Length_Survival/Length_age_8days_Boxplots.pdf", width=8, height=6)
+pdf("Output/Length/Length_age_8days_Boxplots.pdf", width=8, height=6)
 print(Age8_ShellLength_Boxplot)
 dev.off()
 
@@ -951,7 +951,7 @@ Age8_ShellLength_Boxplot_hightemp <- ggplot(data=Age8_raw_length_hightemp, aes(x
 
 # save the plot 
 setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis")
-pdf("Output/Length_Survival/Length_age_8days_Boxplots_hightemp.pdf", width=8, height=6)
+pdf("Output/Length/Length_age_8days_Boxplots_hightemp.pdf", width=8, height=6)
 print(Age8_ShellLength_Boxplot_hightemp)
 dev.off()
 
@@ -1043,7 +1043,7 @@ Age11_ShellLength_Boxplot <- ggplot(data=Age11_raw_length, aes(x=fct_relevel(OA,
                               theme(axis.text=element_text(size=12)) 
 
 setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis")
-pdf("Output/Length_Survival/Length_age_11days_Boxplots.pdf", width=11, height=6)
+pdf("Output/Length/Length_age_11days_Boxplots.pdf", width=11, height=6)
 print(Age11_ShellLength_Boxplot)
 dev.off()
 
@@ -1135,7 +1135,7 @@ Age15_ShellLength_Boxplot <- ggplot(data=Age15_raw_length, aes(x=fct_relevel(OA,
                               theme(axis.text=element_text(size=12)) 
 
 setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis")
-pdf("Output/Length_Survival/Length_age_15days_Boxplots.pdf", width=15, height=6)
+pdf("Output/Length/Length_age_15days_Boxplots.pdf", width=15, height=6)
 print(Age15_ShellLength_Boxplot)
 dev.off()
 
@@ -1235,7 +1235,7 @@ Age1_Survival_Boxplot_2 <- age_1 %>%
                               theme(axis.text=element_text(size=12)) 
 
 setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis")
-pdf("Output/Length_Survival/Survival_age_24hrs_MeanSE.pdf", width=8, height=6)
+pdf("Output/Length/Survival_age_24hrs_MeanSE.pdf", width=8, height=6)
 print(Age1_Survival_Boxplot_2)
 dev.off()
 
@@ -1257,7 +1257,7 @@ Age1_Survival_Boxplot <-ggplot(data=age_1, aes(x=fct_relevel(OA, c("Low", "High"
                                           theme(axis.text=element_text(size=12)) 
   
 setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis")
-pdf("Output/Length_Survival/Survival_age_24hrs.pdf", width=8, height=6)
+pdf("Output/Length/Survival_age_24hrs.pdf", width=8, height=6)
 print(Age1_Survival_Boxplot)
 dev.off()
 ```
@@ -1344,7 +1344,7 @@ Age1_Survival_Boxplot_2 <- age_1_hightemp %>%
                               theme(axis.text=element_text(size=12)) 
 
 setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis")
-pdf("Output/Length_Survival/Survival_age_24hrs_MeanSE_hightemp.pdf", width=8, height=6)
+pdf("Output/Length/Survival_age_24hrs_MeanSE_hightemp.pdf", width=8, height=6)
 print(Age1_Survival_Boxplot_2)
 dev.off()
  
@@ -1366,7 +1366,7 @@ Age1_Survival_Boxplot <-ggplot(data=age_1_hightemp, aes(x=fct_relevel(OA, c("Low
                                           theme(axis.text=element_text(size=12)) 
   
 setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis")
-pdf("Output/Length_Survival/Survival_age_24hrs_hightemp.pdf", width=8, height=6)
+pdf("Output/Length/Survival_age_24hrs_hightemp.pdf", width=8, height=6)
 print(Age1_Survival_Boxplot)
 dev.off()
 
@@ -1458,7 +1458,7 @@ Age4_Survival_Boxplot_2 <- age_4 %>%
                               theme(axis.text=element_text(size=12)) 
 
 setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis")
-pdf("Output/Length_Survival/Survival_age_4days_MeanSE.pdf", width=4, height=6)
+pdf("Output/Length/Survival_age_4days_MeanSE.pdf", width=4, height=6)
 print(Age4_Survival_Boxplot_2)
 dev.off()
 
@@ -1485,7 +1485,7 @@ Age4_Survival_Boxplot <-ggplot(data=age_4, aes(x=fct_relevel(OA, c("Low", "High"
                                           theme(axis.text=element_text(size=12)) 
 
 setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis")
-pdf("Output/Length_Survival/Survival_age_4days.pdf", width=4, height=6)
+pdf("Output/Length/Survival_age_4days.pdf", width=4, height=6)
 print(Age4_Survival_Boxplot)
 dev.off()
 
@@ -1576,7 +1576,7 @@ Age8_Survival_Boxplot_2 <- age_8 %>%
                               theme(axis.text=element_text(size=12)) 
 
 setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis")
-pdf("Output/Length_Survival/Survival_age_8days_MeanSE.pdf", width=8, height=6)
+pdf("Output/Length/Survival_age_8days_MeanSE.pdf", width=8, height=6)
 print(Age8_Survival_Boxplot_2)
 dev.off()
 
@@ -1603,7 +1603,7 @@ Age8_Survival_Boxplot <-ggplot(data=age_8, aes(x=fct_relevel(OA, c("Low", "High"
                                           theme(axis.text=element_text(size=12)) 
 
 setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis")
-pdf("Output/Length_Survival/Survival_age_8days.pdf", width=8, height=6)
+pdf("Output/Length/Survival_age_8days.pdf", width=8, height=6)
 print(Age8_Survival_Boxplot)
 dev.off()
 
@@ -1695,7 +1695,7 @@ Age8_Survival_Boxplot <- age_8_hightemp %>%
                               theme(axis.text=element_text(size=12)) 
 
 setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis")
-pdf("Output/Length_Survival/Survival_age_24hrs_MeanSE_hightemp.pdf", width=8, height=6)
+pdf("Output/Length/Survival_age_24hrs_MeanSE_hightemp.pdf", width=8, height=6)
 print(Age8_Survival_Boxplot)
 dev.off()
 
@@ -1720,7 +1720,7 @@ Age8_Survival_Boxplot <-ggplot(data=age_8_hightemp, aes(x=fct_relevel(OA, c("Low
                                           theme(axis.text=element_text(size=12)) 
 
 setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis")
-pdf("Output/Length_Survival/Survival_age_8days_hightemp.pdf", width=8, height=6)
+pdf("Output/Length/Survival_age_8days_hightemp.pdf", width=8, height=6)
 print(Age8_Survival_Boxplot)
 dev.off()
 
@@ -1813,7 +1813,7 @@ Age11_Survival_Boxplot_2 <- age_11 %>%
                               theme(axis.text=element_text(size=12)) 
 
 setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis")
-pdf("Output/Length_Survival/Survival_age_11days_MeanSE.pdf", width=11, height=6)
+pdf("Output/Length/Survival_age_11days_MeanSE.pdf", width=11, height=6)
 print(Age11_Survival_Boxplot_2)
 dev.off()
 
@@ -1840,7 +1840,7 @@ Age11_Survival_Boxplot <-ggplot(data=age_11, aes(x=fct_relevel(OA, c("Low", "Hig
                                           theme(axis.text=element_text(size=12)) 
 
 setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis")
-pdf("Output/Length_Survival/Survival_age_11days.pdf", width=11, height=6)
+pdf("Output/Length/Survival_age_11days.pdf", width=11, height=6)
 print(Age11_Survival_Boxplot)
 dev.off()
 
@@ -1932,7 +1932,7 @@ Age15_Survival_Boxplot_2 <- age_15 %>%
                               theme(axis.text=element_text(size=12)) 
 
 setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis")
-pdf("Output/Length_Survival/Survival_age_15days_MeanSE.pdf", width=15, height=6)
+pdf("Output/Length/Survival_age_15days_MeanSE.pdf", width=15, height=6)
 print(Age15_Survival_Boxplot_2)
 dev.off()
 
@@ -1959,7 +1959,7 @@ Age15_Survival_Boxplot <-ggplot(data=age_15, aes(x=fct_relevel(OA, c("Low", "Hig
                                           theme(axis.text=element_text(size=12)) 
 
 setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis")
-pdf("Output/Length_Survival/Survival_age_15days.pdf", width=15, height=6)
+pdf("Output/Length/Survival_age_15days.pdf", width=15, height=6)
 print(Age15_Survival_Boxplot)
 dev.off()
 
