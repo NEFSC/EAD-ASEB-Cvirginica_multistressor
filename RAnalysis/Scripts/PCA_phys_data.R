@@ -47,7 +47,7 @@ resp_master_RepMean <- merge(resp_master_RepMean, resp_ref) # merged the values
 
 
 # length and survival data  ------------ #
-length_survival_master  <- read.csv(file="Data/Length_Survival/LengthSurvival_master.csv", header=T) 
+length_survival_master  <- read.csv(file="Data/Survival/Survival_master.csv", header=T) 
 length_survival_D1.8 <- length_survival_master %>% 
                               dplyr::rename(Chamber_tank = Id.) %>% 
                               dplyr::select(c('Day', 'Chamber_tank', 
@@ -134,7 +134,7 @@ meanExp_stats %>% summarise(sd_Gene_count = sd(meanExp_stats$Gene.count.MM.0.5),
 
 # > 0.6 Pearson's cor and > 0.05 P value 
 # Gene.count.MM.0.5   Percent_MM.0.05 
-# 240.00000          42.05936 + - 5.293175
+# 240.00000          42.05936 + - 5.293175  *** this is the one we are using
 
 # > 0.4 Pearson's cor and > 0.05 P value 
 # Gene.count.MM.0.5   Percent_MM.0.05 
@@ -165,7 +165,13 @@ Master_Days1.8_phys_cors <- Master_Days1.8_phys %>% # Master_Days1.8_phys_cors =
 
 # Run a PCA for Day 1 
 Master_Day1$Day <- as.factor(Master_Day1$Day) # convert Day into a factor
-Day1PCA         <- (merge(Master_Day1, meanExp_Master))[-9,]
+Day1PCA         <- (merge(Master_Day1, meanExp_Master))[-9,] %>%  # outlier omit, chose not to
+                      dplyr::mutate(Aragonite_saturation = 
+                      case_when(Aragonite_saturation == 'Low' ~ 'Low', 
+                               (Aragonite_saturation == 'Mid' & Salinity == 'L') ~ 'Mid_Sal', 
+                               (Aragonite_saturation == 'Mid' & pCO2     == 'H') ~ 'Mid_pCO2', 
+                                Aragonite_saturation == 'High' ~ 'High'))
+                    
 
 # PCA Day 1 
 phys_pca1   <- prcomp(Day1PCA[,c(3,7,8,12:17)], # all numeric (phys + all modules) - PCA 1 = 0.4133 , PCA 2 0.1786  (cumulative 0.5919)
@@ -180,7 +186,9 @@ phys_pca1   <- prcomp(Day1PCA[,c(11:16)],   # modules only   (cumulative 0.6990 
 phys_pca1   <- prcomp(Day1PCA[,c(3,7,8,12,13,17)],   # main effect modules only (brown blur, turquoise)   (cumulative 96.28)
                       center = TRUE,
                       scale. = TRUE)
-
+phys_pca1   <- prcomp(Day1PCA[,c(7,8,12:17)],   # without resp
+                      center = TRUE,
+                      scale. = TRUE)
 print(phys_pca1)
 
 summary(phys_pca1)
@@ -233,21 +241,21 @@ p1Temp <- ggbiplot(phys_pca1,
 p1Arag <- ggbiplot(phys_pca1,
                    obs.scale = 1,
                    var.scale = 1,
-                   groups = Day1PCA$Aragonite_saturation.y,
+                   groups = Day1PCA$Aragonite_saturation,
                    ellipse = TRUE,
                    circle = TRUE,
-                   ellipse.prob = 0.5) +
+                   ellipse.prob = 0.67) +
   scale_color_discrete(name = '') +  theme_classic() +  ggtitle("day1, aragonite saturation") +
   theme(legend.direction = 'horizontal',
         legend.position = 'top')
 
 library(ggpubr)
-ggarrange(p1Sal, p1pCO2, p1Temp, ncol = 3,nrow = 1)
+ggarrange(p1Sal, p1pCO2, p1Temp, p1Arag, ncol = 2,nrow = 2)
 
 
 pdf("Output/PCA_day1_phys.pdf", 
     width = 10, height = 10)
-print(ggarrange(p1Sal, p1pCO2, p1Temp ))
+print(ggarrange(p1Sal, p1pCO2, p1Temp,p1Arag ))
 dev.off()
 
 

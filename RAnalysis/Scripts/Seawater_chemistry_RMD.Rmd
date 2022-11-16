@@ -17,14 +17,17 @@ library(reshape2)
 library(qwraps2)
 library(knitr)
 library(kableExtra)
+library(car)
+library(agricolae) # tukey letters
 # SET WORKING DIRECTORY :::::::::::::::::::::::::::::::::::::::::::::::
 setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis") # personal computer
 # setwd("C:/Users/samuel.gurr/Documents/Github_repositories/Cvriginica_multistressor/RAnalysis") # Work computer
 
 # LOAD DATA :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-chem <- read.csv(file="Data/Water_chem/Chem_logsheet_raw.csv", header=TRUE) # load the chem data
+# chem <- read.csv(file="Data/Water_chem/Chem_logsheet_raw.csv", header=TRUE) # load the chem data
+chem <- read.csv(file="Data/Water_chem/cumulative_raw/Seawater_chem_raw.csv", header=TRUE) # load the chem data
 names(chem)<-gsub("\\..","_",names(chem)) # insert underscore sin the column names to ease reading the columns 
-View(chem)
+# View(chem) # view the file
 ```
 
 
@@ -38,7 +41,7 @@ View(chem)
 # (2)  high aragonite as high salinity low pCO2
 # (3a) mid aragonite driven by low slainity (and low pCO2)
 # (3b) mid aragonite driven by high pCO2 (under high salinity)
-head(chem)
+
 # in this chunk... 
 # I will plot and statistically examine differences in aragonite saturation state for all 8 groups and in the consolidated 4 described above 
 
@@ -46,10 +49,10 @@ head(chem)
 #  CONSOLIDATE TARGET DATA, NAME NEW COLUMNS 
 names(chem)
 chem.aragonite <- chem %>% 
-  tidyr::drop_na(WAr_ut) %>% # omit rows with NA for aragonite sat state
-  dplyr::select(c('Date','Chamber_','Temp','OA_CO2','Salinity','WAr_ut')) %>% 
-  dplyr::mutate(all_treat = paste(Temp,OA_CO2, Salinity, sep = '_')) %>% 
-  dplyr::mutate(OAxSal = paste(OA_CO2, Salinity, sep = '_')) 
+  tidyr::drop_na(WAr_out) %>% # omit rows with NA for aragonite sat state
+  dplyr::select(c('Date','Chamber_.','Temp','pCO2','Sal','WAr_out')) %>% 
+  dplyr::mutate(all_treat = paste(Temp,pCO2, Sal, sep = '_')) %>% 
+  dplyr::mutate(OAxSal = paste(pCO2, Sal, sep = '_')) 
 
 
 
@@ -57,34 +60,63 @@ chem.aragonite <- chem %>%
 
 alltreat.Date.MEANS <- chem.aragonite %>% 
   dplyr::group_by(Date, all_treat) %>% 
-  dplyr::summarise(mean_AragoniteSat.date  = mean(WAr_ut), 
+  dplyr::summarise(mean_AragoniteSat.date  = mean(WAr_out), 
                     n                 = n(),
-                    sd_AragoniteSat.date   = sd(WAr_ut),
+                    sd_AragoniteSat.date   = sd(WAr_out),
                     se_AragoniteSat.date   = sd_AragoniteSat.date/(sqrt(n))) 
 
-all.mod <- aov(mean_AragoniteSat.date ~  all_treat, data= alltreat.Date.MEANS) # outlier [-35,]
-shapiro.test(resid(all.mod)) # 1.465e-09 non normal
-leveneTest(all.mod) # 0.0968 .
-qqnorm(resid(all.mod))
-hist(resid(all.mod))
+all.mod <- aov(log(mean_AragoniteSat.date) ~  all_treat, data= alltreat.Date.MEANS) # outlier [-35,]
+shapiro.test(resid(all.mod)) # 0.04996  normal
+leveneTest(all.mod) # 0.4938 pass
+qqnorm(resid(all.mod)) # view qqnrom
+hist(resid(all.mod)) # view histogram
+summary(all.mod) # summary printed below...
+#             Df Sum Sq Mean Sq F value Pr(>F)    
+# all_treat    7 20.365  2.9093    1017 <2e-16 ***
+# Residuals   40  0.114  0.0029 
 
 # posthoc
-TukeyHSD(all.mod)
 allmod.means   <- emmeans::emmeans(object = all.mod, pairwise ~ "all_treat", adjust = "tukey")
-library(agricolae)
-x <- HSD.test(all.mod, "all_treat", group=TRUE)
-#       mean_AragoniteSat.date groups
-# H_L_H              1.5723810      a
-# L_L_H              1.4733333      a
-# H_H_H              0.7142857      b
-# L_H_H              0.6400000      b
-# H_L_L              0.6380952      b
-# L_L_L              0.5244444     bc
-# H_H_L              0.3197619     cd
-# L_H_L              0.2233333      d
+allmod.letters <- HSD.test(all.mod, "all_treat", group=TRUE)
+#      log(mean_AragoniteSat.date) groups
+# H_L_H                   0.5599737      a
+# L_L_H                   0.4108005      b
+# H_H_H                  -0.2443737      c
+# H_L_L                  -0.4024329      d interesting
+# L_H_H                  -0.4141954      d interesting - the mid treatments driven by differing factors
+# L_L_L                  -0.6065619      e
+# H_H_L                  -1.2120345      f
+# L_H_L                  -1.4448603      g
+library(forcats)
+AragonitePlot <- alltreat.Date.MEANS %>% 
+      dplyr::mutate(Temp = substr(all_treat, 1,1)) %>%
+      dplyr::mutate(pCO2 = substr(all_treat, 3,3)) %>%
+      dplyr::mutate(Sal = substr(all_treat, 5,5)) %>%
+      dplyr::mutate(pCO2xSal = paste(pCO2, Sal, sep = '_')) %>% 
+      dplyr::mutate(pCO2xSal = fct_reorder(pCO2xSal, mean_AragoniteSat.date)) %>%  # reorder for x axis
+      dplyr::mutate(Temp = fct_relevel(Temp, "L", "H")) %>% 
+        ggplot(aes(pCO2xSal , mean_AragoniteSat.date, grfill = Temp)) +
+        theme(panel.grid=element_blank()) +
+        geom_boxplot(size=0.2, alpha=0.1) +
+        scale_fill_manual(values=c("grey50", "white")) +
+        geom_point(aes(fill=Temp), 
+                   shape = 21, 
+                   size = 2, 
+                   position = position_jitterdodge(jitter.width = 0.1)) +
+        theme_classic() +
+        theme(axis.text=element_text(size=12),
+              axis.title=element_text(size=12)) +
+        stat_summary(fun.y=mean, 
+                     geom="point", 
+                     shape=18, 
+                     size=4, 
+                     color="black", 
+                     fill="white")
 
-
-View(alltreat.Date.MEANS)
+setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Output/Water_Chem/")
+pdf("plots/AragoniteSaturation_meansbydate.pdf", width=8, height=8)
+print(AragonitePlot)
+dev.off()
 
 
 alltreat.MEANS      <- alltreat.Date.MEANS %>% 
@@ -94,62 +126,34 @@ alltreat.MEANS      <- alltreat.Date.MEANS %>%
                     sd_AragoniteSat.all   = sd(mean_AragoniteSat.date),
                     se_AragoniteSat.all   = sd_AragoniteSat.all/(sqrt(n))) 
 
+alltreat.MEANS
+
 
 # OA x SALINITY  :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::;
 OAxSal.Date.MEANS <- as.data.frame(chem.aragonite %>% 
-  dplyr::select(!'Chamber_') %>% 
-  dplyr::filter(!Date %in% '5/21/2021') %>% 
+  dplyr::select(!'Chamber_.') %>% 
+  #dplyr::filter(!Date %in% '5/21/2021') %>% 
   dplyr::group_by(Date, OAxSal) %>% 
-  dplyr::mutate(mean_AragoniteSat.date  = mean(WAr_ut)) %>% 
-  dplyr::mutate(sd_AragoniteSat.date   = sd(WAr_ut)) %>% 
+  dplyr::mutate(mean_AragoniteSat.date  = mean(WAr_out)) %>% 
+  dplyr::mutate(sd_AragoniteSat.date   = sd(WAr_out)) %>% 
   dplyr::mutate(n   = n()) %>%   
-  dplyr::mutate(se_AragoniteSat.date   = sd_AragoniteSat.date/(sqrt(n))) %>% 
-  ungroup() %>% 
-  dplyr::mutate(mean_AragoniteSat.date = as.numeric(mean_AragoniteSat.date)) %>% 
-  dplyr::select(!WAr_ut) %>% 
-  dplyr::distinct())
+  dplyr::mutate(se_AragoniteSat.date   = sd_AragoniteSat.date/(sqrt(n))))
 
 # anova 
-OAxSal.mod <- aov(mean_AragoniteSat.date ~  OAxSal, data= OAxSal.Date.MEANS) # outlier [-35,]
+OAxSal.mod <- aov(log(mean_AragoniteSat.date) ~  OAxSal, data= OAxSal.Date.MEANS) # outlier [-35,]
 summary(OAxSal.mod)
-shapiro.test(resid(OAxSal.mod)) # 1.963e-05 non normal
-leveneTest(OAxSal.mod) # 0.4964
+shapiro.test(resid(OAxSal.mod)) # 0.05979 non normal
+leveneTest(OAxSal.mod) # 0.005407 **
 qqnorm(resid(OAxSal.mod))
 hist(resid(OAxSal.mod))
 TukeyHSD(OAxSal.mod)
 OAxSalmod.means   <- emmeans::emmeans(object = OAxSal.mod, pairwise ~ "OAxSal", adjust = "tukey")
-x <- HSD.test(OAxSal.mod, "OAxSal", group=TRUE) #library(agricolae)
-#     mean_AragoniteSat.date groups
-# L_H              1.4838095      a
-# H_H              0.6740476      b
-# L_L              0.5947619      b
-# H_L              0.3011905      c
-
-# plot
-
-
-OAxSal.Date.MEANS %>% 
-  ggplot(aes(OAxSal , mean_AragoniteSat.date )) +
-  theme(panel.grid=element_blank()) +
-  geom_boxplot(size=0.2, alpha=0.1) +
-  scale_fill_manual(values=c("white", "grey50")) +
-  geom_point(aes(fill=Temp), shape = 21, size = 2, position = position_jitterdodge(jitter.width = 0.1)) +
-  theme_classic() +
-  theme(axis.text=element_text(size=6),
-        axis.title=element_text(size=6)) +
-  stat_summary(fun.y=mean, geom="point", shape=18, size=4, color="black", fill="white")
-
-
-OAxSal.MEANS      <- OAxSal.Date.MEANS %>% 
-  dplyr::group_by(OAxSal) %>% 
-  dplyr::summarise(mean_AragoniteSat.all  = mean(mean_AragoniteSat.date), 
-                    n                     = n(),
-                    sd_AragoniteSat.all   = sd(mean_AragoniteSat.date),
-                    se_AragoniteSat.all   = sd_AragoniteSat.all/(sqrt(n))) 
-
-
-length(unique(chem.aragonite$Date)) # 7 dates with aragonite sat measured
-#  ALL 8 TREATMENTS 
+OAxSalmod.letters <- HSD.test(OAxSal.mod, "OAxSal", group=TRUE) #library(agricolae)
+#     log(mean_AragoniteSat.date) groups
+# L_H                   0.4888538      a
+# H_H                  -0.3253907      b
+# L_L                  -0.4990795      c
+# H_L                  -1.3103774      d
 
 
 
@@ -158,37 +162,39 @@ length(unique(chem.aragonite$Date)) # 7 dates with aragonite sat measured
 # TABLE 
 
 ```{r use dplyr to build chemistry table, include=FALSE}
+names(chem)
 chem_sub <- chem %>% 
-  dplyr::filter(Date %in% c('4/29/2021', '5/3/2021', '5/7/2021', '5/10/2021', '5/14/2021', '5/17/2021', '5/21/2021')) %>% 
-  dplyr::select(c('Date', 'Chamber_', 'Temp','OA_CO2', 'Salinity', 't_C_treatment', 'Salinity_','TA_mmol_gSW.', 'pH_ut', 'pCO2_ut_matm.', 'WCa_ut', 'WAr_ut')) %>% 
-  dplyr::mutate(Temp_OA_Sal = paste(Temp, OA_CO2, Salinity, sep = "_")) %>% 
+  # dplyr::filter(Date %in% c('4/29/2021', '5/3/2021', '5/7/2021', '5/10/2021', '5/14/2021', '5/17/2021', '5/21/2021')) %>% 
+  # dplyr::select(c('Date', 'Chamber_', 'Temp','OA_CO2', 'Salinity', 't_C_treatment', 'Salinity_','TA_mmol_gSW.', 'pH_ut', 'pCO2_ut_matm.', 'WCa_ut', 'WAr_ut')) %>% 
+  # dplyr::mutate(Temp_OA_Sal = paste(Temp, OA_CO2, Salinity, sep = "_")) %>% 
+    dplyr::filter(Date %in% c('4/29/2021', '5/3/2021', '5/7/2021', '5/10/2021', '5/14/2021', '5/17/2021', '5/21/2021')) %>% 
+  dplyr::select(c('Date', 'Chamber_.', 'Temp','pCO2', 'Sal', 't_oC_out', 'Salinity','pH_out_chamber','pCO2_out_matm', 'TA__mmol_gSW__Corrected_with_the_CRM', 'WCa_out', 'WAr_out')) %>% 
+  dplyr::mutate(Temp_OA_Sal = paste(Temp, pCO2, Sal, sep = "_")) %>% 
 # dplyr::group_by(Date, Temp_OA_Sal) %>%  
   dplyr::group_by(Temp_OA_Sal) %>%  
   na.omit() %>% 
   dplyr::summarise(
-    meanTemperature     = mean((as.numeric(t_C_treatment))),
-    sdTemperature       = sd(t_C_treatment),
+    meanTemperature     = mean((as.numeric(t_oC_out))),
+    sdTemperature       = sd(t_oC_out),
 
-    meanSalinity        = mean(Salinity_),
-    sdSalinity          = sd(Salinity_),
+    meanSalinity        = mean(Salinity),
+    sdSalinity          = sd(Salinity),
 
-    meanpH              = mean(pH_ut),
-    sdpH                = sd(pH_ut),
+    meanpH              = mean(pH_out_chamber),
+    sdpH                = sd(pH_out_chamber),
 
-    meanpCO2            = mean(pCO2_ut_matm.),
-    sdpCO2              = sd(pCO2_ut_matm.),
+    meanpCO2            = mean(pCO2_out_matm),
+    sdpCO2              = sd(pCO2_out_matm),
 
-    meanTotalAlkalinity = mean(TA_mmol_gSW.),
-    sdTotalAlkalinity   = sd(TA_mmol_gSW.),
+    meanTotalAlkalinity = mean(TA__mmol_gSW__Corrected_with_the_CRM),
+    sdTotalAlkalinity   = sd(TA__mmol_gSW__Corrected_with_the_CRM),
 
-    meanCalcite         = mean(WCa_ut),
-    sdCalcite           = sd(WCa_ut),
+    meanCalcite         = mean(WCa_out),
+    sdCalcite           = sd(WCa_out),
 
-    meanAragonite       = mean(WAr_ut),
-    sdAragonite         = sd(WAr_ut),
+    meanAragonite       = mean(WAr_out),
+    sdAragonite         = sd(WAr_out),
 
-    meanTemp            = mean(TA_mmol_gSW.),
-    sdTemp              = sd(TA_mmol_gSW.),
     n = n())
 
 # add treatments
@@ -203,9 +209,9 @@ FINAL_TABLE$OA             <- chem_sub$pCO2
 FINAL_TABLE$sal            <- chem_sub$Salinity
 FINAL_TABLE$N              <- chem_sub$n
 FINAL_TABLE$Temperature    <- paste( (signif(chem_sub$meanTemperature, digits=3)), (signif(chem_sub$sdTemperature, digits=3)), sep=" ± ")
-FINAL_TABLE$pH             <- paste( (signif(chem_sub$meanpH, digits=3)), (signif(chem_sub$sdpH, digits=3)), sep=" ± ")
-FINAL_TABLE$Salinity       <- paste( (signif(chem_sub$meanSalinity, digits=3)), (signif(chem_sub$sdSalinity, digits=3)), sep=" ± ")
 FINAL_TABLE$pCO2           <- paste( (signif(chem_sub$meanpCO2, digits=3)), (signif(chem_sub$sdpCO2, digits=3)), sep=" ± ")
+FINAL_TABLE$Salinity       <- paste( (signif(chem_sub$meanSalinity, digits=3)), (signif(chem_sub$sdSalinity, digits=3)), sep=" ± ")
+FINAL_TABLE$pH             <- paste( (signif(chem_sub$meanpH, digits=3)), (signif(chem_sub$sdpH, digits=3)), sep=" ± ")
 FINAL_TABLE$TA             <- paste( (signif(chem_sub$meanTotalAlkalinity, digits=3)), (signif(chem_sub$sdTotalAlkalinity, digits=3)), sep=" ± ")
 FINAL_TABLE$Aragonite.Sat  <- paste( (signif(chem_sub$meanAragonite, digits=3)), (signif(chem_sub$sdTotalAlkalinity, digits=3)), sep=" ± ")
 FINAL_TABLE$Calcite.Sat    <- paste( (signif(chem_sub$meanCalcite, digits=3)), (signif(chem_sub$sdCalcite, digits=3)), sep=" ± ")
@@ -224,7 +230,7 @@ FINAL_TABLE %>%
 #### save data
 ```{r save tables, echo=TRUE}
 # save output table
-write.table(chem_sub,"C:/Users/samjg/Documents/Github_repositories/Cvriginica_multistressor/RAnalysis/Output/Chem.Table_sep.csv",sep=",", row.names=FALSE)  # write table to 
-write.table(FINAL_TABLE,"C:/Users/samjg/Documents/Github_repositories/Cvriginica_multistressor/RAnalysis/Output/Chem.Table.csv",sep=",", row.names=FALSE)  # write table to 
+write.table(chem_sub,"C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Output/Water_Chem/Chem.Table_sep.csv",sep=",", row.names=FALSE)  # write table to 
+write.table(FINAL_TABLE,"C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Output/Water_Chem/Chem.Table.csv",sep=",", row.names=FALSE)  # write table to 
 
 ```
