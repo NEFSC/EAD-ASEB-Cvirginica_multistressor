@@ -46,6 +46,9 @@ names(chem)<-gsub("\\..","_",names(chem)) # insert underscore sin the column nam
 # I will plot and statistically examine differences in aragonite saturation state for all 8 groups and in the consolidated 4 described above 
 
 
+# NOTe: full carbonate chemistry was taken non-continuosly, call all rows that contain full carb
+
+
 #  CONSOLIDATE TARGET DATA, NAME NEW COLUMNS 
 names(chem)
 chem.aragonite <- chem %>% 
@@ -55,11 +58,12 @@ chem.aragonite <- chem %>%
   dplyr::mutate(OAxSal = paste(pCO2, Sal, sep = '_')) 
 
 
+unique(chem.aragonite$Date) # "4/29/2021" "5/3/2021"  "5/7/2021"  "5/10/2021" "5/14/2021" "5/17/2021"
 
-# ALL TREATMENTS as temp X OA X Salinity
+# Means within date (consolidate replicates within date to single value)
 
 alltreat.Date.MEANS <- chem.aragonite %>% 
-  dplyr::group_by(Date, all_treat) %>% 
+  dplyr::group_by(Date, all_treat,Temp,pCO2,Sal) %>% 
   dplyr::summarise(mean_AragoniteSat.date  = mean(WAr_out), 
                     n                 = n(),
                     sd_AragoniteSat.date   = sd(WAr_out),
@@ -88,6 +92,8 @@ allmod.letters <- HSD.test(all.mod, "all_treat", group=TRUE)
 # H_H_L                  -1.2120345      f
 # L_H_L                  -1.4448603      g
 library(forcats)
+
+
 AragonitePlot <- alltreat.Date.MEANS %>% 
       dplyr::mutate(Temp = substr(all_treat, 1,1)) %>%
       dplyr::mutate(pCO2 = substr(all_treat, 3,3)) %>%
@@ -119,42 +125,6 @@ print(AragonitePlot)
 dev.off()
 
 
-alltreat.MEANS      <- alltreat.Date.MEANS %>% 
-  dplyr::group_by(all_treat) %>% 
-  dplyr::summarise(mean_AragoniteSat.all  = mean(mean_AragoniteSat.date), 
-                    n                     = n(),
-                    sd_AragoniteSat.all   = sd(mean_AragoniteSat.date),
-                    se_AragoniteSat.all   = sd_AragoniteSat.all/(sqrt(n))) 
-
-alltreat.MEANS
-
-
-# OA x SALINITY  :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::;
-OAxSal.Date.MEANS <- as.data.frame(chem.aragonite %>% 
-  dplyr::select(!'Chamber_.') %>% 
-  #dplyr::filter(!Date %in% '5/21/2021') %>% 
-  dplyr::group_by(Date, OAxSal) %>% 
-  dplyr::mutate(mean_AragoniteSat.date  = mean(WAr_out)) %>% 
-  dplyr::mutate(sd_AragoniteSat.date   = sd(WAr_out)) %>% 
-  dplyr::mutate(n   = n()) %>%   
-  dplyr::mutate(se_AragoniteSat.date   = sd_AragoniteSat.date/(sqrt(n))))
-
-# anova 
-OAxSal.mod <- aov(log(mean_AragoniteSat.date) ~  OAxSal, data= OAxSal.Date.MEANS) # outlier [-35,]
-summary(OAxSal.mod)
-shapiro.test(resid(OAxSal.mod)) # 0.05979 non normal
-leveneTest(OAxSal.mod) # 0.005407 **
-qqnorm(resid(OAxSal.mod))
-hist(resid(OAxSal.mod))
-TukeyHSD(OAxSal.mod)
-OAxSalmod.means   <- emmeans::emmeans(object = OAxSal.mod, pairwise ~ "OAxSal", adjust = "tukey")
-OAxSalmod.letters <- HSD.test(OAxSal.mod, "OAxSal", group=TRUE) #library(agricolae)
-#     log(mean_AragoniteSat.date) groups
-# L_H                   0.4888538      a
-# H_H                  -0.3253907      b
-# L_L                  -0.4990795      c
-# H_L                  -1.3103774      d
-
 
 
 ```
@@ -162,59 +132,121 @@ OAxSalmod.letters <- HSD.test(OAxSal.mod, "OAxSal", group=TRUE) #library(agricol
 # TABLE 
 
 ```{r use dplyr to build chemistry table, include=FALSE}
-names(chem)
-chem_sub <- chem %>% 
-  # dplyr::filter(Date %in% c('4/29/2021', '5/3/2021', '5/7/2021', '5/10/2021', '5/14/2021', '5/17/2021', '5/21/2021')) %>% 
-  # dplyr::select(c('Date', 'Chamber_', 'Temp','OA_CO2', 'Salinity', 't_C_treatment', 'Salinity_','TA_mmol_gSW.', 'pH_ut', 'pCO2_ut_matm.', 'WCa_ut', 'WAr_ut')) %>% 
-  # dplyr::mutate(Temp_OA_Sal = paste(Temp, OA_CO2, Salinity, sep = "_")) %>% 
-    dplyr::filter(Date %in% c('4/29/2021', '5/3/2021', '5/7/2021', '5/10/2021', '5/14/2021', '5/17/2021', '5/21/2021')) %>% 
-  dplyr::select(c('Date', 'Chamber_.', 'Temp','pCO2', 'Sal', 't_oC_out', 'Salinity','pH_out_chamber','pCO2_out_matm', 'TA__mmol_gSW__Corrected_with_the_CRM', 'WCa_out', 'WAr_out')) %>% 
-  dplyr::mutate(Temp_OA_Sal = paste(Temp, pCO2, Sal, sep = "_")) %>% 
-# dplyr::group_by(Date, Temp_OA_Sal) %>%  
-  dplyr::group_by(Temp_OA_Sal) %>%  
-  na.omit() %>% 
-  dplyr::summarise(
-    meanTemperature     = mean((as.numeric(t_oC_out))),
-    sdTemperature       = sd(t_oC_out),
 
-    meanSalinity        = mean(Salinity),
-    sdSalinity          = sd(Salinity),
 
-    meanpH              = mean(pH_out_chamber),
-    sdpH                = sd(pH_out_chamber),
+# NOTe: full carbonate chemistry was taken non-continuosly, call all rows that contain full carb
+carbchem.MASTER         <- chem[!(is.na(chem$WAr_out)),]
+colnames(carbchem.MASTER)
+# change to long format to properly facet
+carbchem.MASTER_long <- carbchem.MASTER %>% 
+  dplyr::select(!c(Chamber_.,
+                   pH_Green_urple,
+                   Total_P_mmol_gSW,
+                   t_oC_spec,
+                   P__dbars,
+                   P_dbars,
+                   Si_Alk_out_mmol_gSW,
+                   Total_Si_mmol_gSW,
+                   B_Alk_out_mmol_gSW,
+                   P_Alk_out_mmol_gSW,
+                   Revelle_out,
+                   TCO2__mmol_gSW__corrected_with_the_CRM_from_preserved_samples,
+                   xCO2_ut_dry_t1atm_ppm)) %>% 
+  melt(id.vars=c('Date', 'Temp', 'pCO2', 'Sal'))
 
-    meanpCO2            = mean(pCO2_out_matm),
-    sdpCO2              = sd(pCO2_out_matm),
 
-    meanTotalAlkalinity = mean(TA__mmol_gSW__Corrected_with_the_CRM),
-    sdTotalAlkalinity   = sd(TA__mmol_gSW__Corrected_with_the_CRM),
+# get the mean. sd. and se for all the data (not by life history!)
+carbchem.MASTER_longMEANS <- carbchem.MASTER_long %>% # calc means and standard error
+   na.omit() %>% 
+   dplyr::group_by(Temp, pCO2, Sal, variable) %>% 
+   dplyr::summarise(mean = mean(value),
+                    sd   = sd(value),
+                    se   = sd/(sqrt(n())) ,
+                    n = n())
 
-    meanCalcite         = mean(WCa_out),
-    sdCalcite           = sd(WCa_out),
 
-    meanAragonite       = mean(WAr_out),
-    sdAragonite         = sd(WAr_out),
 
-    n = n())
+carbchem.MASTER_wideMEANS <- dcast(carbchem.MASTER_longMEANS, Temp + pCO2 + Sal ~ variable, value.var="mean")
+carbchem.MASTER_wideStErr <- dcast(carbchem.MASTER_longMEANS, Temp + pCO2 + Sal ~ variable, value.var="se")
+carbchem.MASTER_wideN     <- dcast(carbchem.MASTER_longMEANS, Temp + pCO2 + Sal ~ variable, value.var="n")
 
-# add treatments
-chem_sub$Temperature <- c('High','High','High','High','Low','Low','Low','Low')
-chem_sub$pCO2 <- c('High','High','Low','Low','High','High','Low','Low')
-chem_sub$Salinity <- c('High','Low','High','Low','High','Low','High','Low')
+colnames(carbchem.MASTER_wideMEANS)
 
 # final table
-FINAL_TABLE                <- data.frame(matrix(nrow = nrow(chem_sub), ncol = 1))
-FINAL_TABLE$temp           <- chem_sub$Temperature
-FINAL_TABLE$OA             <- chem_sub$pCO2
-FINAL_TABLE$sal            <- chem_sub$Salinity
-FINAL_TABLE$N              <- chem_sub$n
-FINAL_TABLE$Temperature    <- paste( (signif(chem_sub$meanTemperature, digits=3)), (signif(chem_sub$sdTemperature, digits=3)), sep=" ± ")
-FINAL_TABLE$pCO2           <- paste( (signif(chem_sub$meanpCO2, digits=3)), (signif(chem_sub$sdpCO2, digits=3)), sep=" ± ")
-FINAL_TABLE$Salinity       <- paste( (signif(chem_sub$meanSalinity, digits=3)), (signif(chem_sub$sdSalinity, digits=3)), sep=" ± ")
-FINAL_TABLE$pH             <- paste( (signif(chem_sub$meanpH, digits=3)), (signif(chem_sub$sdpH, digits=3)), sep=" ± ")
-FINAL_TABLE$TA             <- paste( (signif(chem_sub$meanTotalAlkalinity, digits=3)), (signif(chem_sub$sdTotalAlkalinity, digits=3)), sep=" ± ")
-FINAL_TABLE$Aragonite.Sat  <- paste( (signif(chem_sub$meanAragonite, digits=3)), (signif(chem_sub$sdTotalAlkalinity, digits=3)), sep=" ± ")
-FINAL_TABLE$Calcite.Sat    <- paste( (signif(chem_sub$meanCalcite, digits=3)), (signif(chem_sub$sdCalcite, digits=3)), sep=" ± ")
+
+
+FINAL_TABLE                <- data.frame(matrix(nrow = nrow(carbchem.MASTER_wideMEANS), ncol = 1))
+
+FINAL_TABLE$sal            <- carbchem.MASTER_wideMEANS$Sal
+
+FINAL_TABLE$OA             <- carbchem.MASTER_wideMEANS$pCO2
+
+FINAL_TABLE$temp           <- carbchem.MASTER_wideMEANS$Temp
+
+FINAL_TABLE$Salinity       <-  paste( (paste( (signif(carbchem.MASTER_wideMEANS$Salinity, digits=3)),
+                                     (signif(carbchem.MASTER_wideStErr$Salinity, digits=3)), sep=" ± ")),
+                                     " (",
+                                     carbchem.MASTER_wideN$Salinity,
+                                     ")",
+                                     sep = "")
+
+FINAL_TABLE$pCO2           <-  paste( (paste( (signif(carbchem.MASTER_wideMEANS$pCO2_out_matm, digits=3)),
+                                     (signif(carbchem.MASTER_wideStErr$pCO2_out_matm, digits=3)), sep=" ± ")),
+                                     " (",
+                                     carbchem.MASTER_wideN$pCO2_out_matm,
+                                     ")",
+                                     sep = "")
+
+FINAL_TABLE$Temperature    <- paste( (paste( (signif(carbchem.MASTER_wideMEANS$t_oC__treatment, digits=3)),
+                                     (signif(carbchem.MASTER_wideStErr$t_oC__treatment, digits=3)), sep=" ± ")),
+                                     " (",
+                                     carbchem.MASTER_wideN$t_oC__treatment,
+                                     ")",
+                                     sep = "")
+
+FINAL_TABLE$pH             <- paste( (paste( (signif(carbchem.MASTER_wideMEANS$pH_out_chamber, digits=3)),
+                                     (signif(carbchem.MASTER_wideStErr$pH_out_chamber, digits=3)), sep=" ± ")),
+                                     " (",
+                                     carbchem.MASTER_wideN$pH_out_chamber,
+                                     ")",
+                                     sep = "")
+
+FINAL_TABLE$HCO3           <-  paste( (paste( (signif(carbchem.MASTER_wideMEANS$HCO3_out_mmol_gSW, digits=3)),
+                                     (signif(carbchem.MASTER_wideStErr$HCO3_out_mmol_gSW, digits=3)), sep=" ± ")),
+                                     " (",
+                                     carbchem.MASTER_wideN$HCO3_out_mmol_gSW,
+                                     ")",
+                                     sep = "")
+
+FINAL_TABLE$CO3           <-  paste( (paste( (signif(carbchem.MASTER_wideMEANS$CO3_out_mmol_gSW, digits=3)),
+                                             "±",
+                                     (signif(carbchem.MASTER_wideStErr$CO3_out_mmol_gSW, digits=3)), sep="  ")),
+                                     " (",
+                                     carbchem.MASTER_wideN$CO3_out_mmol_gSW,
+                                     ")",
+                                     sep = "")
+
+FINAL_TABLE$TA             <- paste( (paste( (signif(carbchem.MASTER_wideMEANS$TA__mmol_gSW__Corrected_with_the_CRM, digits=3)),
+                                     (signif(carbchem.MASTER_wideStErr$TA__mmol_gSW__Corrected_with_the_CRM, digits=3)), sep=" ± ")),
+                                     " (",
+                                     carbchem.MASTER_wideN$TA__mmol_gSW__Corrected_with_the_CRM,
+                                     ")",
+                                     sep = "")
+
+FINAL_TABLE$Aragonite.Sat  <-  paste( (paste( (signif(carbchem.MASTER_wideMEANS$WAr_out, digits=3)),
+                                     (signif(carbchem.MASTER_wideStErr$WAr_out, digits=3)), sep=" ± ")),
+                                     " (",
+                                     carbchem.MASTER_wideN$WAr_out,
+                                     ")",
+                                     sep = "")
+
+# FINAL_TABLE$Calcite.Sat    <-  paste( (paste( (signif(carbchem.MASTER_wideMEANS$WCa_out, digits=3)),
+#                                      (signif(carbchem.MASTER_wideStErr$WCa_out, digits=2)), sep=" ± ")),
+#                                      " (",
+#                                      carbchem.MASTER_wideN$WCa_out,
+#                                      ")",
+#                                      sep = "")
+
 FINAL_TABLE                <- FINAL_TABLE[,-1] # view table
 ```
 
@@ -230,7 +262,7 @@ FINAL_TABLE %>%
 #### save data
 ```{r save tables, echo=TRUE}
 # save output table
-write.table(chem_sub,"C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Output/Water_Chem/Chem.Table_sep.csv",sep=",", row.names=FALSE)  # write table to 
-write.table(FINAL_TABLE,"C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Output/Water_Chem/Chem.Table.csv",sep=",", row.names=FALSE)  # write table to 
+write.table(carbchem.MASTER_longMEANS,"C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Output/Water_Chem/Chem.Table_sep.csv",sep=",", row.names=FALSE)  # write table to 
+write.table(FINAL_TABLE,"C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Output/Water_Chem/Chem.Table.csv",sep=",", row.names=FALSE, fileEncoding = "latin1")  # write table to 
 
 ```

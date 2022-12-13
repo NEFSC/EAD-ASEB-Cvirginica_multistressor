@@ -27,17 +27,26 @@ SampleKey  <- read.csv(file="Data/TagSeq/Seq_details/Sample_Key.csv", sep=',', h
 
 
 # respiration data ------------------------ #
-resp_master         <- read.csv(file="Output/Respiration/RespirationMaster.csv", header=T) # treatment assignments to 'Chamber_Tank'
+resp_master         <- read.csv(file="Output/Respiration/RespirationMaster.csv", header=T) %>% # treatment assignments to 'Chamber_Tank'
+                          dplyr::rename(Sample.ID = Chamber_tank)
+
+
 resp_ref            <- resp_master %>% 
-                          select(c('Chamber_tank','Temp','pCO2','Salinity')) %>% 
+                          select(c('Sample.ID',
+                                   'Temp',
+                                   'pCO2',
+                                   'Salinity')) %>% 
                           unique()
+
 resp_master_RepMean <- resp_master %>% 
-                          dplyr::group_by(Chamber_tank, Date) %>% 
+                          dplyr::group_by(Sample.ID, Date) %>% 
                           dplyr::summarise(mean_resp = mean(resp_ng_L_indiv_hr)) %>% 
-                          dplyr::mutate(Day = case_when( # convert Date to Day to merge with theLength and Survival data (below) 
+                          dplyr::mutate(Age = case_when( # convert Date to Day to merge with theLength and Survival data (below) 
                             Date=="4/30/2021" ~ 1, 
                             Date=="5/7/2021" ~ 8)) %>% 
                           dplyr::select(-Date) #remove date
+
+
 nrow(resp_master_RepMean) == nrow(resp_ref) # must be true - sanity check before merging
 resp_master_RepMean <- merge(resp_master_RepMean, resp_ref) # merged the values 
 
@@ -47,21 +56,65 @@ resp_master_RepMean <- merge(resp_master_RepMean, resp_ref) # merged the values
 
 
 # length and survival data  ------------ #
-length_survival_master  <- read.csv(file="Data/Survival/Survival_master.csv", header=T) 
-length_survival_D1.8 <- length_survival_master %>% 
+
+# survival - days 1 and 18 (no survival data for day 2@)
+survival_master_d1_d18  <- read.csv(file="Data/Survival/Survival_master.csv", header=T) %>% 
                               dplyr::rename(Chamber_tank = Id.) %>% 
-                              dplyr::select(c('Day', 'Chamber_tank', 
-                                              'Survival', 'Average.Length')) %>% 
-                              dplyr::filter(Day %in% c(1,8)) # choose only dates that respiration was also measured
+                              dplyr::select(c('Day', 
+                                              'Chamber_tank', 
+                                              'Survival')) %>% 
+                              dplyr::rename(Sample.ID = Chamber_tank) %>% 
+                              dplyr::rename(Age = Day) %>% 
+                              dplyr::filter(Age %in% c(1,18)) %>%  # choose only dates that respiration was also measured
+                              dplyr::mutate(Age = case_when(Age %in% 18 ~ 22, # call the day 18 survival data day 22 to allow merge (note! this is NOT day 22 survival data!)
+                                                            TRUE ~ as.numeric(Age)))
+
+
+survival_master_d1_d18
 
 
 
+# length data for day 1 (larvae) and day 22 (spat)
+# upload
+length_master_d1_d22    <- read.csv(file="Data/Length/cumulative_raw/Length_cumulative_raw.csv", header=T) %>% 
+                              dplyr::select(c('Age', 
+                                              'Sample.ID', 
+                                              'length_um',
+                                              'stage')) %>% 
+                              dplyr::filter(Age %in% c(1,22))
+# mean for day 1 larvae
+length_master_d1MEAN    <- length_master_d1_d22 %>% 
+                              dplyr::select(-stage) %>%  # all are larvae
+                              dplyr::filter(Age %in% 1) %>% 
+                              dplyr::group_by(Age, Sample.ID) %>% 
+                              dplyr::summarise(meanLength_um  = mean(length_um))
+# mean for day 22 spat
+length_master_d22MEAN    <- length_master_d1_d22 %>% 
+                              dplyr::filter(stage %in% 'spat') %>% 
+                              dplyr::select(-stage) %>%  # do not need anymore..
+                              dplyr::filter(Age %in% 22) %>% 
+                              dplyr::group_by(Age, Sample.ID) %>% 
+                              dplyr::summarise(meanLength_um  = mean(length_um))
+# merge these
+length_master_d1_d22     <- rbind(as.data.frame(length_master_d1MEAN), as.data.frame(length_master_d22MEAN))
+
+
+
+# FINAL STEP merge the survival and length data 
+Master_length_survival_d1_d22 <- merge(length_master_d1_d22, survival_master_d1_d18, by = c('Age', 'Sample.ID'))
+
+Master_length_survival_d1     <- Master_length_survival_d1_d22 %>% dplyr::filter(Age %in% 1)
+Master_length_survival_d22     <- Master_length_survival_d1_d22 %>% dplyr::filter(Age %in% 22)
+                    
+
+
+
+
+#  DAY 1 PCA --------------------------------------------------------------------------- # 
 
 
 
 # rlog gene expression data ----------------- # 
-
-
 rlog_WGCNA_D1     <- read.csv(file="Output/WGCNA/day2_larvae/d2_rlog_transformed.csv", header=T) %>% dplyr::select(-X)
 d2.Seq_SampleKey  <- read.csv(file="Data/TagSeq/Seq_details/Sample_Key.csv", sep=',', header=TRUE) %>%  
                         dplyr::rename('SampleID' = 'SapleName_readmatrix') %>% 
@@ -75,7 +128,7 @@ d2.Aragsat        <- read.csv(file="Data/TagSeq/day2.exp.data.csv", sep=',', hea
                                                                          (Aragonite_saturation > 0.5 & Aragonite_saturation < 1.0) ~ 'Mid', 
                                                                          Aragonite_saturation > 1.0 ~ 'High'))
 d2.Seq_SampleKey  <- merge(d2.Seq_SampleKey,d2.Aragsat, by = 'SampleID')
-ModMem_D1         <- read.csv(file="Output/WGCNA/day2_larvae/d2.WGCNA_ModulMembership.csv", header=T) %>%  na.omit()
+ModMem_D1         <- read.csv(file="Output/WGCNA/day2_larvae/d2.WGCNA_ModulMembership.csv", header=T) #%>%  na.omit()
 
 
 # data frames and loop sets for the for statement below;
@@ -99,7 +152,7 @@ for (i in 1:nrow(D1_modCols)) {
                        dplyr::filter(.[[3]] < 0.05 & .[[4]] > 0.6) 
 
    
-   MM_0.5_meanExp <- as.data.frame(colMeans(merge(ModMem_0.05, rlog_WGCNA_D1, by = 'TranscriptID')[,-c(1:3)])) %>%  # mean expression by sampleID for this reduced gene pool (Module membership p < 0.05)
+   MM_0.5_meanExp <- as.data.frame(colMeans(merge(ModMem_0.05, rlog_WGCNA_D1, by = 'TranscriptID')[,-c(1:4)])) %>%  # mean expression by sampleID for this reduced gene pool (Module membership p < 0.05)
                               dplyr::mutate(modcolor = loopModCol) %>% 
                               tibble::rownames_to_column("SampleID") %>% 
                               dplyr::rename(meanExp = 2)
@@ -118,14 +171,23 @@ for (i in 1:nrow(D1_modCols)) {
    df            <- data.frame(meanExp_statsloop) # name dataframe for this single row
    meanExp_stats <- rbind(meanExp_stats,df) #bind to a cumulative list dataframe
    print(meanExp_stats) # print to monitor progress
+   # Day  modColor Gene.count Gene.count.MM.0.5 Percent_MM.0.05
+   # 1     black        431               206        47.79582
+   # 1      blue        770               330        42.85714
+   # 1     brown        690               342        49.56522
+   # 1      pink        379               145        38.25858
+   # 1       red        506               199        39.32806
+   # 1 turquoise        881               312        35.41430
    
 }
 meanExp_total_wide <- reshape2::dcast(meanExp_total, SampleID ~ modcolor, value.var="meanExp") # convert to wide format to merge for OCA analysis with physiological variables 
-meanExp_Master     <- merge(d2.Seq_SampleKey, meanExp_total_wide) %>% select(-c(Temperature, OA, Salinity, Age.days))
+meanExp_Master     <- merge(d2.Seq_SampleKey, meanExp_total_wide) %>% 
+  select(-c(Temperature, OA, Salinity, Age.days)) %>% 
+  dplyr::rename(Sample.ID = Chamber_tank)
 
 
 meanExp_stats # percent contribution of Module member threshold cutoff to the total module membership 
-colMeans(meanExp_stats[c(4:5)])
+colMeans(meanExp_stats[c(4:5)]) # 42.05936 +- 5.293175
 meanExp_stats %>% summarise(sd_Gene_count = sd(meanExp_stats$Gene.count.MM.0.5),
                             sd_Perc = sd(meanExp_stats$Percent_MM.0.05))
 # > 0.8 Pearson's cor and > 0.05 P value 
@@ -134,7 +196,7 @@ meanExp_stats %>% summarise(sd_Gene_count = sd(meanExp_stats$Gene.count.MM.0.5),
 
 # > 0.6 Pearson's cor and > 0.05 P value 
 # Gene.count.MM.0.5   Percent_MM.0.05 
-# 240.00000          42.05936 + - 5.293175  *** this is the one we are using
+# 240.00000  +- 79.84485        42.05936 + - 5.293175  *** this is the one we are using
 
 # > 0.4 Pearson's cor and > 0.05 P value 
 # Gene.count.MM.0.5   Percent_MM.0.05 
@@ -146,12 +208,12 @@ meanExp_stats %>% summarise(sd_Gene_count = sd(meanExp_stats$Gene.count.MM.0.5),
 
 
 # master phys (merge resp and shell length + survival data )
-Master_Days1.8_phys  <- merge(resp_master_RepMean,length_survival_D1.8) %>%  
+Master_Days1.8_phys  <- merge(resp_master_RepMean,  Master_length_survival_d1) %>%  # contains resp for day 8 and redundant length andsurvival copied from day 1 to 8 (do not)
                             dplyr::mutate(AllTreat = paste(Temp, pCO2, Salinity, sep = ''))
-Master_Day1          <- Master_Days1.8_phys %>%  dplyr::filter(Day %in% 1)
-Master_Day8          <- Master_Days1.8_phys %>%  dplyr::filter(Day %in% 8)
+Master_Day1          <- Master_Days1.8_phys %>%  dplyr::filter(Age %in% 1)
+# Master_Day8          <- Master_Days1.8_phys %>%  dplyr::filter(Day %in% 8) # run this if you want a PCA for just the physiology data on day 8 - NO RNA this date!
 
-Master_Days1.8_phys_cors <- Master_Days1.8_phys %>% # Master_Days1.8_phys_cors = corrected for the treatment day - to run PCA regardless of time point!
+Master_Days1_phys_cors <- Master_Day1 %>% # Master_Days1.8_phys_cors = corrected for the treatment day - to run PCA regardless of time point!
                       dplyr::mutate(Length_Cor = ifelse( (Day == 1) | (Day == 8), 
                                                          Average.Length/mean(Master_Day1$Average.Length), 
                                                          Average.Length/mean(Master_Day8$Average.Length))) %>% 
@@ -164,8 +226,8 @@ Master_Days1.8_phys_cors <- Master_Days1.8_phys %>% # Master_Days1.8_phys_cors =
 
 
 # Run a PCA for Day 1 
-Master_Day1$Day <- as.factor(Master_Day1$Day) # convert Day into a factor
-Day1PCA         <- (merge(Master_Day1, meanExp_Master))[-9,] %>%  # outlier omit, chose not to
+Master_Day1$Age <- as.factor(Master_Day1$Age) # convert Day into a factor
+Day1PCA         <- (merge(Master_Day1, meanExp_Master)) %>% #[-9,] %>%  # outlier omit, chose not to
                       dplyr::mutate(Aragonite_saturation = 
                       case_when(Aragonite_saturation == 'Low' ~ 'Low', 
                                (Aragonite_saturation == 'Mid' & Salinity == 'L') ~ 'Mid_Sal', 
@@ -174,19 +236,19 @@ Day1PCA         <- (merge(Master_Day1, meanExp_Master))[-9,] %>%  # outlier omit
                     
 
 # PCA Day 1 
-phys_pca1   <- prcomp(Day1PCA[,c(3,7,8,12:17)], # all numeric (phys + all modules) - PCA 1 = 0.4133 , PCA 2 0.1786  (cumulative 0.5919)
+phys_pca1   <- prcomp(Day1PCA[,c(3,7,8,12:17)], # all numeric (phys + all modules) - PCA 1 = 0.4298  , PCA 2 0.1810   (cumulative 0.6108 )
                       center = TRUE,
                       scale. = TRUE)
-phys_pca1   <- prcomp(Day1PCA[,c(3,7,8)],   # phys only  - PCA 1 = 0.5805  PCA 2 0.2946   (cumulative 0.8751 )
+phys_pca1   <- prcomp(Day1PCA[,c(3,7,8)],   # phys only  - PCA 1 = 0.5849   PCA 2 0.2895   (cumulative 0.8744 )
                       center = TRUE,
                       scale. = TRUE)
-phys_pca1   <- prcomp(Day1PCA[,c(11:16)],   # modules only   (cumulative 0.6990 )
+phys_pca1   <- prcomp(Day1PCA[,c(12:17)],   # modules only   (cumulative 0.7143  )
                       center = TRUE,
                       scale. = TRUE)
 phys_pca1   <- prcomp(Day1PCA[,c(3,7,8,12,13,17)],   # main effect modules only (brown blur, turquoise)   (cumulative 96.28)
                       center = TRUE,
                       scale. = TRUE)
-phys_pca1   <- prcomp(Day1PCA[,c(7,8,12:17)],   # without resp
+phys_pca1   <- prcomp(Day1PCA[,c(7,8,12:17)],   # without resp 0.452 0.2012  0.6532 
                       center = TRUE,
                       scale. = TRUE)
 print(phys_pca1)
@@ -276,260 +338,197 @@ dev.off()
 
 
 
-# Run a PCA for day 8
 
-Master_Day8 <- Master_Days1.8_phys %>% dplyr::filter(Day %in% 8)
-Master_Day8$Day <- as.factor(Master_Day8$Day)
-phys_pca8 <- prcomp(Master_Day8[,c(3,7,8)], #all numeric data for phys values
-                             center = TRUE,
-                             scale. = TRUE)
-print(phys_pca8)
-#                   PC1        PC2        PC3
-# mean_resp      -0.4912969 0.80057018 -0.3430959
-# Survival        0.6565117 0.08151057 -0.7498989
-# Average.Length  0.5723808 0.59366945  0.5656296
-# PC1 decreases mean resp which increasing the others 
-# PC2 increase mean resp whole not changing survival
-summary(phys_pca8)
-# Importance of components:
-#                         PC1    PC2    PC3
-# Standard deviation     1.3332 0.9035 0.6374
-# Proportion of Variance 0.5925 0.2721 0.1354
-# Cumulative Proportion  0.5925 0.8646 1.0000
-p8Sal <- ggbiplot(phys_pca8,
-              obs.scale = 1,
-              var.scale = 1,
-              groups = Master_Day8$Salinity,
-              ellipse = TRUE,
-              circle = TRUE,
-              ellipse.prob = 0.68) +
-      scale_color_discrete(name = '') + 
-      theme_classic() + 
-  ggtitle("day8, salinity") +
-  theme(legend.direction = 'horizontal',
-                   legend.position = 'top')
 
-p8pCO2 <- ggbiplot(phys_pca8,
-                  obs.scale = 1,
-                  var.scale = 1,
-                  groups = Master_Day8$pCO2,
-                  ellipse = TRUE,
-                  circle = TRUE,
-                  ellipse.prob = 0.68) +
-  scale_color_discrete(name = '') + 
-  theme_classic() + 
-  ggtitle("day8, pCO2") +
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#  DAY 22 PCA --------------------------------------------------------------------------- # 
+
+
+
+# rlog gene expression data ----------------- # 
+rlog_WGCNA_D22     <- read.csv(file="Output/WGCNA/day18_spat/d18_rlog_transformed.csv", header=T) %>% dplyr::select(-X)
+d22.Seq_SampleKey    <- read.csv(file="Data/TagSeq/Seq_details/Sample_Key.csv", sep=',', header=TRUE) %>%  
+  dplyr::rename('SampleID' = 'SapleName_readmatrix') %>% 
+  dplyr::rename('Chamber_tank' = 'ID') %>%   
+  dplyr::select(-c('SampleName', 'Treatment', 'Replicate')) %>% 
+  dplyr::filter(Age.days %in% 18)
+d22.Aragsat        <- read.csv(file="Data/TagSeq/day18.exp.data.csv", sep=',', header=TRUE) %>% 
+  dplyr::select(c(2,7)) %>% 
+  dplyr::rename('SampleID' = 'SapleName_readmatrix') %>%
+  dplyr::mutate(Aragonite_saturation = case_when(Aragonite_saturation < 0.5 ~ 'Low', 
+                                                 (Aragonite_saturation > 0.5 & Aragonite_saturation < 1.0) ~ 'Mid', 
+                                                 Aragonite_saturation > 1.0 ~ 'High'))
+d22.Seq_SampleKey  <- merge(d22.Seq_SampleKey,d22.Aragsat, by = 'SampleID')
+ModMem_D22         <- read.csv(file="Output/WGCNA/day18_spat/d18.WGCNA_ModulMembership.csv", header=T)
+nrow(ModMem_D22 %>% filter(moduleColor %in% 'turquoise'))
+
+# data frames and loop sets for the for statement below;
+D22_modCols            <- as.data.frame(unique(ModMem_D22$moduleColor)) %>% dplyr::filter(.[[1]] %in% c('blue', 'red', 'salmon', 'tan', 'green', 'turquoise')) # yellow and green were NOT significant
+D22_meanExp_total      <- data.frame()
+D22_meanExp_statsloop  <- data.frame(matrix(nrow = 1, ncol = 5)) # create dataframe to save cumunalitively during for loop
+colnames(D22_meanExp_statsloop) <- c('Day', 'modColor', 'Gene.count', 'Gene.count.MM<0.5', 'Percent_MM<0.05') # names for comuns in the for loop
+D22_meanExp_stats      <- data.frame()
+
+for (i in 1:nrow(D22_modCols)) {
+  loopModCol     <- D22_modCols[i,]
+  loopModCol_cor <- paste("MM.", loopModCol, sep = '')
+  loopModCol_p   <- paste("p.MM.", loopModCol, sep = '')
+  
+  # all modules per mod color (with significant eigengene-treatment interaction) - no Module Membership threshold
+  ModMem         <- ModMem_D22 %>% 
+    dplyr::select(c('TranscriptID',moduleColor, loopModCol_p, loopModCol_cor)) %>% 
+    dplyr::filter(moduleColor %in% loopModCol)
+  # all modules per mod color (with significant eigengene-treatment interaction) - Module Membership p < 0.05 based on DEG overalap (view R script)
+  ModMem_0.05    <- ModMem %>% 
+    dplyr::filter(.[[3]] < 0.05 & .[[4]] > 0.6) 
+  
+  ModMem_outliers    <- ModMem %>% # exists non significant with high correlation
+    dplyr::filter(.[[3]] > 0.05 & .[[4]] > 0.6) 
+  
+  ModMem_outliers    <- ModMem %>% 
+    dplyr::filter(.[[3]] < 0.05 & .[[4]] < 0.6) 
+  
+  MM_0.5_meanExp <- as.data.frame(colMeans(merge(ModMem_0.05, rlog_WGCNA_D22, by = 'TranscriptID')[,-c(1:4)])) %>%  # mean expression by sampleID for this reduced gene pool (Module membership p < 0.05)
+    dplyr::mutate(modcolor = loopModCol) %>% 
+    tibble::rownames_to_column("SampleID") %>% 
+    dplyr::rename(meanExp = 2)
+  # print this loop Rbdin for each module 
+  D22_meanExp_total <- rbind(D22_meanExp_total,MM_0.5_meanExp) #bind to a cumulative list dataframe
+  print(D22_meanExp_total) # print to monitor progress
+  
+  
+  # print stats for each module - these will assist stats for the 0.05 threshold 
+  D22_meanExp_statsloop$Day                 <- 1
+  D22_meanExp_statsloop$modColor            <- loopModCol
+  D22_meanExp_statsloop$Gene.count          <- nrow(ModMem)
+  D22_meanExp_statsloop$`Gene.count.MM<0.5` <- nrow(ModMem_0.05)
+  D22_meanExp_statsloop$`Percent_MM<0.05`   <- (nrow(ModMem_0.05) / nrow(ModMem)) * 100
+  
+  df            <- data.frame(D22_meanExp_statsloop) # name dataframe for this single row
+  D22_meanExp_stats <- rbind(D22_meanExp_stats,df) #bind to a cumulative list dataframe
+  print(D22_meanExp_stats) # print to monitor progress
+  
+}
+D22_meanExp_total_wide <- reshape2::dcast(D22_meanExp_total, SampleID ~ modcolor, value.var="meanExp") # convert to wide format to merge for OCA analysis with physiological variables 
+D22_meanExp_Master     <- merge(d22.Seq_SampleKey, D22_meanExp_total_wide) %>% 
+  dplyr::mutate(pCO2 = substr(OA, 1,1)) %>% 
+  dplyr::mutate(Salinity = substr(Salinity,1,1)) %>% 
+  dplyr::mutate(Temp = substr(Temperature,1,1)) %>% 
+  select(-c(Temperature, OA, Age.days)) %>% 
+  dplyr::rename(Sample.ID = Chamber_tank)
+
+
+D22_meanExp_stats # percent contribution of Module member threshold cutoff to the total module membership 
+colMeans(D22_meanExp_stats[c(4:5)]) # 364.50000          70.95545 + - 4.791734
+D22_meanExp_stats %>% summarise(sd_Gene_count = sd(D22_meanExp_stats$Gene.count.MM.0.5),
+                                sd_Perc = sd(D22_meanExp_stats$Percent_MM.0.05))
+# get full mean of d1 and d22
+colMeans(rbind((meanExp_stats[c(4:5)]),(D22_meanExp_stats[c(4:5)]))) # mean 317.83333   perc of full 56.17219           70.95545 + - 4.791734
+rbind((meanExp_stats[c(4:5)]),(D22_meanExp_stats[c(4:5)])) %>% # sd dev. 178.6642 percent of full 15.50647
+    dplyr::summarise(sd_Gene_count = sd(Gene.count.MM.0.5),
+                                sd_Perc = sd(Percent_MM.0.05))
+# > 0.6 Pearson's cor and > 0.05 P value 
+# Gene.count.MM.0.5   Percent_MM.0.05 
+#  364.50000 +-   206.5224    70.95545 +-  +- 4.496341 *** this is the one we are using
+
+
+
+
+
+
+
+
+# Run a PCA for Day 1 
+Master_length_survival_d22$Age <- as.factor(Master_length_survival_d22$Age) # convert Day into a factor
+Day22PCA         <- (merge(Master_length_survival_d22, D22_meanExp_Master)) %>% #[-9,] %>%  # outlier omit, chose not to
+  dplyr::mutate(Aragonite_saturation = 
+                  case_when(Aragonite_saturation == 'Low' ~ 'Low', 
+                            (Aragonite_saturation == 'Mid' & Salinity == 'L') ~ 'Mid_Sal', 
+                            (Aragonite_saturation == 'Mid' & pCO2     == 'H') ~ 'Mid_pCO2', 
+                            Aragonite_saturation == 'High' ~ 'High'))
+
+
+# PCA Day 1 
+phys_pca22   <- prcomp(Day22PCA[,c(3,4,8:13)], # all numeric (phys + all modules) - PCA 1 = 0.5477    , PCA 2 0.2290     (cumulative 0.7767   )
+                      center = TRUE,
+                      scale. = TRUE)
+print(phys_pca22)
+
+summary(phys_pca22)
+
+
+# > 0.6 Pearson's cor and > 0.05 P value 
+# Cumulative Proportion PC1+PC2 == 0.7767  
+
+# summary: the histogram of cor coeffs for DEGs overlapped with WGCNA module indicates 0.6 as a good cut off
+# we confirm here that 0.6 cor coeff and < 0.05 p value can increase explanatory variance relative to 0.4 cor coeff
+# however more conservative threshold (0.8) does not make a difference, albeit these (cor coeff cutoffs) change the number of genes contr'ing to the mean by >2 fold!
+p22pCO2 <- ggbiplot(phys_pca22,
+                   obs.scale = 1,
+                   var.scale = 1,
+                   groups = as.factor(Day22PCA$pCO2),
+                   ellipse = TRUE,
+                   circle = TRUE,
+                   ellipse.prob = 0.67) +
+  scale_color_discrete(name = '') +  theme_classic() +   ggtitle("day1, pCO2") +
   theme(legend.direction = 'horizontal',
         legend.position = 'top')
 
-p8Temp <- ggbiplot(phys_pca8,
+p22Sal <- ggbiplot(phys_pca22,
                   obs.scale = 1,
                   var.scale = 1,
-                  groups = Master_Day8$Temp,
+                  groups = Day22PCA$Salinity,
                   ellipse = TRUE,
                   circle = TRUE,
-                  ellipse.prob = 0.68) +
-  scale_color_discrete(name = '') + 
-  theme_classic() + 
-  ggtitle("day8, temperature") +
+                  ellipse.prob = 0.67) +
+  scale_color_discrete(name = '') +  theme_classic() +  ggtitle("day1, salinity") +
+  theme(legend.direction = 'horizontal',
+        legend.position = 'top')
+
+# p22Temp <- ggbiplot(phys_pca22,  # all high temperature!!!!!
+#                    obs.scale = 1,
+#                    var.scale = 1,
+#                    groups = Day22PCA$Temp,
+#                    ellipse = TRUE,
+#                    circle = TRUE,
+#                    ellipse.prob = 0.67) +
+#   scale_color_discrete(name = '') +  theme_classic() +  ggtitle("day1, temp") +
+#   theme(legend.direction = 'horizontal',
+#         legend.position = 'top')
+
+p22Arag <- ggbiplot(phys_pca22,
+                   obs.scale = 1,
+                   var.scale = 1,
+                   groups = Day22PCA$Aragonite_saturation,
+                   ellipse = TRUE,
+                   circle = TRUE,
+                   ellipse.prob = 0.67) +
+  scale_color_discrete(name = '') +  theme_classic() +  ggtitle("day1, aragonite saturation") +
   theme(legend.direction = 'horizontal',
         legend.position = 'top')
 
 library(ggpubr)
-ggarrange(p8Sal, p8pCO2, p8Temp )
-# arrows together indicate a high correlation
-# exaple - reapiration and the average survival and length are poorly correlated 
+ggarrange(p22Sal, p22pCO2, p22Arag, ncol = 2,nrow = 2)
 
-# PC1 is weakly correlated with respiration
-# PC2 is highly positively correlated with mean resp
-# PC1 explains most of the variation
-pdf("Output/PCA_day8_phys.pdf", 
+
+pdf("Output/PCA_day22_phys.pdf", 
     width = 10, height = 10)
-print(ggarrange(p8Sal, p8pCO2, p8Temp ))
+print(ggarrange(p22Sal, p22pCO2, p22Arag))
 dev.off()
 
 
 
 
-
-
-
-
-
-
-
-
-# Run a PCA for all length and survival data 
-
-
-
-length_survival_all <- length_survival_master %>% 
-  dplyr::rename(Chamber_tank = Id.) %>% 
-  dplyr::select(c('Day', 'Chamber_tank', 
-                  'Survival', 'Average.Length'))
-length_survival_all  <- merge(length_survival_all, SampleKey) %>% dplyr::select(-Age.days)
-length_survival_D1   <- length_survival_all %>% dplyr::filter(Day == 1)
-length_survival_D4   <- length_survival_all %>% dplyr::filter(Day == 4)
-length_survival_D8   <- length_survival_all %>% dplyr::filter(Day == 8)
-length_survival_D11  <- length_survival_all %>% dplyr::filter(Day == 11)
-length_survival_D15  <- length_survival_all %>% dplyr::filter(Day == 15)
-
-
-
-LengthSurvival_Master <- length_survival_all %>% 
-  dplyr::mutate(Length_Cor = case_when(Day == '1' ~ Average.Length/mean(length_survival_D1$Average.Length, na.rm = TRUE),
-                                       Day == '4'  ~ Average.Length/mean(length_survival_D4$Average.Length, na.rm = TRUE),
-                                       Day == '8'  ~ Average.Length/mean(length_survival_D8$Average.Length, na.rm = TRUE),
-                                       Day == '11'  ~ Average.Length/mean(length_survival_D11$Average.Length, na.rm = TRUE),
-                                       Day == '15'  ~ Average.Length/mean(length_survival_D15$Average.Length, na.rm = TRUE))) %>% 
-  dplyr::mutate(Survival_Cor = case_when(Day == '1' ~ Survival/mean(length_survival_D1$Survival, na.rm = TRUE),
-                                     Day == '4'  ~ Survival/mean(length_survival_D4$Survival, na.rm = TRUE),
-                                     Day == '8'  ~ Survival/mean(length_survival_D8$Survival, na.rm = TRUE),
-                                     Day == '11'  ~ Survival/mean(length_survival_D11$Survival, na.rm = TRUE),
-                                     Day == '15'  ~ Survival/mean(length_survival_D15$Survival, na.rm = TRUE)))             
-                
-LengthSurvival_Master_OM <- LengthSurvival_Master %>% na.omit()
-
-BiocManager::install('GEOquery')          
-library(PCAtools)
-library(Biobase)
-library(GEOquery)
-
-
-
-metadata_1     <- LengthSurvival_Master_OM[,c(1:2,6:8,10:11)] %>% 
-                                         dplyr::mutate(ID = paste(Chamber_tank, Day, sep = '_'))
-metadata_1$Chamber_tank <- as.character(metadata_1$Chamber_tank)
-metadata_2     <- rbind((metadata_1 %>% 
-                       # dplyr::select(-Survival_Cor) %>% 
-                        dplyr::mutate(X = paste('L', Chamber_tank, sep = '_'))), 
-                     (metadata_1 %>% 
-                       # dplyr::select(-Length_Cor) %>% 
-                       dplyr::mutate(X = paste('S', Chamber_tank, sep = '_'))) )
-metadata_2MTX  <- as.matrix(metadata_1)
-
-rownames(metadata_2MTX) <- metadata_1$Chamber_tank
-metadata_3         <- as.data.frame(metadata_2MTX)
-mat                <- as.data.frame(t(metadata_3 %>% dplyr::select(Length_Cor,Survival_Cor)))
-metadata_final     <- metadata_3 %>% dplyr::select(-c(ID, Chamber_tank ,Length_Cor, Survival_Cor))
-# filter the expression data to match the samples in our pdata
-mat <- as.matrix(mat[,which(colnames(mat) %in% rownames(metadata_final))])
-# check that sample names match exactly between pdata and expression data 
-all(colnames(mat) == rownames(metadata_final))
-str(mat)
-metadata_final <- metadata_final %>% mutate_if(is.character,as.factor)
-
-p <- pca(mat, metadata_final, removeVar = 0.1)
-
-biplot(p,
-       colby = 'Salinity', colkey = c('High' = 'forestgreen', 'Low' = 'purple'),
-       # ellipse config
-       ellipse = TRUE,
-       ellipseType = 't',
-       ellipseLevel = 0.95,
-       ellipseFill = TRUE,
-       ellipseAlpha = 1/4,
-       ellipseLineSize = 1.0,
-       xlim = c(-125,125), ylim = c(-50, 80),
-       hline = 0, vline = c(-25, 0, 25),
-       legendPosition = 'top', legendLabSize = 16, legendIconSize = 8.0)
-
-
-p$rotated
-phys_all_PCA   <- prcomp(LengthSurvival_Master_OM[,c(10:11)], #all numeric data for phys values
-                      center = TRUE,
-                      scale. = TRUE)
-print(phys_all_PCA)
-
-# plot the pca
-pCA_all_time <- ggbiplot(phys_all_PCA,
-                   obs.scale = 1,
-                   var.scale = 1,
-                   groups = as.factor(LengthSurvival_Master_OM$Salinity),
-                   ellipse = TRUE,
-                   circle = TRUE,
-                   ellipse.prob = 0.61) +
-  scale_color_discrete(name = '') + 
-  theme_classic() + 
-  ggtitle("all, time") +
-  theme(legend.direction = 'horizontal',
-        legend.position = 'top')
-pCA_all_time
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-mat <- exprs(gset[[1]])
-
-# remove Affymetrix control probes
-mat <- mat[-grep('^AFFX', rownames(mat)),]
-str(mat)
-# extract information of interest from the phenotype data (pdata)
-idx <- which(colnames(pData(gset[[1]])) %in%
-               c('relation', 'age:ch1', 'distant rfs:ch1', 'er:ch1',
-                 'ggi:ch1', 'grade:ch1', 'size:ch1',
-                 'time rfs:ch1'))
-metadata <- data.frame(pData(gset[[1]])[,idx],
-                       row.names = rownames(pData(gset[[1]])))
-
-# tidy column names
-colnames(metadata) <- c('Study', 'Age', 'Distant.RFS', 'ER', 'GGI', 'Grade',
-                        'Size', 'Time.RFS')
-
-# prepare certain phenotypes of interest
-metadata$Study <- gsub('Reanalyzed by: ', '', as.character(metadata$Study))
-metadata$Age <- as.numeric(gsub('^KJ', NA, as.character(metadata$Age)))
-metadata$Distant.RFS <- factor(metadata$Distant.RFS,
-                               levels = c(0,1))
-metadata$ER <- factor(gsub('\\?', NA, as.character(metadata$ER)),
-                      levels = c(0,1))
-metadata$ER <- factor(ifelse(metadata$ER == 1, 'ER+', 'ER-'),
-                      levels = c('ER-', 'ER+'))
-metadata$GGI <- as.numeric(as.character(metadata$GGI))
-metadata$Grade <- factor(gsub('\\?', NA, as.character(metadata$Grade)),
-                         levels = c(1,2,3))
-metadata$Grade <- gsub(1, 'Grade 1', gsub(2, 'Grade 2', gsub(3, 'Grade 3', metadata$Grade)))
-metadata$Grade <- factor(metadata$Grade, levels = c('Grade 1', 'Grade 2', 'Grade 3'))
-metadata$Size <- as.numeric(as.character(metadata$Size))
-metadata$Time.RFS <- as.numeric(gsub('^KJX|^KJ', NA, metadata$Time.RFS))
-
-# remove samples from the pdata that have any NA value
-discard <- apply(metadata, 1, function(x) any(is.na(x)))
-metadata <- metadata[!discard,]
-
-# filter the expression data to match the samples in our pdata
-mat <- mat[,which(colnames(mat) %in% rownames(metadata))]
-
-# check that sample names match exactly between pdata and expression data 
-all(colnames(mat) == rownames(metadata))
-## [1] TRUE
-str(metadata)
-typeof(metadata$Age)
-  
-p <- pca(mat, metadata = metadata, removeVar = 0.1)

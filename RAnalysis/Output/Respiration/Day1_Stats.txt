@@ -1,0 +1,22 @@
+LMmod.APRIL_T   <- aov(lm(log(resp_ng_L_indiv_hr)~Temp*pCO2*Salinity,data=Resp_APRIL))
+shapiro.test(residuals(LMmod.APRIL_T)) # 0.32
+leveneTest(LMmod.APRIL_T) # 0.7807
+summary(LMmod.APRIL_T)
+# Df Sum Sq Mean Sq F value Pr(>F)  
+# Temp                1  5.333   5.333   4.142 0.0568 .
+# pCO2                1  0.366   0.366   0.284 0.6006  
+# Salinity            1  6.597   6.597   5.123 0.0362 *
+# Temp:pCO2           1  8.561   8.561   6.649 0.0189 *
+# Temp:Salinity       1  0.001   0.001   0.001 0.9813  
+# pCO2:Salinity       1  0.153   0.153   0.119 0.7344  
+# Temp:pCO2:Salinity  1  0.543   0.543   0.422 0.5243  
+# Residuals          18 23.176   1.28
+
+# post hoc tests 
+posthoc<-emmeans(LMmod.APRIL_T, pairwise~Temp:pCO2, adjust="tukey")
+multcomp::cld(posthoc$emmeans,alpha = 0.5, Letters = letters)
+# Temp pCO2 emmean    SE df lower.CL upper.CL .group
+# H    L    -1.692 0.401 18   -2.535   -0.849  a    
+# L    H    -0.716 0.463 18   -1.689    0.257   b   
+# H    H    -0.374 0.463 18   -1.347    0.599   bc  
+# L    L     0.279 0.463 18   -0.694    1.252    c 
