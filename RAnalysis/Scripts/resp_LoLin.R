@@ -14,7 +14,7 @@ library(rMR)
 
 # SET WORKING DIRECTORY :::::::::::::::::::::::::::::::::::::::::::::::
 
-setwd("C:/Users/samjg/Documents/Github_repositories/Cvriginica_multistressor/RAnalysis")
+setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis")
 
 # CHANGE THE FOLLOWING ..THEN CONTROL A + ENTER ::::::::::::::::::::::
 
@@ -122,3 +122,52 @@ for(i in 1:nrow(file.names.table)) { # for every file in list start at the first
 cumulative_resp_table <- read.csv(file=ouputNAME, header=T) #call the pre existing cumulative table
 new_table             <- rbind(cumulative_resp_table, df_total) # bind the new table from the for loop to the pre exisiting table
 write.table(new_table,ouputNAME,sep=",", row.names=FALSE)  # write out to the path names outputNAME
+
+
+
+
+
+# AFTER VISUAL INSPECTION OF PLOTS....
+# we have the following rates that need to be rerun... (check the diagnostic plots and see for yourself!)
+
+# (1) 1_3_19_21_new_sensor_for_7  CH2 - problem is the only the first chunk of data was pulled
+# - solution = call more data to represent the O2 consmption
+
+# (2) # (1) 1_3_19_21_new_sensor_for_7   CH3 - problem is the only the first chunk of data was pulled
+# - solution = call more data to represent the O2 consmption 
+
+
+
+#is the data a txt file? (from Lolin 8 channel
+setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis")
+resp_rerun           <- read.delim2(file = "Data/Respiration/1_3_19_21_new_sensor_for_7_raw.txt", header = TRUE, skip = 37, fileEncoding = 'latin1')
+resp_rerun$date      <- paste((sub("2021.*", "", resp_rerun$Date..Time..DD.MM.YYYY.HH.MM.SS.)), '2021', sep='') #  date - use 'sub' to call everything before 2021, add back 2021 using paste
+resp_rerun$time_Sec  <- period_to_seconds(hms(substr((strptime(sub(".*2021/", "", resp_rerun$Date..Time..DD.MM.YYYY.HH.MM.SS.), "%I:%M:%S %p")) , 12,19))) # time - use 'sub' to call target time of the raw date time after 'year/' + strptime' convert to 24 hr clock + 'period_to_seconds' converts the hms to seconds  
+resp_rerun$seconds   <- (resp_rerun$time_Sec - resp_rerun$time_Sec[1])    # secs - calc the sec time series
+resp_rerun$minutes   <- (resp_rerun$time_Sec - resp_rerun$time_Sec[1])/60 # mins - calc the minute time series
+
+#to calculate mg per L from air saturation....
+temperature_C        <- as.numeric(resp_rerun$CH1.temp...C.[1])
+barromP_kPa          <- as.numeric(resp_rerun$Barometric.pressure..hPa.[1]) / 10
+salinity.pp.thou     <- as.numeric(resp_rerun$Salinity....[1])
+
+resp_rerun_LoLin <- resp_rerun[seq(1, nrow(resp_rerun), 15), ]  %>% # data every 15 seconds to decrease the run time
+  dplyr::filter(!colnames(resp_rerun)[2] %in% 'NaN') %>% # Lolin recorede NAs are written as 'Nan' - wonts run unless removed!
+  #dplyr::select(c("minutes", "CH2.O2...air.sat..")) %>% # CH2
+  dplyr::select(c("minutes", "CH3.O2...air.sat..")) %>% # CH3
+  #dplyr::select(c("minutes", "CH3.O2...air.sat..")) %>% # run 2 ch3 20221026
+  dplyr::filter(minutes >25) %>% # run 2 ch7 20221026 - before numute 20
+  dplyr::mutate(mgL = (DO.unit.convert(as.numeric(CH3.O2...air.sat..),  # DO in percent air sat to be converted to mgL - uses an R package from loligo rMR
+                                       DO.units.in = "pct", DO.units.out ="mg/L", 
+                                       bar.units.in = "kPa", bar.press = barromP_kPa, bar.units.out = "kpa",
+                                       temp.C = temperature_C, 
+                                       salinity.units = "pp.thou", salinity = salinity.pp.thou)))
+
+model <- rankLocReg(
+  xall    = as.numeric(resp_rerun_LoLin[, 1]), 
+  yall    = as.numeric(resp_rerun_LoLin[, 3]), # call x as the minute timeseries and y as the mg L-1 O2 
+  alpha   = 0.4,  # alpha was assigned earlier as 0.4 by the authors default suggestions - review Olito et al. and their github page for details
+  method  = "pc", 
+  verbose = TRUE) 
+plot(model) # CH2; Lpc == -0.0046
+plot(model) # CH3; Lpc == -0.0072

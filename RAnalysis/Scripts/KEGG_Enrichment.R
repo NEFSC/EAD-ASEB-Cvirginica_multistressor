@@ -39,6 +39,8 @@ Crass_gigas_genome           <- keggList("crg") # call the C. gigas genome! - no
 Crass_gigas_genome_dataframe <- as.data.frame(Crass_gigas_genome) %>%  rownames_to_column() # with will allow us to merge 
 colnames(Crass_gigas_genome_dataframe) <- c('sseqid', 'Gene_name')
 
+
+
 ###############################################################################################################################################
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::;: #
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::;: #
@@ -46,6 +48,272 @@ colnames(Crass_gigas_genome_dataframe) <- c('sseqid', 'Gene_name')
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::;: #
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::;: #
 ###############################################################################################################################################
+
+# Using KEGGREST
+
+# KEGGREST prep 
+pathways.list <- keggList("pathway", "crg")
+head(pathways.list)
+# Pull all genes for each pathway
+pathway.codes <- sub("path:", "", names(pathways.list)) 
+genes.by.pathway <- sapply(pathway.codes,
+                           function(pwid){
+                             pw <- keggGet(pwid)
+                             if (is.null(pw[[1]]$GENE)) return(NA)
+                             pw2 <- pw[[1]]$GENE[c(TRUE,FALSE)] # may need to modify this to c(FALSE, TRUE) for other organisms
+                             pw2 <- unlist(lapply(strsplit(pw2, split = ";", fixed = T), function(x)x[1]))
+                             return(pw2)
+                           }
+)
+head(genes.by.pathway)
+
+#  ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::;;;:::::::::::::: #
+# Day 2 for loop ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::;;; #
+#  ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::;;;:::::::::::::: #
+
+Day2_WGCNA_sigmodules <- as.data.frame(c('pink', 
+                                         'blue', 
+                                         'turquoise', 
+                                         'brown', 
+                                         'black', 
+                                         'red', 
+                                         'yellow'))
+# prep loop for cumulative output table 
+df_total             <- data.frame() # start dataframe 
+KEGG.Day2           <- data.frame(matrix(nrow = 1, ncol = 8)) # create dataframe to save cumunalitively during for loop
+colnames(KEGG.Day2) <- c('Day', 'modColor', 'KEGGID_pathway', 'pathway.name' , 'Num.genes', 'Gene.IDs', 'p.value', 'log10_pvalue') # names for comuns in the for loop
+
+for (i in 1:nrow(Day2_WGCNA_sigmodules)) {
+    modColor <- Day2_WGCNA_sigmodules[i,1]
+    loopmodColor_cor <- paste("MM.", modColor, sep = '')
+    loopmodColor_p   <- paste("p.MM.", modColor, sep = '')
+    ModuleLoop                     <- as.data.frame(d2_WGCNA.data %>% dplyr::filter(moduleColor %in% modColor)  %>% 
+                                                      dplyr::select(c('TranscriptID', 'KEGG_ID', 'geneSymbol', moduleColor, loopmodColor_p, loopmodColor_cor)) %>% 
+                                                      dplyr::filter(.[[5]] < 0.05 & .[[6]] > 0.6) %>% # filter based on thresholds set in the WGCNA + DESeq2 overlap w/PCA 
+                                                      dplyr::select(c('TranscriptID', 'KEGG_ID',5)) %>% 
+                                                      na.omit() %>% 
+                                                      dplyr::mutate(KEGG_ID = gsub(".*:","",KEGG_ID)) %>% 
+                                                      unnest(KEGG_ID))
+    geneList <- ModuleLoop[,3]
+    names(geneList) <- ModuleLoop$KEGG_ID
+    # Wilcoxon test for each pathway
+    pVals.by.pathway <- t(sapply(names(genes.by.pathway),
+                                 function(pathway) {
+                                   pathway.genes <- genes.by.pathway[[pathway]]
+                                   list.genes.in.pathway <- intersect(names(geneList), pathway.genes)
+                                   list.genes.not.in.pathway <- setdiff(names(geneList), list.genes.in.pathway)
+                                   scores.in.pathway <- geneList[list.genes.in.pathway]
+                                   scores.not.in.pathway <- geneList[list.genes.not.in.pathway]
+                                   if (length(scores.in.pathway) > 0){
+                                     p.value <- wilcox.test(scores.in.pathway, scores.not.in.pathway, alternative = "less")$p.value
+                                   } else{
+                                     p.value <- NA
+                                   }
+                                   return(c(p.value = p.value, Annotated = length(list.genes.in.pathway), GeneIDs = list(list.genes.in.pathway) ))
+                                 }
+    ))
+    # Assemble output table
+    outdat <- data.frame(pathway.code = rownames(pVals.by.pathway)) %>% 
+      dplyr::mutate(Num.genes = as.data.frame(pVals.by.pathway)$Annotated) %>% 
+      dplyr::mutate(Gene.IDs = as.data.frame(pVals.by.pathway)$GeneIDs) %>% 
+      dplyr::rename(KEGGID_pathway = pathway.code) %>% 
+      dplyr::mutate(pathway.name = pathways.list[(paste('path:',KEGGID_pathway, sep = ''))]) %>% 
+      dplyr::mutate(pathway.name = gsub(" -.*","",pathway.name))  %>% 
+      dplyr::mutate(p.value =  pVals.by.pathway[,"p.value"])  %>% 
+      dplyr::mutate(Day = 'Day2')  %>% 
+      dplyr::mutate(modColor = modColor)  %>% 
+      dplyr::filter(p.value < 0.05) %>% 
+      na.omit() %>% 
+      dplyr::mutate(log10_pvalue = -log10(as.numeric(p.value))) 
+    
+    KEGG.Day2 <- rbind(KEGG.Day2,outdat) #bind to a cumulative list dataframe
+    print(KEGG.Day2) # print to monitor progress
+  }
+
+KEGG.Day2OM <- na.omit(KEGG.Day2) %>% 
+  dplyr::mutate(Num.genes = as.numeric(Num.genes))
+# KEGG.Day2OM
+library(tidytext)
+# View(KEGG.Day2OM)
+Day2_KEGGSegmentPlot <- KEGG.Day2OM %>%  
+  dplyr::filter(modColor %in% c('brown', 'blue', 'turquoise', 'red', 'pink', 'black')) %>% 
+  dplyr::mutate(modColor = factor(modColor , levels = c('brown', 'blue', 'turquoise', 'red', 'pink', 'black'))) %>%  # for the correct order of facets in the plot below
+  dplyr::mutate(pathway.name = reorder_within(pathway.name, log10_pvalue, modColor)) %>% 
+  ggplot(aes(x=reorder(pathway.name, log10_pvalue), y= log10_pvalue, group = modColor)) + 
+  geom_segment(aes(x=pathway.name, xend=pathway.name, y=1, yend=log10_pvalue, color=modColor,
+               #aes(x=pathway.name, xend=pathway.name, y=min(log10_pvalue), yend=max(log10_pvalue)),  
+               #linetype=NA, 
+               size=3)) +   # Draw dashed lines
+  geom_point( aes(col=modColor, size=Num.genes), shape =21,  fill = "white") +   # Draw points
+  scale_color_manual(values = c('brown', 'blue', 'turquoise', 'red', 'pink', 'black')) +
+  #ylim(0,8) +
+  labs(title="Day 2", 
+       x = "Pathway",
+       y = "-Log(pvalue)",
+       subtitle="KEGGREST") +
+  theme_classic() + 
+  theme(
+    panel.grid.minor.y = element_blank(),
+    panel.grid.major.y = element_blank(),
+    legend.position="bottom"
+  ) +
+  xlab("") +
+  ylab("") +
+  ggtitle("Day 2 KEGGREST") +
+  theme(panel.border = element_blank(), # Set border
+        panel.grid.major = element_blank(), #Set major gridlines
+        panel.grid.minor = element_blank(), #Set minor gridlines
+        axis.line = element_line(colour = "black"), #Set axes color
+        plot.background=element_blank()) + #Set the plot background #set title attributes
+  coord_flip() +
+  facet_wrap(modColor ~., 
+             scales="free_y", 
+             ncol= 1, 
+             strip.position="right", 
+             shrink = T)
+#pdf(paste("Analysis/Output/KEGG/WGCNA/Day7_",modColor,"_RichFactorPlot.pdf", sep =''), width=5, height=6)
+print(Day2_KEGGSegmentPlot)
+
+
+
+  
+  
+  
+  
+  
+# day 22 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+Day18_WGCNA_sigmodules <- as.data.frame(c('tan', 
+                                            'red', 
+                                            'turquoise', 
+                                            'salmon', 
+                                            'blue',
+                                            'green'))
+
+
+# prep loop for cumulative output table 
+df_total             <- data.frame() # start dataframe 
+KEGG.Day22           <- data.frame(matrix(nrow = 1, ncol = 8)) # create dataframe to save cumunalitively during for loop
+colnames(KEGG.Day22) <- c('Day', 'modColor', 'KEGGID_pathway', 'pathway.name' , 'Num.genes', 'Gene.IDs', 'p.value', 'log10_pvalue') # names for comuns in the for loop
+  for (i in 1:nrow(Day18_WGCNA_sigmodules)) {
+        modColor <- Day18_WGCNA_sigmodules[i,1]
+        loopmodColor_cor <- paste("MM.", modColor, sep = '')
+        loopmodColor_p   <- paste("p.MM.", modColor, sep = '')
+        
+        ModuleLoop <- as.data.frame(d18_WGCNA.data %>% dplyr::filter(moduleColor %in% modColor)  %>% 
+                                                       dplyr::select(c('TranscriptID', 'KEGG_ID', 'geneSymbol', moduleColor, loopmodColor_p, loopmodColor_cor)) %>% 
+                                                       #dplyr::filter(.[[5]] < 0.05 & .[[6]] > 0.6) %>% # filter based on thresholds set in the WGCNA + DESeq2 overlap w/PCA 
+                                                       dplyr::select(c('TranscriptID', 'KEGG_ID',5)) %>% 
+                                                       na.omit() %>% 
+                                                       dplyr::mutate(KEGG_ID = gsub(".*:","",KEGG_ID)) %>% 
+                                                       unnest(KEGG_ID))
+        geneList <- ModuleLoop[,3]
+        names(geneList) <- ModuleLoop$KEGG_ID
+        # Wilcoxon test for each pathway
+        pVals.by.pathway <- t(sapply(names(genes.by.pathway),
+                                     function(pathway) {
+                                       pathway.genes <- genes.by.pathway[[pathway]]
+                                       list.genes.in.pathway <- intersect(names(geneList), pathway.genes)
+                                       list.genes.not.in.pathway <- setdiff(names(geneList), list.genes.in.pathway)
+                                       scores.in.pathway <- geneList[list.genes.in.pathway]
+                                       scores.not.in.pathway <- geneList[list.genes.not.in.pathway]
+                                       if (length(scores.in.pathway) > 0){
+                                         p.value <- wilcox.test(scores.in.pathway, scores.not.in.pathway, alternative = "less")$p.value
+                                       } else{
+                                         p.value <- NA
+                                       }
+                                       return(c(p.value = p.value, Annotated = length(list.genes.in.pathway), GeneIDs = list(list.genes.in.pathway) ))
+                                     }
+                              ))
+        pVals.by.pathway
+      
+        # Assemble output table
+        #athways.list[(paste('path:',KEGGID_pathway, sep = ''))]
+        outdat <- data.frame(pathway.code = rownames(pVals.by.pathway)) %>% 
+          dplyr::mutate(Num.genes = as.data.frame(pVals.by.pathway)$Annotated) %>% 
+          dplyr::mutate(Gene.IDs = as.data.frame(pVals.by.pathway)$GeneIDs) %>% 
+          dplyr::rename(KEGGID_pathway = pathway.code) %>% 
+          dplyr::mutate(pathway.name = pathways.list[(paste('path:',KEGGID_pathway, sep = ''))]) %>% 
+          dplyr::mutate(pathway.name = gsub(" -.*","",pathway.name))  %>% 
+          dplyr::mutate(p.value =  pVals.by.pathway[,"p.value"])  %>% 
+          dplyr::mutate(Day = 'Day22')  %>% 
+          dplyr::mutate(modColor = modColor)  %>% 
+          dplyr::filter(p.value < 0.05) %>% 
+          na.omit() %>% 
+          dplyr::mutate(log10_pvalue = -log10(as.numeric(p.value))) 
+    
+        KEGG.Day22 <- rbind(KEGG.Day22,outdat) #bind to a cumulative list dataframe
+        print(KEGG.Day22) # print to monitor progress
+}
+  
+KEGG.Day22OM <-  na.omit(KEGG.Day22) %>% 
+  dplyr::mutate(Num.genes = as.numeric(Num.genes))
+
+plot<- KEGG.Day22OM %>%  
+  dplyr::filter(modColor %in% c('blue', 
+                                'red', 
+                                'salmon',
+                                #'tan',
+                                'green',
+                                'turquoise')) %>% 
+  dplyr::mutate(modColor = factor(modColor , levels = c('blue', 
+                                                        'red', 
+                                                        'salmon',
+                                                        #'tan',
+                                                        'green',
+                                                        'turquoise'))) %>%  # for the correct order of facets in the plot below
+  dplyr::mutate(pathway.name = reorder_within(pathway.name, log10_pvalue, modColor)) %>% 
+  ggplot(aes(x=reorder(pathway.name, log10_pvalue), y= log10_pvalue, group = modColor)) + 
+  geom_segment(aes(x=pathway.name, xend=pathway.name, y=1, yend=log10_pvalue, color=modColor,
+                   #aes(x=pathway.name, xend=pathway.name, y=min(log10_pvalue), yend=max(log10_pvalue)),  
+                   #linetype=NA, 
+                   size=3)) +   # Draw dashed lines
+  geom_point( aes(col=modColor, size=Num.genes), shape =21,  fill = "white") +   # Draw points
+  scale_color_manual(values = c('blue', 
+                                'red', 
+                                'salmon',
+                                #'tan',
+                                'green',
+                                'turquoise')) +
+  #ylim(0,8) +
+  labs(title="Day 22", 
+       x = "Pathway",
+       y = "-Log(pvalue)",
+       subtitle="KEGGREST") +
+  theme_classic() + 
+  theme(
+    panel.grid.minor.y = element_blank(),
+    panel.grid.major.y = element_blank(),
+    legend.position="bottom"
+  ) +
+  xlab("") +
+  ylab("") +
+  ggtitle("Day 22 KEGGREST") +
+  theme(panel.border = element_blank(), # Set border
+        panel.grid.major = element_blank(), #Set major gridlines
+        panel.grid.minor = element_blank(), #Set minor gridlines
+        axis.line = element_line(colour = "black"), #Set axes color
+        plot.background=element_blank()) + #Set the plot background #set title attributes
+  coord_flip() +
+  facet_wrap(modColor ~., 
+             scales="free_y", 
+             ncol= 1, 
+             strip.position="right", 
+             shrink = T)
+#pdf(paste("Analysis/Output/KEGG/WGCNA/Day7_",modColor,"_RichFactorPlot.pdf", sep =''), width=5, height=6)
+print(plot)
+
+
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
 
 # USING KEGGPROFILE 
 

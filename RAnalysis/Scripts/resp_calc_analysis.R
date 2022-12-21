@@ -30,7 +30,10 @@ setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAn
 exp_metadata <- read.csv(file="Data/ExperimentMetadata.csv", header=T) # treatment assignments to 'Chamber_Tank'
 counts_resp  <- read.csv(file="Data/Counts_resp.csv", header=T) # reference for the respirometry data - contains the 'Chamber_Tank' for each sensor channel (whether an animal or a blank)
 resp.ref     <- read.csv(file="Data/Respiration/Reference_master.csv", header=T) # reference for the respirometry data - contains the 'Chamber_Tank' for each sensor channel (whether an animal or a blank)
-resp.data    <- read.csv(file="Output/Respiration/Cumulative_resp_alpha0.4.csv", header=T) # read the calculate raw rates from 'resp_LoLin' script - contains the calculated rate (not normalized for blanks) for each sensor-channel
+resp.data    <- read.csv(file="Output/Respiration/Cumulative_resp_alpha0.4.csv", header=T) %>% # read the calculate raw rates from 'resp_LoLin' script - contains the calculated rate (not normalized for blanks) for each sensor-channel
+                          dplyr::filter(!Filename %in% '1_3_19_21_raw.txt') # use 1_3_19_21_new_sensor_for_7_raw.txt
+resp.data[2,3] <- -0.0046 # 1_3_19_21_raw - CH2
+resp.data[3,3] <- -0.0072 # 1_3_19_21_raw - CH3
 
 # merge the exp_metadata with the resp.data
 resp.ref_merged                 <- merge(exp_metadata, resp.ref, by = 'Chamber_tank', all=TRUE) # all TRUE allows us to keep the blanks
@@ -86,7 +89,7 @@ for(i in 1:nrow(dates.runs)) {
 }
 
 blanks_total2 <- blanks_total %>% 
-  dplyr::filter(!(filename =='20210319_new_sensor_7' & Channel == 'CH8')) %>% # positive blank rate - omit, use other blank in file
+  #dplyr::filter(!(filename =='20210319_new_sensor_7' & Channel == 'CH8')) %>% # positive blank rate - omit, use other blank in file
   dplyr::filter(!(filename =='20210319' & Channel == 'CH4')) %>% # slightly positive rate - omit, use other blank in the file 
   dplyr::filter(!(filename =='20210430_LOWtemp_HIGHsal' & Channel == 'CH8')) %>% # abnormally higher than other blank, error  -omit, use other blank on file
   dplyr::filter(!(filename =='20210507_LOWtemp_HIGHsal' & Channel == 'CH4')) %>% # abnormally higher than other blank, error -omit, use other blank on file
@@ -126,8 +129,8 @@ Resp.Master$resp_ng_L_indiv_hr <- (
     (60)) # correct for the time; final value is ng Liter-1 individual-1 hour-1
 
 # mean sd rates
-mean(Resp.Master$resp_ng_L_indiv_hr) # mean = 1.460783
-sd(Resp.Master$resp_ng_L_indiv_hr) # sd= 2.054197
+mean(Resp.Master$resp_ng_L_indiv_hr) # mean = 1.423157
+sd(Resp.Master$resp_ng_L_indiv_hr) # sd= 2.027203
 
 
 
@@ -145,7 +148,7 @@ write.csv(Resp.Master,
 # ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
 library(emmeans)
-
+library(car)
 # APRIL 24 hours post ferilization ------------------------------------------------ #
 
 setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/") # personal computer
@@ -157,30 +160,32 @@ Resp_APRIL <- Resp.Master %>%
 
 # Three way ANOVA 
 LMmod.APRIL   <- aov(lm(resp_ng_L_indiv_hr~Temp*pCO2*Salinity,data=Resp_APRIL))
-shapiro.test(residuals(LMmod.APRIL)) # 0.01924 - non normal
+shapiro.test(residuals(LMmod.APRIL)) # 0.009733 - non normal
 # LOG transform
 LMmod.APRIL_T   <- aov(lm(log(resp_ng_L_indiv_hr)~Temp*pCO2*Salinity,data=Resp_APRIL))
-shapiro.test(residuals(LMmod.APRIL_T)) # 0.32
-leveneTest(LMmod.APRIL_T) # 0.7807
+shapiro.test(residuals(LMmod.APRIL_T)) # 0.6472
+leveneTest(LMmod.APRIL_T) # 0.6339
 summary(LMmod.APRIL_T)
-# Df Sum Sq Mean Sq F value Pr(>F)  
-# Temp                1  5.333   5.333   4.142 0.0568 .
-# pCO2                1  0.366   0.366   0.284 0.6006  
-# Salinity            1  6.597   6.597   5.123 0.0362 *
-# Temp:pCO2           1  8.561   8.561   6.649 0.0189 *
-# Temp:Salinity       1  0.001   0.001   0.001 0.9813  
-# pCO2:Salinity       1  0.153   0.153   0.119 0.7344  
-# Temp:pCO2:Salinity  1  0.543   0.543   0.422 0.5243  
-# Residuals          18 23.176   1.28
+# Df Sum Sq Mean Sq F value  Pr(>F)   
+# Temp                1  4.622   4.622   5.769 0.02881 * 
+# pCO2                1  0.303   0.303   0.378 0.54710   
+# Salinity            1  1.523   1.523   1.901 0.18693   
+# Temp:pCO2           1  8.930   8.930  11.145 0.00417 **
+# Temp:Salinity       1  1.591   1.591   1.986 0.17792   
+# pCO2:Salinity       1  2.690   2.690   3.357 0.08560 . 
+# Temp:pCO2:Salinity  1  0.251   0.251   0.314 0.58321   
+# Residuals          16 12.821   0.801 
 
 # post hoc tests 
+library(emmeans)
 posthoc<-emmeans(LMmod.APRIL_T, pairwise~Temp:pCO2, adjust="tukey")
 multcomp::cld(posthoc$emmeans,alpha = 0.5, Letters = letters)
 # Temp pCO2 emmean    SE df lower.CL upper.CL .group
-# H    L    -1.692 0.401 18   -2.535   -0.849  a    
-# L    H    -0.716 0.463 18   -1.689    0.257   b   
-# H    H    -0.374 0.463 18   -1.347    0.599   bc  
-# L    L     0.279 0.463 18   -0.694    1.252    c 
+# H    L    -1.819 0.365 16   -2.593  -1.0439  a    
+# L    H    -0.716 0.365 16   -1.491   0.0586   b   
+# H    H    -0.374 0.365 16   -1.149   0.4009   bc  
+# L    L     0.279 0.365 16   -0.496   1.0538    c  
+# L    L     0.279 0.374 16   -0.514   1.0718    c  
 
 
 # Figures
@@ -190,23 +195,21 @@ Resp_APRIL_select  <- Resp_APRIL %>%
 # Resp_APRIL_melt <- tidyr::gather(Resp_APRIL_select, variable, value, -resp_ng_L_indiv_hr)
 
 APRIL_all <- Resp_APRIL_select %>%
+  dplyr::mutate(Temp_pCO2 = paste(Temp,pCO2, sep = '_')) %>% 
   dplyr::mutate(full.treatment = (paste(Salinity, pCO2, Temp,sep=''))) %>%
   dplyr::mutate(full.treatment = fct_relevel(full.treatment,
                             "LHL", "LHH", "LLL",'LLH',
                             "HHL", "HHH", "HLL", 'HLH')) %>%
- 
-  ggplot(aes(full.treatment, resp_ng_L_indiv_hr , fill = factor(full.treatment))) +
-  geom_point(shape = 21, size = 2, position = position_jitterdodge(jitter.width = 0.5))+
+  ggplot(aes(Temp_pCO2, resp_ng_L_indiv_hr , fill = factor(Salinity))) +
   geom_boxplot(size=0.2, alpha=0.1) +
-  scale_fill_manual(values=c("#56B4E9", "#D55E00","#56B4E9", "#D55E00",
-                             "#56B4E9", "#D55E00","#56B4E9", "#D55E00")) +
+  geom_point(shape = 21, size = 2, position = position_jitterdodge(jitter.width = 0.5))+
+  scale_fill_manual(values=c("white", "grey40")) +
   labs(title = "C virginica, 24 hr larvae", 
        y = expression(Respiration~rate~"("~ng~L^{-1}~O[2]%.%indiv^{-1}%.% hr^{-1}~")"), 
-       x = "Full treatment (Sal/pCO2/Temp)") + 
+       x = "Sal_pCO2") + 
   annotate("text", x=2, y=5.8, label = "Low Salinity") +
-  annotate("rect", xmin = 0, xmax = 4.5, ymin = 0, ymax = 6.5,
-           alpha = .2) +
-  theme_bw() 
+  #annotate("rect", xmin = 0, xmax = 4.5, ymin = 0, ymax = 6.5,alpha = .2) +
+  theme_classic() 
 APRIL_all
 
 setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Output/")
@@ -223,6 +226,21 @@ Resp_means_APRIL <- Resp_APRIL_select %>%
                    sd_RR   = sd(resp_ng_L_indiv_hr),
                    se_RR   = sd_RR/(sqrt(n)))
 
+
+APRIL_MeanSE <- Resp_means_APRIL %>%
+  dplyr::mutate(Temp_pCO2 = paste(Temp,pCO2, sep = '_')) %>% 
+  ggplot(aes(Temp_pCO2, mean_RR , fill = factor(Salinity))) +
+  geom_errorbar(aes(ymin = mean_RR - se_RR, 
+                    ymax = mean_RR + se_RR), 
+                width = 0.5, 
+                position= "dodge2") +
+  geom_point(shape = 21, size = 2, position = position_jitterdodge(jitter.width = 0.1))+
+  scale_fill_manual(values=c("white", "grey40")) +
+  labs(title = "C virginica, 24 hr larvae", 
+       y = expression(Respiration~rate~"("~ng~L^{-1}~O[2]%.%indiv^{-1}%.% hr^{-1}~")"), 
+       x = "Temp_pCO2") + 
+  theme_classic() 
+APRIL_MeanSE
 
 Heatplot_RR_APRIL <- Resp_means_APRIL %>% 
                         dplyr::mutate(OA_Sal = (paste(pCO2, Salinity,sep=''))) %>% 
@@ -256,6 +274,10 @@ print(Heatplot_RR_APRIL)
 dev.off()
 
 
+setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Output/")
+pdf("Respiration/Day1_RR_posthoc.pdf", width=8, height=6)
+print(APRIL_MeanSE)
+dev.off()
 # MAY - 8 days post fertilization---------------------------------------------------------- #
 
 
