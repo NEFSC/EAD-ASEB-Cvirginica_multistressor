@@ -33,7 +33,7 @@ Cvirginica_annot_reference  <- read.csv(file="Data/TagSeq/Seq_details/seq_id_mas
 
 # Day 2 - all including low and high temperature :::::::::::::::::::::::::::::::::::::::::::::::; #
 
-d2_Annot_ModuleMembership      <- read.csv("Output/WGCNA/day2_larvae/d2.WGCNA_ModulMembership.csv")
+d2_Annot_ModuleMembership      <- read.csv("Output/WGCNA/day2_larvae/d2.WGCNA_ModulMembership.csv") 
 
 # for loop to call the threshold or module mdembership
 d2ModCols                      <- data.frame(moduleColor = unique(d2_Annot_ModuleMembership$moduleColor)) %>% # unique module colors 
@@ -57,7 +57,7 @@ for (i in 1:nrow(d2ModCols)) {
     dplyr::filter(moduleColor %in% modColor) %>% 
     dplyr::select(c('TranscriptID','geneSymbol','Protein_name','moduleColor', loopmodColor_cor,loopmodColor_p))
   Mod_Loop_d2_RRcutoff   <- as.data.frame(Mod_loop_d2 %>% 
-                                            dplyr::filter(!(.[[5]] <  0.6 & .[[6]] > 0.05)) %>% 
+                                            dplyr::filter(.[[6]] < 0.05 & .[[5]] > 0.6) %>% 
                            dplyr::mutate(Day = "Day2")) %>% 
                            dplyr::select(!c(5,6))
   
@@ -70,7 +70,64 @@ for (i in 1:nrow(d2ModCols)) {
   
 }
 View(day2_mod_RR)
-day2_mod_RR      <- read.csv("Output/WGCNA/day2_larvae/d2.WGCNA_ModulMembership_RRcutoff.csv") %>% dplyr::mutate(Day = "Day2")
+day2_ModuleMembership  <- read.csv("Output/WGCNA/day2_larvae/d2.WGCNA_ModulMembership_RRcutoff.csv") 
+
+nrow(day2_mod_RR %>% filter(moduleColor %in% 'turquoise'))
+
+d2_Ca2_biomineral <- day2_ModuleMembership %>% 
+  dplyr::filter(moduleColor %in% c('blue', 
+                                   #'pink', 
+                                   'turquoise', 
+                                   #'red', 
+                                   #'black', 
+                                   'brown'
+  )) %>% # sig modules
+  dplyr::select(c('moduleColor','Protein_name')) %>% 
+  dplyr::mutate(Day = '2') %>% 
+  dplyr::filter(grepl('calmodulin|carbonic anhydrase|calreticulin|perlucin|sodium/calcium|calcium-transporting
+                       |calcium homoeostasis|PIF-like|tyrosinase|gigasin|caltractin', Protein_name, ignore.case = TRUE))
+
+d2_iron_metabol <- day2_ModuleMembership %>% 
+  dplyr::filter(moduleColor %in% c('blue', 
+                                   #'pink', 
+                                   'turquoise', 
+                                   #'red', 
+                                   #'black', 
+                                   'brown'
+  )) %>% # sig modules
+  dplyr::select(c('moduleColor','Protein_name')) %>% 
+  dplyr::mutate(Day = '2') %>% 
+  dplyr::filter(grepl('ferritin|thioredoxin', Protein_name, ignore.case = TRUE))
+
+
+d2_oxid_stress <- day2_ModuleMembership %>% 
+  dplyr::filter(moduleColor %in% c('blue', 
+                                   #'pink', 
+                                   'turquoise', 
+                                   #'red', 
+                                   #'black', 
+                                   'brown'
+  )) %>% # sig modules
+  dplyr::select(c('moduleColor','Protein_name')) %>% 
+  dplyr::mutate(Day = '2') %>% 
+  dplyr::filter(grepl('superoxide|glutathione perox|glutathione S-|peroxidase
+                      |P450|metallothionein|peroxiredoxin|isocitrate dehydrogenase', Protein_name, ignore.case = TRUE))
+
+d2_oxid_phophoyl <- day2_ModuleMembership %>% 
+  dplyr::filter(moduleColor %in% c('blue', 
+                                   #'pink', 
+                                   'turquoise', 
+                                   #'red', 
+                                   #'black', 
+                                   'brown'
+  )) %>% # sig modules
+  dplyr::select(c('moduleColor','Protein_name')) %>% 
+  dplyr::mutate(Day = '2') %>% 
+  dplyr::filter(grepl('ATP synthase|NADH dehydrogenase
+                      |ubiquinone|cytochrome c
+                      |succinate', Protein_name, ignore.case = TRUE))
+
+
 
 # Day 22  ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::; #
 
@@ -108,7 +165,6 @@ for (i in 1:nrow(d22ModCols)) {
 }
 
 View(day22_mod_RR)
-day22_mod_RR      <- read.csv("Output/WGCNA/day18_spat/d18.WGCNA_ModulMembership_RRcutoff.csv") %>% dplyr::mutate(Day = "Day22")
 
 # master WGCNA module data for for loops! 
 WGCNA_MasterModData   <-  merge( (as.data.frame(rbind(day2_mod_RR, 
@@ -197,23 +253,18 @@ write.csv(modules_LowAragoniteLowExp_filtered,
 # Co-expression Pattern: Low Aragonite == High Expression
 # ============================================================================= #
 
-d22blue <- WGCNA_MasterModData %>% 
-  dplyr::filter(case_when(Day == 'Day22' ~ moduleColor %in% 'blue')) %>% 
-  dplyr::select(c('Protein_name', 'moduleColor')) %>% 
-  unique()
+d2red <- WGCNA_MasterModData %>% 
+  dplyr::filter(case_when(Day == 'Day2_hightemp' ~ moduleColor %in% 'red'))
 
-
-d22green  <- WGCNA_MasterModData %>% 
-  dplyr::filter(case_when(Day == 'Day22' ~ moduleColor %in% 'green')) %>% 
-  dplyr::select(c('Protein_name', 'moduleColor')) %>% 
-  unique()
+d18turquoise  <- WGCNA_MasterModData %>% 
+  dplyr::filter(case_when(Day == 'Day18' ~ moduleColor %in% 'turquoise')) 
 
 #merge
-modules_LowAragoniteLowExp_Day22 <- rbind(d22blue, d22green)
-View(modules_LowAragoniteLowExp_Day22)
+modules_LowAragoniteHighExp <- rbind(d2red, d18turquoise)
+
 #do genes overlap?
-View(modules_LowAragoniteLowExp_Day22 %>% 
-       group_by(Protein_name) %>% 
+View(modules_LowAragoniteHighExp %>% 
+       group_by(Cvirginica_TranscriptID,Protein_name) %>% 
        #group_by(Protein_name) %>% 
        dplyr::summarise(n = n()) %>%  
        filter(!n %in% 1))

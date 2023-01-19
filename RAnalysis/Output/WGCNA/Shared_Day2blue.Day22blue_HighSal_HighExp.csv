@@ -1,97 +1,73 @@
-Cvirginica_TranscriptID,Protein_name
-XM_022464259.1, 40S ribosomal protein S21-like
-XM_022459436.1, 40S ribosomal protein S24-like
-XM_022459437.1, 40S ribosomal protein S24-like
-XM_022462162.1, agrin-like
-XM_022487933.1, A-kinase anchor protein 14-like
-XM_022467410.1, alpha-amylase-like
-XM_022467411.1, alpha-amylase-like
-XM_022462906.1, autocrine proliferation repressor protein A-like
-XM_022466660.1, calmodulin-like protein 5
-XM_022469916.1, calmodulin-like protein 5
-XM_022484544.1, carboxypeptidase B-like
-XM_022448615.1, cathepsin B-like
-XM_022450959.1, cathepsin L1-like
-XM_022470938.1, cell wall protein PRY3-like
-XM_022488655.1, chondroitin proteoglycan-2-like
-XM_022489618.1, collectin-12-like
-XM_022447249.1, complement C1q tumor necrosis factor-related protein 4-like
-XM_022467136.1, complement C1q-like protein 4
-XM_022467660.1, complement C1q-like protein 4
-XM_022473452.1, countin-1-like
-XM_022478691.1, cysteine proteinase inhibitor 8-like
-XM_022478788.1, cysteine proteinase inhibitor 8-like
-XM_022459765.1, disabled homolog 1-like
-XM_022482782.1, endoglucanase 14-like
-XM_022474881.1, epididymal secretory protein E1-like
-XM_022473993.1, fatty acid-binding protein-like
-XM_022488584.1," ferritin, lower subunit-like"
-XM_022434155.1, fumarylacetoacetate hydrolase domain-containing protein 2-like
-XM_022468543.1, ganglioside GM2 activator-like
-XM_022461355.1, glutathione peroxidase-like
-XM_022474740.1, hornerin-like
-XM_022467480.1, kunitz-type U19-barytoxin-Tl1a-like
-XM_022433002.1, lysozyme 3
-XM_022459815.1, mammalian ependymin-related protein 1-like
-XM_022477735.1, mammalian ependymin-related protein 1-like
-XM_022477736.1, mammalian ependymin-related protein 1-like
-XM_022473545.1, neuroglobin-like
-XM_022433377.1, peptidoglycan-recognition protein SC2-like
-XM_022470580.1, periostin-like
-XM_022481897.1, perlucin-like
-XM_022439024.1, perlucin-like protein
-XM_022448304.1," phospholipase B1, membrane-associated-like"
-XM_022489653.1, prokineticin Bm8-f-like
-XM_022469162.1, protein dcd1A-like
-XM_022462112.1, S-adenosylmethionine synthase-like
-XM_022464300.1, serine protease inhibitor Cvsi-1-like
-XM_022438523.1, serine protease inhibitor Cvsi-2-like
-XM_022439939.1, serine protease inhibitor Cvsi-2-like
-XM_022482777.1, snaclec B6-like
-XM_022489817.1, soma ferritin-like
-XM_022459240.1, stathmin-like
-XM_022473122.1, steroid hormone receptor ERR2-like
-XM_022433856.1, temptin-like
-XM_022480743.1, tomoregulin-2-like
-XM_022444355.1, transforming growth factor-beta-induced protein ig-h3-like
-XM_022445697.1, transforming growth factor-beta-induced protein ig-h3-like
-XM_022445760.1, transforming growth factor-beta-induced protein ig-h3-like
-XM_022470801.1, transforming growth factor-beta-induced protein ig-h3-like
-XM_022480261.1, troponin T-like
-XM_022451097.1, tryptase-2-like
-XM_022488951.1, tubulin beta chain
-XM_022431156.1, uncharacterized
-XM_022432129.1, uncharacterized
-XM_022433901.1, uncharacterized
-XM_022438980.1, uncharacterized
-XM_022441055.1, uncharacterized
-XM_022442611.1, uncharacterized
-XM_022445339.1, uncharacterized
-XM_022450601.1, uncharacterized
-XM_022451296.1, uncharacterized
-XM_022453908.1, uncharacterized
-XM_022455688.1, uncharacterized
-XM_022460517.1, uncharacterized
-XM_022460520.1, uncharacterized
-XM_022462388.1, uncharacterized
-XM_022462462.1, uncharacterized
-XM_022465341.1, uncharacterized
-XM_022467991.1, uncharacterized
-XM_022468648.1, uncharacterized
-XM_022468810.1, uncharacterized
-XM_022470695.1, uncharacterized
-XM_022470856.1, uncharacterized
-XM_022470874.1, uncharacterized
-XM_022472614.1, uncharacterized
-XM_022474507.1, uncharacterized
-XM_022474672.1, uncharacterized
-XM_022483619.1, uncharacterized
-XM_022486103.1, uncharacterized
-XM_022486453.1, uncharacterized
-XM_022487647.1, uncharacterized
-XM_022488030.1, uncharacterized
-XM_022489601.1, uncharacterized
-XM_022490321.1, uncharacterized
-XM_022452068.1, uncharacterized protein PB18E9.04c-like
-XM_022480758.1, UPF0764 protein C16orf89 homolog
-XM_022453681.1, von Willebrand factor C domain-containing protein 2-like
+"","Cvirginica_TranscriptID","Protein_name"
+"1","XM_022431156.1"," uncharacterized"
+"2","XM_022432129.1"," uncharacterized"
+"3","XM_022433002.1"," lysozyme 3"
+"4","XM_022433377.1"," peptidoglycan-recognition protein SC2-like"
+"5","XM_022433901.1"," uncharacterized"
+"6","XM_022438523.1"," serine protease inhibitor Cvsi-2-like"
+"7","XM_022439939.1"," serine protease inhibitor Cvsi-2-like"
+"8","XM_022441055.1"," uncharacterized"
+"9","XM_022442611.1"," uncharacterized"
+"10","XM_022444355.1"," transforming growth factor-beta-induced protein ig-h3-like"
+"11","XM_022445339.1"," uncharacterized"
+"12","XM_022445697.1"," transforming growth factor-beta-induced protein ig-h3-like"
+"13","XM_022445760.1"," transforming growth factor-beta-induced protein ig-h3-like"
+"14","XM_022447249.1"," complement C1q tumor necrosis factor-related protein 4-like"
+"15","XM_022448304.1"," phospholipase B1, membrane-associated-like"
+"16","XM_022448615.1"," cathepsin B-like"
+"17","XM_022451097.1"," tryptase-2-like"
+"18","XM_022451296.1"," uncharacterized"
+"19","XM_022452068.1"," uncharacterized protein PB18E9.04c-like"
+"20","XM_022453908.1"," uncharacterized"
+"21","XM_022459436.1"," 40S ribosomal protein S24-like"
+"22","XM_022459765.1"," disabled homolog 1-like"
+"23","XM_022460517.1"," uncharacterized"
+"24","XM_022460520.1"," uncharacterized"
+"25","XM_022461355.1"," glutathione peroxidase-like"
+"26","XM_022462162.1"," agrin-like"
+"27","XM_022462388.1"," uncharacterized"
+"28","XM_022462906.1"," autocrine proliferation repressor protein A-like"
+"29","XM_022464300.1"," serine protease inhibitor Cvsi-1-like"
+"30","XM_022465341.1"," uncharacterized"
+"31","XM_022466660.1"," calmodulin-like protein 5"
+"32","XM_022467136.1"," complement C1q-like protein 4"
+"33","XM_022467410.1"," alpha-amylase-like"
+"34","XM_022467411.1"," alpha-amylase-like"
+"35","XM_022467480.1"," kunitz-type U19-barytoxin-Tl1a-like"
+"36","XM_022467660.1"," complement C1q-like protein 4"
+"37","XM_022467991.1"," uncharacterized"
+"38","XM_022468543.1"," ganglioside GM2 activator-like"
+"39","XM_022468648.1"," uncharacterized"
+"40","XM_022468810.1"," uncharacterized"
+"41","XM_022469162.1"," protein dcd1A-like"
+"42","XM_022469916.1"," calmodulin-like protein 5"
+"43","XM_022470580.1"," periostin-like"
+"44","XM_022470801.1"," transforming growth factor-beta-induced protein ig-h3-like"
+"45","XM_022470874.1"," uncharacterized"
+"46","XM_022470938.1"," cell wall protein PRY3-like"
+"47","XM_022472614.1"," uncharacterized"
+"48","XM_022473122.1"," steroid hormone receptor ERR2-like"
+"49","XM_022473993.1"," fatty acid-binding protein-like"
+"50","XM_022474672.1"," uncharacterized"
+"51","XM_022474740.1"," hornerin-like"
+"52","XM_022474881.1"," epididymal secretory protein E1-like"
+"53","XM_022477735.1"," mammalian ependymin-related protein 1-like"
+"54","XM_022478691.1"," cysteine proteinase inhibitor 8-like"
+"55","XM_022478788.1"," cysteine proteinase inhibitor 8-like"
+"56","XM_022480743.1"," tomoregulin-2-like"
+"57","XM_022480758.1"," UPF0764 protein C16orf89 homolog"
+"58","XM_022481897.1"," perlucin-like"
+"59","XM_022482777.1"," snaclec B6-like"
+"60","XM_022482782.1"," endoglucanase 14-like"
+"61","XM_022483619.1"," uncharacterized"
+"62","XM_022486103.1"," uncharacterized"
+"63","XM_022486453.1"," uncharacterized"
+"64","XM_022487647.1"," uncharacterized"
+"65","XM_022488030.1"," uncharacterized"
+"66","XM_022488584.1"," ferritin, lower subunit-like"
+"67","XM_022488655.1"," chondroitin proteoglycan-2-like"
+"68","XM_022488951.1"," tubulin beta chain"
+"69","XM_022489618.1"," collectin-12-like"
+"70","XM_022489653.1"," prokineticin Bm8-f-like"
+"71","XM_022489817.1"," soma ferritin-like"
+"72","XM_022490321.1"," uncharacterized"

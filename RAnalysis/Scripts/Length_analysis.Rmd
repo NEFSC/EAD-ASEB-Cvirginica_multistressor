@@ -33,7 +33,7 @@ library(survival)
 # library(riskRegression)
 # library(pammtools)
 # library(bestNormalize)
-
+library(MASS)
 ```
 
 
@@ -310,10 +310,111 @@ dev.off()
 
 ```
 
-* note that severe mortality under low temperature led to only high temperature animals present in this figure 
-```{r, plot day 19 -22 supplementary}
 
 
+#### plot data from day 1 corresponding with the TagSeq data 
+
+* TagSeq samples taken on day 1 and day 22
+
+  - day 1 has all replicates/treatmets represented  (8 tretmentd for TagSeq)
+  
+  - day 22 has spat and larvae parsed, note that only three treatments are represented (of 4 in TagSeq, low temp excluded) 
+  
+  - alternative to day 22 - explored the sizes at late larval stages
+  
+* day 1 
+
+* growth rate heatplot for post day 15 and the four treatments that we have for TagSeq
+
+* day 19 and 22
+
+```{r, plots overlaid for TagSeq data}
+
+######################################################## #
+# day 1
+unique(Master_Lengths$Age) # 1  4  8 11 15 19 22
+Length_means_day1 <- Master_Lengths %>% 
+                          dplyr::filter(Age %in% 1) %>% 
+                          na.omit() %>% 
+                          dplyr::group_by(Age, OA, Salinity, Temp, stage) %>% 
+                          dplyr::summarise(mean_length = mean(length_um), 
+                                           n           = n(),
+                                           sd_length   = sd(length_um),
+                                           se_length   = sd_length/(sqrt(n)))
+
+Heatplot_day1 <- Length_means_day1 %>% 
+                          dplyr::mutate(OA_Sal = 
+                                          paste(substr(OA,1,1),
+                                          substr(Salinity,1,1),
+                                          sep = '')) %>% 
+                           ggplot(aes(x = as.factor(Age),
+                                      y = mean_length,
+                                      shape = stage)) + 
+                          geom_point(color = 'black', size = 3) +
+                           geom_errorbar(aes(ymin = mean_length - se_length, 
+                                             ymax = mean_length + se_length), 
+                                            width = 0.5) +
+                          theme_bw() +  
+                          theme(panel.grid.major = element_blank(),
+                                panel.grid.minor = element_blank()) +
+                          facet_grid(vars(Temp), 
+                                     vars(fct_relevel(OA_Sal, c("HL", "LL", "HH", "LH"))))
+
+setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis")
+pdf("Output/Length/plots/Length_day1.pdf", width=11, height=5)
+print(Heatplot_day1)
+dev.off()
+
+######################################################## #
+# day 15
+unique(Master_Lengths$Age) # 1  4  8 11 15 19 22
+Length_means_day15 <- Master_Lengths %>% 
+                          dplyr::filter(Age %in% 15) %>% 
+                          na.omit() %>% 
+                          dplyr::group_by(Age, OA, Salinity, Temp, stage) %>% 
+                          dplyr::summarise(mean_length = mean(length_um), 
+                                           n           = n(),
+                                           sd_length   = sd(length_um),
+                                           se_length   = sd_length/(sqrt(n)))
+
+Heatplot_day15 <- Length_means_day15 %>% 
+                          dplyr::mutate(OA_Sal = 
+                                          paste(substr(OA,1,1),
+                                          substr(Salinity,1,1),
+                                          sep = '')) %>% 
+                           ggplot(aes(x = as.factor(Age),
+                                      y = mean_length,
+                                      shape = stage)) + 
+                          geom_point(color = 'black', size = 3) +
+                           geom_errorbar(aes(ymin = mean_length - se_length, 
+                                             ymax = mean_length + se_length), 
+                                            width = 0.5) +
+                          theme_bw() +  
+                          theme(panel.grid.major = element_blank(),
+                                panel.grid.minor = element_blank()) +
+                          facet_grid(vars(Temp), 
+                                     vars(fct_relevel(OA_Sal, c("HL", "LL", "HH", "LH"))))
+
+setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis")
+pdf("Output/Length/plots/Length_day15.pdf", width=11, height=5)
+print(Heatplot_day15)
+dev.off()
+
+
+######################################################## #
+# days 15 - 22
+unique(Master_Lengths$Age) # 1  4  8 11 15 19 22
+Length_means_day15to22 <- Master_Lengths %>% 
+                          dplyr::filter(Age %in% c(15,19,22)) %>% 
+                          na.omit() %>% 
+                          dplyr::group_by(Age, OA, Salinity, Temp, stage) %>% 
+                          dplyr::summarise(mean_length = mean(length_um), 
+                                           n           = n(),
+                                           sd_length   = sd(length_um),
+                                           se_length   = sd_length/(sqrt(n)))
+
+######################################################## #
+# day 19 and 22 - spat and larvae parsed
 Length_means_day19_22 <- Master_Lengths %>% 
                           dplyr::filter(Age %in% c(19,22)) %>% 
                           na.omit() %>% 
@@ -350,6 +451,8 @@ dev.off()
 
 
 ```
+
+
 
 
 
@@ -1098,6 +1201,38 @@ setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAn
 pdf("Output/Length/Length_age_15days_Boxplots.pdf", width=15, height=6)
 print(Age15_ShellLength_Boxplot)
 dev.off()
+
+
+
+
+# Age 15 Length mod - COLD TEMP EXCLUDED! -------------------------------------------------------------------------------------- #
+
+Age15_raw_length_hightemp <- Age15_raw_length %>% dplyr::filter(Temp %in% 'High')
+Age15Length_lme_mod_hightemp <- lmer(length_um~OA*Salinity+(1|random_fact),na.action = na.exclude,data=Age15_raw_length_hightemp)
+leveneTest(residuals(Age15Length_lme_mod_hightemp) ~ Age15_raw_length_hightemp$Temp*Age15_raw_length_hightemp$OA*Age15_raw_length_hightemp$Salinity) # 0.002785 **
+
+Age15Length_lm_mod_hightemp <- lm(length_um~OA*Salinity,data=Age15_raw_length_hightemp)
+shapiro.test(residuals(Age15Length_lm_mod_hightemp)) # 0.001222
+leveneTest(residuals(Age15Length_lm_mod_hightemp) ~ Age15_raw_length_hightemp$OA*Age15_raw_length_hightemp$Salinity) # 0.002785 **
+
+# boxcox transformation
+b      <- boxcox(Age15Length_lm_mod_hightemp)
+lambda <- b$x[which.max(b$y)]    
+Age15_raw_length_hightemp$length_um_boxcox <- (Age15_raw_length_hightemp$length_um ^ lambda - 1) / lambda
+Age15Length_lm_mod_hightemp_boxcox <- lm(length_um_boxcox~OA*Salinity,data=Age15_raw_length_hightemp)
+shapiro.test(residuals(Age15Length_lm_mod_hightemp_boxcox)) # 0.08641
+leveneTest(Age15Length_lm_mod_hightemp_boxcox) 
+
+pander(anova(Age15Length_lm_mod_hightemp_boxcox), style='rmarkdown') # anova table of lmr
+# |     &nbsp;      | Df  |  Sum Sq   |  Mean Sq  | F value |  Pr(>F)   |
+# |:---------------:|:---:|:---------:|:---------:|:-------:|:---------:|
+# |     **OA**      |  1  | 134512602 | 134512602 |  10.52  | 0.001372  |
+# |  **Salinity**   |  1  | 814738781 | 814738781 |  63.69  | 8.612e-14 |
+# | **OA:Salinity** |  1  |  141283   |  141283   | 0.01105 |  0.9164   |
+# |  **Residuals**  | 215 | 2.75e+09  | 12791391  |   NA    |    NA     | 
+qqnorm(resid(Age15Length_lm_mod_hightemp_boxcox)) # check for normality of residuals - looks okay
+
+
 
 ```
 
