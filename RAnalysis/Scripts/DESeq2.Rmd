@@ -17,7 +17,7 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, cache = TRU
 ### Load libraries
 ```{r load_libraries, include = TRUE}
 # load libraries - notes show the install command needed to install (pre installed)
-install.packages("calibrate")
+# install.packages("calibrate")
 library(dplyr)
 library(GenomicFeatures)
 library(data.table)
@@ -37,7 +37,6 @@ library(edgeR)
 library(goseq)
 library(affycoretools) 
 library(vsn)
-library(tidybulk)
 library(EnhancedVolcano)  
 library(pcaExplorer) 
 
@@ -70,7 +69,7 @@ getwd()
 d2.counts_matrix  <- read.csv(file="../Data/TagSeq/Filtered_counts/filtered_counts_5cpm_50perc/day2.filtered_5cpm50perc.csv", sep=',', header=TRUE) 
 d2.counts_matrix  <- data.frame(d2.counts_matrix[,-1], row.names=d2.counts_matrix[,1]) 
 
-d18.counts_matrix  <- read.csv(file="../Data/TagSeq/Filtered_counts/filtered_counts_5cpm_50perc/day18.counts.filtered_5cpm50perc.csv", sep=',', header=TRUE) 
+d18.counts_matrix  <- read.csv(file="../Data/TagSeq/Filtered_counts/filtered_counts_5cpm_50perc/day18.filtered_5cpm50perc.csv", sep=',', header=TRUE) 
 d18.counts_matrix  <- data.frame(d18.counts_matrix[,-1], row.names=d18.counts_matrix[,1]) 
 
 # annotation master data 
@@ -133,7 +132,7 @@ d18.exp_data   <- read.csv(file="../Data/TagSeq/day18.exp.data.csv", sep=',', he
 # ========================================================== #
 # build the metadata matrix ::::::::::::::::::::::::::::
 d2.metadata     <- d2.exp_data %>% 
-                    dplyr::select(c('SapleName_readmatrix', 'Temperature', 'OA', 'Salinity')) %>% # coondense dataset to build target matrix
+                    dplyr::select(c('SapleName_readmatrix', 'Temperature', 'OA', 'Salinity','Aragonite_saturation')) %>% # coondense dataset to build target matrix
                     dplyr::rename("Sample.Name" = "SapleName_readmatrix") %>% 
                     dplyr::mutate(All_Treatment = paste(Temperature, OA, Salinity, sep = '.'))
 d2.metadata     <- data.frame(d2.metadata[,-1], row.names=d2.metadata[,1]) # move Sample.Name column as row names  
@@ -146,7 +145,7 @@ d2.metadata.mtx <- d2.metadata.mtx[match(colnames(d2.counts_matrix),rownames(d2.
 
 # build dds ::::::::::::::::::::::::::::::::::::::::::::
 # FULL MODEL
-dds.d2 <- DESeqDataSetFromMatrix(countData = d2.counts_matrix,
+dds.d2          <- DESeqDataSetFromMatrix(countData = d2.counts_matrix,
                                         colData = d2.metadata.mtx,
                                         design = ~ Temperature+
                                                    OA+
@@ -154,12 +153,15 @@ dds.d2 <- DESeqDataSetFromMatrix(countData = d2.counts_matrix,
                                                    Temperature:OA+
                                                    Temperature:Salinity+
                                                    OA:Salinity)
+dds.d2.arag.sat <- DESeqDataSetFromMatrix(countData = d2.counts_matrix,
+                                        colData = d2.metadata.mtx,
+                                        design = ~ Aragonite_saturation)
 # GROUP MDOEL
-dds.d2.group <- DESeqDataSetFromMatrix(countData = d2.counts_matrix,
+dds.d2.group    <- DESeqDataSetFromMatrix(countData = d2.counts_matrix,
                                         colData = d2.metadata.mtx,
                                         design = ~ All_Treatment-1) 
 # ADDITIVE MODEL 
-dds.d2.main <- DESeqDataSetFromMatrix(countData = d2.counts_matrix,
+dds.d2.main     <- DESeqDataSetFromMatrix(countData = d2.counts_matrix,
                                        colData = d2.metadata.mtx,
                                       design = ~ Temperature+OA+Salinity) 
 
@@ -255,9 +257,10 @@ dev.off()
 # NOTE: this will be longer dependent on filtered vs. unfiltered raw read count data for dds objects 
 ```{r run_dds}
 # RUN DESEQ2 model - view all the pariwise comparisons
-dds.d2        <- DESeq(dds.d2) #  full model            wait for this to complete....
-dds.d2.group  <- DESeq(dds.d2.group) # group model      wait for this to complete....
-dds.d2.main   <- DESeq(dds.d2.main) # main effect model wait for this to complete....    
+dds.d2         <- DESeq(dds.d2) #  full model            wait for this to complete....
+dds.d2.arag.sat<- DESeq(dds.d2.arag.sat) # arag sat model
+dds.d2.group   <- DESeq(dds.d2.group) # group model      wait for this to complete....
+dds.d2.main    <- DESeq(dds.d2.main) # main effect model wait for this to complete....    
  
 # RUN DESEQ2 model - view all the pariwise comparisons
 dds.d18       <- DESeq(dds.d18) #  full model             wait for this to complete....
@@ -301,7 +304,7 @@ Second:  Ambient v Moderate,  Ambient v Severe, & Moderate v Severe;
 Third:   Ambient v Moderate
 
 #Day 2
-```{r Day2 dds model analysis}
+```{r Day2 dds model temp effect}
 
 # DAY 2 - models using the dds.gorup
 resultsNames(dds.d2.group)
@@ -309,9 +312,9 @@ resultsNames(dds.d2.group)
 
 
 
-#  :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-# TEMPERATURE EFFECT :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-#  :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+#  :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+# TEMPERATURE EFFECT :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+#  :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
 
 
@@ -368,16 +371,13 @@ dev.off()
 
 
 
+```
 
+```{r Day2 dds model OA effect}
 
-
-
-#  :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-#  OA EFFECT         :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-#  :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-
-
+#  ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+#  OA EFFECT         ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+#  ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
 
 
@@ -439,17 +439,13 @@ dev.off()
 
 
 
+```
 
+```{r Day2 dds model Salinity effect}
 
-
-# :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-# SALINITY EFFECT    ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-# :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-
-
-
-
+# :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+# SALINITY EFFECT    ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+# :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
 
 res.d2_salinity.group <- results(dds.d2.group, 
@@ -506,21 +502,16 @@ dev.off()
 
 
 
+```
+
+```{r Day2 dds rlog plotting}
 
 
 
 
-
-
-
-# :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-# Transform data (rlog) for additional visuals (PCA and heatmaps                     ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-# :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-
-
-
-
+# ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+# Transform data (rlog) for additional visuals (PCA and heatmaps :::::::::::::::::::::::::::::::::
+# ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
 
 # Plot dispersions   :::::::::::::::::::::::::::::::::
@@ -530,9 +521,9 @@ dev.off()
 
 # Data transformations for heatmap and PCA visuals :::::::
 # rlog - regularized log transformation of origin count data to log2 scale - fit for each sample and dist. of coefficients in the data
-rlog.d2<- rlogTransformation(dds.d2) # rlog transform (regularized log)
-
-# diagnostiscs    :::::::::::::::::::::::::::::::::
+rlog.d2          <- rlogTransformation(dds.d2) # rlog transform (regularized log)
+rlog.d2.arag.sat <- rlogTransformation(dds.d2.arag.sat)
+# diagnostics    :::::::::::::::::::::::::::::::::
 png("../Output/DESeq2/Day2_larva/plots/Day2.rlog_histogram.png", 1000, 1000, pointsize=20)# diagnostics of transformation # Histogram and sd plot
 hist(assay(rlog.d2)) # view histogram 
 dev.off()
@@ -545,7 +536,7 @@ pcaData_d2 <- plotPCA(rlog.d2, intgroup = c("Temperature", "OA", "Salinity"), re
 percentVar <- round(100 * attr(pcaData_d2, "percentVar"))
 png("../Output/DESeq2/Day2_larva/plots/Day2.rlog_PCA.png", 1000, 1000, pointsize=20)
 ggplot(pcaData_d2, aes(x = PC1, y = PC2,  alpha = OA, shape = Salinity, color = Temperature, label=name)) +
-  scale_color_manual(values = c("blue", "orange")) +
+  scale_color_manual(values = c("#D55E00", "#56B4E9")) +
   scale_shape_manual(values = c(4, 19, 17)) +
   geom_text(aes(label=name),hjust=0.2, vjust=1.4, size=5) +
   geom_point(size =6) +
@@ -556,32 +547,77 @@ ggplot(pcaData_d2, aes(x = PC1, y = PC2,  alpha = OA, shape = Salinity, color = 
   ylab(paste0("PC2: ", percentVar[2], "% variance")) +
   coord_fixed()
 dev.off()
+# PCA plot rlog.d2.arag.sat ::::::::::::::::::::::::::::::::::::::::::
+pcaData_d2.arag.sat <- plotPCA(rlog.d2.arag.sat, intgroup = ("Aragonite_saturation"), returnData = TRUE)
+percentVar.arag.sat <- round(100 * attr(pcaData_d2.arag.sat, "percentVar"))
+png("../Output/DESeq2/Day2_larva/plots/Day2.rlog_PCA_aragonite_sat.png", 1000, 1000, pointsize=20)
+ggplot(pcaData_d2.arag.sat, aes(x = PC1, y = PC2, color = Aragonite_saturation, label=name)) +
+  scale_color_manual(values = c("#D55E00", "#e69F00", "#56B4E9", "#0072B2")) +
+  geom_text(aes(label=name),hjust=0.2, vjust=1.4, size=5) +
+  geom_point(size =6) +
+  theme_classic() +
+  theme(text = element_text(size=15)) +
+  ggtitle("PCA: Day2 (rlog) aragonite saturation") +
+  xlab(paste0("PC1: ", percentVar.arag.sat[1], "% variance")) +
+  ylab(paste0("PC2: ", percentVar.arag.sat[2], "% variance")) +
+  coord_fixed()
+dev.off()
 
-iris
 
-# dat <- as.data.frame(assay(rlog.d2)[,c(1:(ncol(assay(rlog.d2))))])
-# head(dat)
-# assay(rlog.d2)
-# d2.exp_data_rename <- d2.exp_data %>% dplyr::rename('Sample.ID' = 'SapleName_readmatrix')
-# samp.with.rownames <- as.data.frame(t(dat)) %>% 
-#   tibble::rownames_to_column("Sample.ID")
-# ncol(samp.with.rownames)
-# samp.with.rownamesMERGED <- merge(samp.with.rownames, d2.exp_data_rename)
-# ncol(samp.with.rownamesMERGED)
-# 
-# 
-# 
-# pca = prcomp(samp.with.rownamesMERGED[,c(2:4821)]) 
-# ggbiplot(pca,groups = samp.with.rownamesMERGED$Salinity,ellipse = T,ellipse.prob = .95)
-# theme(axis.text=element_text(size=8),
-# theme(axis.text=element_text(size=8),
-# theme(axis.text=element_text(size=8),
-# theme(axis.text=element_text(size=8),
-# theme(axis.text=element_text(size=8),
-# theme(axis.text=element_text(size=8))))))))
+pcaData_d2$OA_Sal <- paste(pcaData_d2$OA, pcaData_d2$Salinity, sep = '_')
+pcaData_d2$Sal_Temp <- paste(pcaData_d2$Salinity, pcaData_d2$Temperature, sep = '_')
 
-      
-      
+d2.PCA_allgroups <- ggplot(pcaData_d2, aes(x = PC1, 
+                                           y = PC2,  
+                                           shape = OA_Sal, 
+                                           color = factor(Temperature))) +
+  geom_point(size =6) +
+  scale_color_manual(values = c("grey20", "grey85")) +
+  scale_shape_manual(values = c(1, 19, 2, 17)) +
+  geom_text(aes(label=name),hjust=0.2, vjust=1.4, size=5) +
+  theme_classic() +
+  theme(text = element_text(size=15)) +
+  ggtitle("PCA: Day2 (rlog)") +
+  xlab(paste0("PC1: ", percentVar[1], "% variance")) +
+  ylab(paste0("PC2: ", percentVar[2], "% variance")) +
+  coord_fixed()
+
+d2.PCA_SalTemp <- ggplot(pcaData_d2, aes(x = PC1, 
+                                           y = PC2,  
+                                           #shape = OA_Sal, 
+                                           color = factor(Sal_Temp))) +
+  geom_point(size =6) +
+  #scale_color_manual(values = c("grey20", "grey85")) +
+  #scale_shape_manual(values = c(1, 19, 2, 17)) +
+  stat_ellipse(aes(fill = factor(Sal_Temp)), level = 0.67) +
+  geom_text(aes(label=name),hjust=0.2, vjust=1.4, size=5) +
+  theme_half_open(12) + 
+  #theme(text = element_text(size=15)) +
+  ggtitle("PCA: Day2 (rlog)") +
+  xlab(paste0("PC1: ", percentVar[1], "% variance")) +
+  ylab(paste0("PC2: ", percentVar[2], "% variance")) +
+  coord_fixed()
+plot_row <- plot_grid(d2.PCA_arag.sat, d2.PCA_SalTemp)
+
+d2.PCA_arag.sat <- ggplot(pcaData_d2.arag.sat, aes(x = PC1, 
+                                                   y = PC2, 
+                                                   color = Aragonite_saturation, 
+                                                   label=name)) +
+  scale_color_manual(values = c("#D55E00", "#e69F00", "#56B4E9", "#0072B2")) +
+  geom_text(aes(label=name),hjust=0.2, vjust=1.4, size=5) +
+  geom_point(size =6) +
+  stat_ellipse(aes(fill = factor(Aragonite_saturation)), level = 0.67) +
+  theme_half_open(12) + 
+  #theme(text = element_text(size=15)) +
+  ggtitle("PCA: Day2 (rlog) aragonite saturation") +
+  xlab(paste0("PC1: ", percentVar.arag.sat[1], "% variance")) +
+  ylab(paste0("PC2: ", percentVar.arag.sat[2], "% variance")) +
+  coord_fixed()
+library(ggpubr)
+png("../Output/DESeq2/Day2_larva/plots/Day2.rlog_PCA_all.png", 1000, 1000, pointsize=20)
+ggarrange(d2.PCA_allgroups, d2.PCA_SalTemp, d2.PCA_arag.sat, ncol = 1, nrow =3)
+dev.off()
+
 
 # Plot heatmap map rlog ::::::::::::::::::::::::::::::
 # save heatmap fxn
@@ -593,6 +629,10 @@ save_pheatmap <- function(x, filename, width=1000, height=960) { # template for 
   grid::grid.draw(x$gtable)
   dev.off()
 }
+
+```
+
+```{r Day2 heatmaps}
 
 # Temperature heatmap :::::::::::::::
 # parameters for the pheatmap
