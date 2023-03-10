@@ -80,34 +80,6 @@ Cvirginica_annot_reference  <- read.csv(file="../Data/TagSeq/Seq_details/seq_id_
 ```
 
 
-### load the constant DEGs found up and down in response to primary treatment days 7 14 and 21
-This data set is compiled and output in this same markdown file 
-cluster == {r Output_tables_and_knitr_summary_tables} (below!)
-
-Objective: use 'Const.DEGs.list' to label callouts in volcano plots 
-of the primary treatment effect days 7 14 and 21
-
-```{r load constant DEGs}
-
-# NOTE: this data 
-Const.DEGs <- read.csv(file="../Output/DESeq2/5cpm/Summary_Primary_DEGs_occurances_5cpm_GeneIDs.csv", sep=',', header=TRUE) 
-Const.DEGs <- Const.DEGs[,c(2:5)]
-names(Const.DEGs)[1] <- "Gene.ID"
-
-annot <- read.delim(file="../../Seq_details/Panopea-generosa-genes-annotations.txt", header=F) 
-
-annot <- annot[,c(1,7:8)]
-names(annot) <- c('Gene.ID', 'description', 'GO.terms')
-
-merge.constDEGs.annot <- merge(Const.DEGs, annot, by='Gene.ID')
-head(merge.constDEGs.annot)
-
-# ommit rows containing NA for GO and gene annotation term
-Const.DEGs.annotated <- merge.constDEGs.annot[!is.na(merge.constDEGs.annot$GO.terms),]
-Const.DEGs.list <- list(Const.DEGs.annotated$Gene.ID) # 12 degs contant upreg or downreg over days 7 14 and 21 WITH Go.term annotation
-```
-
-
 ### Sample metadata - Experimental treatments/groups
 ```{r experiment_data, include = TRUE}
 ### experiment metadata [from Count_Matrix_Stats.Filter.R]  - convert characaters to factors for DESeq2
@@ -564,19 +536,21 @@ ggplot(pcaData_d2.arag.sat, aes(x = PC1, y = PC2, color = Aragonite_saturation, 
 dev.off()
 
 
-pcaData_d2$OA_Sal <- paste(pcaData_d2$OA, pcaData_d2$Salinity, sep = '_')
+pcaData_d2$OA_Sal   <- paste(pcaData_d2$OA, pcaData_d2$Salinity, sep = '_')
 pcaData_d2$Sal_Temp <- paste(pcaData_d2$Salinity, pcaData_d2$Temperature, sep = '_')
 
 d2.PCA_allgroups <- ggplot(pcaData_d2, aes(x = PC1, 
                                            y = PC2,  
                                            shape = OA_Sal, 
                                            color = factor(Temperature))) +
-  geom_point(size =6) +
+  geom_point(size =3) +
   scale_color_manual(values = c("grey20", "grey85")) +
   scale_shape_manual(values = c(1, 19, 2, 17)) +
-  geom_text(aes(label=name),hjust=0.2, vjust=1.4, size=5) +
-  theme_classic() +
-  theme(text = element_text(size=15)) +
+  #geom_text(aes(label=name),hjust=0.2, vjust=1.4, size=2) +
+  theme_half_open(10) + 
+  xlim(-25, 40) +
+  ylim(-15, 25) +
+  #theme(legend.position = "none") +
   ggtitle("PCA: Day2 (rlog)") +
   xlab(paste0("PC1: ", percentVar[1], "% variance")) +
   ylab(paste0("PC2: ", percentVar[2], "% variance")) +
@@ -584,40 +558,57 @@ d2.PCA_allgroups <- ggplot(pcaData_d2, aes(x = PC1,
 
 d2.PCA_SalTemp <- ggplot(pcaData_d2, aes(x = PC1, 
                                            y = PC2,  
-                                           #shape = OA_Sal, 
+                                           shape = factor(Sal_Temp),
                                            color = factor(Sal_Temp))) +
-  geom_point(size =6) +
-  #scale_color_manual(values = c("grey20", "grey85")) +
-  #scale_shape_manual(values = c(1, 19, 2, 17)) +
+  geom_point(size =3) +
+  scale_color_manual(values = c("grey20", "grey85","grey20", "grey85")) +
+  scale_shape_manual(values = c(1, 19, 2, 17)) +
   stat_ellipse(aes(fill = factor(Sal_Temp)), level = 0.67) +
-  geom_text(aes(label=name),hjust=0.2, vjust=1.4, size=5) +
-  theme_half_open(12) + 
-  #theme(text = element_text(size=15)) +
+  #geom_text(aes(label=name),hjust=0.2, vjust=1.4, size=2) +
+  theme_half_open(10) + 
+  xlim(-25, 40) + 
+  ylim(-15, 25) +
+  #theme(legend.position = "none") +
   ggtitle("PCA: Day2 (rlog)") +
   xlab(paste0("PC1: ", percentVar[1], "% variance")) +
   ylab(paste0("PC2: ", percentVar[2], "% variance")) +
   coord_fixed()
-plot_row <- plot_grid(d2.PCA_arag.sat, d2.PCA_SalTemp)
+
+plot_grid(d2.PCA_allgroups, d2.PCA_SalTemp, labels = c('A', 'B'))
+
 
 d2.PCA_arag.sat <- ggplot(pcaData_d2.arag.sat, aes(x = PC1, 
                                                    y = PC2, 
                                                    color = Aragonite_saturation, 
                                                    label=name)) +
   scale_color_manual(values = c("#D55E00", "#e69F00", "#56B4E9", "#0072B2")) +
-  geom_text(aes(label=name),hjust=0.2, vjust=1.4, size=5) +
-  geom_point(size =6) +
+  geom_point(size =3) +
   stat_ellipse(aes(fill = factor(Aragonite_saturation)), level = 0.67) +
-  theme_half_open(12) + 
-  #theme(text = element_text(size=15)) +
+  #geom_text(aes(label=name),hjust=0.2, vjust=1.4, size=2) +
+  theme_half_open(10) + 
+  xlim(-25, 40) + 
+  ylim(-15, 25) +
+  theme(legend.position = "bottom") +
+  ggtitle("PCA: Day2 (rlog)") +
   ggtitle("PCA: Day2 (rlog) aragonite saturation") +
   xlab(paste0("PC1: ", percentVar.arag.sat[1], "% variance")) +
   ylab(paste0("PC2: ", percentVar.arag.sat[2], "% variance")) +
   coord_fixed()
+
+
+
+
+
+
 library(ggpubr)
-png("../Output/DESeq2/Day2_larva/plots/Day2.rlog_PCA_all.png", 1000, 1000, pointsize=20)
-ggarrange(d2.PCA_allgroups, d2.PCA_SalTemp, d2.PCA_arag.sat, ncol = 1, nrow =3)
+pdf("../Output/DESeq2/Day2_larva/plots/Day2.rlog_PCA_all.pdf")
+plot_grid(d2.PCA_allgroups, d2.PCA_SalTemp, d2.PCA_arag.sat, labels = c('A', 'B', 'C'))
 dev.off()
 
+
+```
+
+```{r Day2 heatmaps}
 
 # Plot heatmap map rlog ::::::::::::::::::::::::::::::
 # save heatmap fxn
@@ -629,11 +620,6 @@ save_pheatmap <- function(x, filename, width=1000, height=960) { # template for 
   grid::grid.draw(x$gtable)
   dev.off()
 }
-
-```
-
-```{r Day2 heatmaps}
-
 # Temperature heatmap :::::::::::::::
 # parameters for the pheatmap
 resd2.temperature_topgenes.IDs         <- head(rownames(resd2.temperature.ordered),25) # call the first 13 genes that are differential expressed, FDR < 0.05 correct pdj
@@ -708,18 +694,17 @@ resultsNames(dds.d18.group)
 
 
 
-#  :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-# TEMPERATURE EFFECT :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-#  :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
+#  :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+# TEMPERATURE EFFECT :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+#  :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
 # ONLY HIGH TEMPERATUR EON DAY !8!!!!
 
 
 
-#  :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-#  OA EFFECT         :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-#  :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+#  :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+#  OA EFFECT   ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+#  :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
 
 
@@ -785,9 +770,9 @@ dev.off()
 
 
 
-# :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-# SALINITY EFFECT    ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-# :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+# ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+# SALINITY EFFECT    :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+# ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
 
 
@@ -856,9 +841,9 @@ dev.off()
 
 
 
-# :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-# Transform data (rlog) for additional visuals (PCA and heatmaps                     ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-# :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+# ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+# Transform data (rlog) for additional visuals (PCA and heatmaps                     :::::::::::::::::
+# :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
 
 
