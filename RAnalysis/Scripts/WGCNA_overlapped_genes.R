@@ -69,7 +69,7 @@ for (i in 1:nrow(d2ModCols)) {
   print(day2_mod_RR) # print to monitor progress
   
 }
-View(day2_mod_RR)
+# View(day2_mod_RR)
 day2_mod_RR      <- read.csv("Output/WGCNA/day2_larvae/d2.WGCNA_ModulMembership_RRcutoff.csv") %>% dplyr::mutate(Day = "Day2")
 
 # Day 22  ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::; #
@@ -107,7 +107,7 @@ for (i in 1:nrow(d22ModCols)) {
   
 }
 
-View(day22_mod_RR)
+# View(day22_mod_RR)
 day22_mod_RR      <- read.csv("Output/WGCNA/day18_spat/d18.WGCNA_ModulMembership_RRcutoff.csv") %>% dplyr::mutate(Day = "Day22")
 
 # master WGCNA module data for for loops! 
@@ -119,14 +119,116 @@ WGCNA_MasterModData   <-  merge( (as.data.frame(rbind(day2_mod_RR,
 
 #WGCNA_ColorList       <-  rbind(d2ModCols, d18ModCols) # master WGCNA color list - use this to loop all the analysis 
 
+# ============================================================================= #
+# Co-expression Pattern HIGH  Expression under  LOW Aragonite (high salinity + low pCO2)
+# ============================================================================= #
+# About: 
+# here we will look at overlapped genes in D2 Turquoise, D22 salmon + D22 turquoise
+d2turquoise <- WGCNA_MasterModData %>% 
+  dplyr::filter(case_when(Day == 'Day2' ~ moduleColor %in% 'turquoise'))
 
+d22turquoise  <- WGCNA_MasterModData %>% 
+  dplyr::filter(case_when(Day == 'Day22' ~ moduleColor %in% 'turquoise')) 
+
+d22salmon  <- WGCNA_MasterModData %>% 
+  dplyr::filter(case_when(Day == 'Day22' ~ moduleColor %in% 'salmon')) 
+
+# create a vector to filter with 
+d2turquoise_filter         <- d2turquoise %>% dplyr::filter(!Protein_name %in% ' uncharacterized') # removed "uncharacterized from protein names
+d2turquoise_proteinNames   <- paste(d2turquoise_filter$Protein_name, collapse="|") # separate all protein names by | to use grep to subset anoter dataframe 
+
+d22turquoise_filter        <- d22turquoise %>% dplyr::filter(!Protein_name %in% ' uncharacterized') # removed "uncharacterized from protein names
+d22turqupoise_proteinNames <- paste(d22turquoise_filter$Protein_name, collapse="|") # separate all protein names by | to use grep to subset anoter dataframe 
+
+d22salmon_filter           <- d22salmon %>% dplyr::filter(!Protein_name %in% ' uncharacterized') # removed "uncharacterized from protein names
+d22salmon_proteinNames     <- paste(d22salmon_filter$Protein_name, collapse="|") # separate all protein names by | to use grep to subset anoter dataframe 
+
+
+# subsets
+d2turquoise_SUBSET  <- subset(d22turquoise, grepl(d2turquoise_proteinNames, Protein_name)) 
+d2turquoise_SUBSET$Protein_name
+
+d22turquoise_SUBSET    <- subset(d22turquoise, grepl(d22salmon_proteinNames, Protein_name)) # subset d22 turquoise for character matches in d22 salmon (w/o 'unchracterized')
+d22turquoise_SUBSET$Protein_name
+
+
+# ============================================================================= #
+# Co-expression Pattern: LOW Expression from low salinity effects on reducing aragonite 
+# ============================================================================= #
+# About: 
+# here we are looking for the following 
+# All genes on module d22 red and/or the overlap with d22 red and d2 turquoise
+
+d2turquoise <- WGCNA_MasterModData %>% 
+  dplyr::filter(case_when(Day == 'Day2' ~ moduleColor %in% 'turquoise')) 
+
+d22red <- WGCNA_MasterModData %>% 
+  dplyr::filter(case_when(Day == 'Day22' ~ moduleColor %in% 'red'))
+
+
+# create a vector to filter with 
+d2tuquoise_filter          <- d2turquoise %>% dplyr::filter(!Protein_name %in% ' uncharacterized') # removed "uncharacterized from protein names
+d2tuquoise_proteinNames    <- paste(d2tuquoise_filter$Protein_name, collapse="|") # separate all protein names by | to use grep to subset anoter dataframe 
+
+d22red_filter              <- d22red %>% dplyr::filter(!Protein_name %in% ' uncharacterized') # removed "uncharacterized from protein names
+d22red_proteinNames       <- paste(d22red_filter$Protein_name, collapse="|") # separate all protein names by | to use grep to subset anoter dataframe 
+
+# subsets
+d22red_SUBSET  <- subset(d22red_filter, grepl(d2tuquoise_proteinNames, Protein_name)) 
+d22red_SUBSET$Protein_name
+
+
+# ============================================================================= #
+# Co-expression Pattern: LOW Expression from pCO2 effects on aragonite 
+# ============================================================================= #
+# About: 
+# here we are looking for the following 
+# (1) Genes UNIQUE TO module D22 Green that ARE NOT in module D22 blue 
+
+d22green <- WGCNA_MasterModData %>% 
+  dplyr::filter(case_when(Day == 'Day22' ~ moduleColor %in% 'green'))
+
+d22blue  <- WGCNA_MasterModData %>% 
+  dplyr::filter(case_when(Day == 'Day22' ~ moduleColor %in% 'blue')) 
+
+
+# create a vector to filter with 
+d22green_filter            <- d22green %>% dplyr::filter(!Protein_name %in% ' uncharacterized') # removed "uncharacterized from protein names
+d22green_proteinNames      <- paste(d22green_filter$Protein_name, collapse="|") # separate all protein names by | to use grep to subset anoter dataframe 
+
+d22blue_filter             <- d22blue %>% dplyr::filter(!Protein_name %in% ' uncharacterized') # removed "uncharacterized from protein names
+d22blue_proteinNames       <- paste(d22blue_filter$Protein_name, collapse="|") # separate all protein names by | to use grep to subset anoter dataframe 
+
+# subsets
+overlap              <- subset(d22green_filter, grepl(d22blue_proteinNames, Protein_name)) # everything in blue that matches green
+
+View(d22green_proteinNames)
+overlap              <- subset(d22blue_filter, grepl(d22green_proteinNames, Protein_name)) # everything in blue that matches green
+overlap_proteinNames <- paste(overlap$Protein_name, collapse="|")
+d22green_SUBSET      <- subset(d22green_filter, grepl(overlap_proteinNames, Protein_name)) 
+d22green_SUBSET$Protein_name
+
+
+# (2) Take these UNIQUE module D22 Green genes - which overlap with module D22 Tan?
+
+d22tan <- WGCNA_MasterModData %>% 
+  dplyr::filter(case_when(Day == 'Day22' ~ moduleColor %in% 'tan'))
+
+# create a vector to filter with 
+d22tan_filter              <- d22tan %>% dplyr::filter(!Protein_name %in% ' uncharacterized') # removed "uncharacterized from protein names
+d22tan_proteinNames        <- paste(d22tan_filter$Protein_name, collapse="|") # separate all protein names by | to use grep to subset anoter dataframe 
+
+d22geenUNIQUE_proteinNames <- paste(d22green_SUBSET$Protein_name, collapse="|") # separate all protein names by | to use grep to subset anoter dataframe 
+
+# subsets
+d22tan_SUBSET  <- subset(d22tan_filter, grepl(d22geenUNIQUE_proteinNames, Protein_name)) 
+d22tan_SUBSET$Protein_name
 
 # ============================================================================= #
 # Co-expression Pattern: High Salinity == High Expression
 # ============================================================================= #
-
 d2blue <- WGCNA_MasterModData %>% 
-                dplyr::filter(case_when(Day == 'Day2' ~ moduleColor %in% 'blue'))
+  dplyr::filter(case_when(Day == 'Day2' ~ moduleColor %in% 'blue'))
 
 d22blue  <- WGCNA_MasterModData %>% 
   dplyr::filter(case_when(Day == 'Day22' ~ moduleColor %in% 'blue')) 
@@ -148,11 +250,11 @@ write.csv(modules_HighSalHighExp_filtered,
 # Co-expression Pattern: Low Salinity == High Expression - focus on high expression under low aragonite
 # ============================================================================= #
 
-d22red <- WGCNA_MasterModData %>% # low salinity and mid aragonite == high expression
-  dplyr::filter(case_when(Day == 'Day22' ~ moduleColor %in% 'turquoise'))
-
 d2turquoise <- WGCNA_MasterModData %>% 
   dplyr::filter(case_when(Day == 'Day2' ~ moduleColor %in% 'turquoise')) 
+
+d22turquoise <- WGCNA_MasterModData %>% # low salinity and mid aragonite == high expression
+  dplyr::filter(case_when(Day == 'Day22' ~ moduleColor %in% 'turquoise'))
 
 #merge
 modules_LowSalHighExp <- rbind(d22red, d2turquoise)
