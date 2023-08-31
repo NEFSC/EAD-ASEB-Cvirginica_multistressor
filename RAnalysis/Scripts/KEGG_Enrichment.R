@@ -123,7 +123,7 @@ for (i in 1:nrow(Day2_WGCNA_sigmodules)) {
       dplyr::mutate(Day = 'Day2')  %>% 
       dplyr::mutate(modColor = modColor)  %>% 
       dplyr::filter(p.value < 0.05) %>% 
-      na.omit() %>% 
+      #na.omit() %>% 
       dplyr::mutate(log10_pvalue = -log10(as.numeric(p.value))) 
     
     KEGG.Day2 <- rbind(KEGG.Day2,outdat) #bind to a cumulative list dataframe

@@ -29,97 +29,16 @@ Cvirginica_annot_reference  <- read.csv(file="Data/TagSeq/Seq_details/seq_id_mas
                                 dplyr::select(!Function)
 
 
-# WGCNA results -fromat and merge with the GO terms
+# RR cutoff GO Enrichment results 
 
-# Day 2 - all including low and high temperature :::::::::::::::::::::::::::::::::::::::::::::::; #
+day2_GO_RR      <- read.csv("Output/WGCNA/day2_larvae/GO_analysis/RR_cutoff/Day2_GO_Results_Master.csv") 
 
-d2_Annot_ModuleMembership      <- read.csv("Output/WGCNA/day2_larvae/d2.WGCNA_ModulMembership.csv")
+day22_GO_RR      <- read.csv("Output/WGCNA/day18_spat/GO_analysis/RR_cutoff/Day18_GO_Results_Master.csv") 
 
-# for loop to call the threshold or module mdembership
-d2ModCols                      <- data.frame(moduleColor = unique(d2_Annot_ModuleMembership$moduleColor)) %>% # unique module colors 
-                                    dplyr::filter(moduleColor %in% c('pink', 
-                                                                     'blue', 
-                                                                     'turquoise', 
-                                                                     'brown', 
-                                                                     'black', 
-                                                                     'red')) %>% # sig modules
-                                    dplyr::mutate(Day = "Day2")
-df_total              <- data.frame() # start dataframe 
-day2_mod_RR           <- data.frame(matrix(nrow = 1, ncol = 5)) # create dataframe to save cumunalitively during for loop
-colnames(day2_mod_RR) <- c('Day', 'moduleColor', 'TranscriptID','geneSymbol','Protein_name') # names for comuns in the for loop
-for (i in 1:nrow(d2ModCols)) {
-  # start with loop by calling the row value common with the 'Master_KEGG_BPTerms' data frind from rbind above 
-  modColor         <- d2ModCols[i,1]
-  loopmodColor_cor <- paste("MM.", modColor, sep = '') # column name for mod color - PEarsons correlation value 
-  loopmodColor_p   <- paste("p.MM.", modColor, sep = '') # column name for mod color - Students asymptotic p value 
-  
-  Mod_loop_d2            <- d2_Annot_ModuleMembership %>% 
-    dplyr::filter(moduleColor %in% modColor) %>% 
-    dplyr::select(c('TranscriptID','geneSymbol','Protein_name','moduleColor', loopmodColor_cor,loopmodColor_p))
-  Mod_Loop_d2_RRcutoff   <- as.data.frame(Mod_loop_d2 %>% 
-                                            dplyr::filter(!(.[[5]] <  0.6 & .[[6]] > 0.05)) %>% 
-                           dplyr::mutate(Day = "Day2")) %>% 
-                           dplyr::select(!c(5,6))
-  
-  
-  # write csv file for the data reduced mod mem 
-  
-  loopdf       <- data.frame(Mod_Loop_d2_RRcutoff) # name dataframe for this single row
-  day2_mod_RR  <- rbind(day2_mod_RR,loopdf) #bind to a cumulative list dataframe
-  print(day2_mod_RR) # print to monitor progress
-  
-}
-# View(day2_mod_RR)
-day2_mod_RR      <- read.csv("Output/WGCNA/day2_larvae/d2.WGCNA_ModulMembership_RRcutoff.csv") %>% dplyr::mutate(Day = "Day2")
-
-# Day 22  ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::; #
-
-d22_Annot_ModuleMembership     <- read.csv("Output/WGCNA/day18_spat/d18.WGCNA_ModulMembership.csv") 
-d22ModCols                     <- data.frame(moduleColor = unique(d22_Annot_ModuleMembership$moduleColor)) %>% # unique module colors 
-                                    dplyr:: filter(moduleColor %in% c('tan', 
-                                                                      'red', 
-                                                                      'turquoise', 
-                                                                      'salmon', 
-                                                                      'blue',
-                                                                      'green',
-                                                                      'greenyellow')) %>% # sig modules
-                                    dplyr::mutate(Day = "Day22")
-df_total              <- data.frame() # start dataframe 
-day22_mod_RR          <- data.frame(matrix(nrow = 1, ncol = 5)) # create dataframe to save cumunalitively during for loop
-colnames(day22_mod_RR) <- c('Day', 'moduleColor', 'TranscriptID','geneSymbol','Protein_name') # names for comuns in the for loop
-for (i in 1:nrow(d22ModCols)) {
-  # start with loop by calling the row value common with the 'Master_KEGG_BPTerms' data frind from rbind above 
-  modColor         <- d22ModCols[i,1]
-  loopmodColor_cor <- paste("MM.", modColor, sep = '') # column name for mod color - PEarsons correlation value 
-  loopmodColor_p   <- paste("p.MM.", modColor, sep = '') # column name for mod color - Students asymptotic p value 
-  
-  Mod_loop_d22            <- d22_Annot_ModuleMembership %>% 
-    dplyr::filter(moduleColor %in% modColor) %>% 
-    dplyr::select(c('TranscriptID','geneSymbol','Protein_name','moduleColor', loopmodColor_cor,loopmodColor_p))
-  Mod_Loop_d22_RRcutoff   <- as.data.frame(Mod_loop_d22 %>% 
-                                            dplyr::filter(!(.[[5]] <  0.6 & .[[6]] > 0.05)) %>% 
-                                            dplyr::mutate(Day = "Day22")) %>% 
-    dplyr::select(!c(5,6))
-  
-  loopdf       <- data.frame(Mod_Loop_d22_RRcutoff) # name dataframe for this single row
-  day22_mod_RR  <- rbind(day22_mod_RR,loopdf) #bind to a cumulative list dataframe
-  print(day22_mod_RR) # print to monitor progress
-  
-}
-
-# View(day22_mod_RR)
-day22_mod_RR      <- read.csv("Output/WGCNA/day18_spat/d18.WGCNA_ModulMembership_RRcutoff.csv") %>% dplyr::mutate(Day = "Day22")
-
-# master WGCNA module data for for loops! 
-WGCNA_MasterModData   <-  merge( (as.data.frame(rbind(day2_mod_RR, 
-                                                     # d2_Annot_ModuleMembership_hightemp, 
-                                                     day22_mod_RR)) %>% 
-                                    dplyr::rename(Cvirginica_TranscriptID=TranscriptID)), 
-                                 Master_ref, by="Cvirginica_TranscriptID")
-
-#WGCNA_ColorList       <-  rbind(d2ModCols, d18ModCols) # master WGCNA color list - use this to loop all the analysis 
-
-
+WGCNA_MasterGO   <-  merge( (as.data.frame(rbind(day2_GO_RR, 
+                                                 day22_GO_RR)) %>% 
+                               dplyr::rename(Cvirginica_TranscriptID=Transcript_ID)), 
+                            Master_ref, by="Cvirginica_TranscriptID")
 
 # ============================================================================= #
 # Co-expression Pattern HIGH from low salnity and LOW from elevated pCO2 
@@ -131,11 +50,11 @@ WGCNA_MasterModData   <-  merge( (as.data.frame(rbind(day2_mod_RR,
 # these represent unique genes we know are only elevated by moderate aragonite caused by low salinity (reduced by pCO2)
 # therefore genes uniquely present in module red and not in tan filters those without overlapped function 
 
-d22tan <- WGCNA_MasterModData %>% 
-  dplyr::filter(case_when(Day == 'Day22' ~ moduleColor %in% 'tan'))
+d22tan <- WGCNA_MasterGO %>% 
+  dplyr::filter(case_when(Day == 'Day18' ~ moduleColor %in% 'tan'))
 
-d22red <- WGCNA_MasterModData %>% 
-  dplyr::filter(case_when(Day == 'Day22' ~ moduleColor %in% 'red'))
+d22red <- WGCNA_MasterGO %>% 
+  dplyr::filter(Day == 'Day18' & moduleColor %in% 'red')
 
 # create a vector to filter with 
 d22tan_filter          <- d22tan %>% dplyr::filter(!Protein_name %in% ' uncharacterized') # removed "uncharacterized from protein names
@@ -155,14 +74,14 @@ nrow(d22red_filter) - nrow(d22red_SUBSET) # only 10 genes omitted in this subset
 # ============================================================================= #
 # About: 
 # here we will look at overlapped genes in D2 Turquoise, D22 salmon + D22 turquoise
-d2turquoise <- WGCNA_MasterModData %>% 
+d2turquoise <- WGCNA_MasterGO %>% 
   dplyr::filter(case_when(Day == 'Day2' ~ moduleColor %in% 'turquoise'))
 
-d22turquoise  <- WGCNA_MasterModData %>% 
-  dplyr::filter(case_when(Day == 'Day22' ~ moduleColor %in% 'turquoise')) 
+d22turquoise  <- WGCNA_MasterGO %>% 
+  dplyr::filter(case_when(Day == 'Day18' ~ moduleColor %in% 'turquoise')) 
 
-d22salmon  <- WGCNA_MasterModData %>% 
-  dplyr::filter(case_when(Day == 'Day22' ~ moduleColor %in% 'salmon')) 
+d22salmon  <- WGCNA_MasterGO %>% 
+  dplyr::filter(case_when(Day == 'Day18' ~ moduleColor %in% 'salmon')) 
 
 # create a vector to filter with 
 d2turquoise_filter         <- d2turquoise %>% dplyr::filter(!Protein_name %in% ' uncharacterized') # removed "uncharacterized from protein names
@@ -175,57 +94,25 @@ d22salmon_filter           <- d22salmon %>% dplyr::filter(!Protein_name %in% ' u
 d22salmon_proteinNames     <- paste(d22salmon_filter$Protein_name, collapse="|") # separate all protein names by | to use grep to subset anoter dataframe 
 
 
-# subsets
-# genes enriched SHARED between both d22 and t2 turquoise
-d22turquoise_SUBSET  <- subset(d22turquoise, grepl(d2turquoise_proteinNames, Protein_name)) 
-unique(sort(d22turquoise_SUBSET$Protein_name))
-nrow(d22turquoise_filter) - nrow(d22turquoise_SUBSET) # 545 genes omitted in this subsetting
-
-d22turquoise_SUBSET    <- subset(d22turquoise, grepl(d22salmon_proteinNames, Protein_name)) # subset d22 turquoise for character matches in d22 salmon (w/o 'unchracterized')
-sort(d22turquoise_SUBSET$Protein_name)
-
-d22salmone_SUBSET    <- subset(d22salmon, grepl(d2turquoise_proteinNames, Protein_name)) # subset d22 turquoise for character matches in d22 salmon (w/o 'unchracterized')
-unique(sort(d22salmone_SUBSET$Protein_name))
-
-
 # genes enriched SHARED between both d22 and t2 turquoise
 d22turquoise_SUBSET  <- subset(d22turquoise, grepl(d2turquoise_proteinNames, Protein_name)) 
 sort(unique(d22turquoise_SUBSET$Protein_name))
+# [1] " calmodulin-like"                                           " caveolin-1-like"                                          
+# [3] " enolase-phosphatase E1-like"                               " eukaryotic translation initiation factor 3 subunit E-like"
+# [5] " eukaryotic translation initiation factor 3 subunit G-like" " eukaryotic translation initiation factor 3 subunit L-like"
+# [7] " group XIIA secretory phospholipase A2-like"                " grpE protein homolog 1, mitochondrial-like"               
+# [9] " histone H4"                                                " nucleoside diphosphate kinase 7-like"                     
+# [11] " prefoldin subunit 1-like"                                  " proteasome subunit alpha type-6-like"                     
+# [13] " ruvB-like 1"                                               " signal peptidase complex subunit 1-like"                  
+# [15] " spliceosome RNA helicase DDX39B"                           " T-complex protein 1 subunit alpha-like"                   
+# [17] " T-complex protein 1 subunit beta-like"                     " T-complex protein 1 subunit delta-like"                   
+# [19] " T-complex protein 1 subunit zeta-like"                     " transcription initiation factor TFIID subunit 13-like"
 
 # genes unique to d2 turquioise - ommit those that are shared with d22 turquoise 
 d2turquoise_SUBSET  <- d2turquoise %>% filter(!(Protein_name %in% unique(d22turquoise_SUBSET$Protein_name))) 
-sort(unique(d2turquoise_SUBSET$Protein_name))
-# calmodulin, apolipoprotein, dnJ, ferric-chelate reductase 1,
-
-
-
-# ============================================================================= #
-# Co-expression Pattern: LOW Expression from low salinity effects on reducing aragonite 
-# ============================================================================= #
-# About: 
-# here we are looking for the following 
-# All genes on module d22 red and/or the overlap with d22 red and d2 turquoise
-
-d2turquoise <- WGCNA_MasterModData %>% 
-  dplyr::filter(case_when(Day == 'Day2' ~ moduleColor %in% 'turquoise')) 
-
-d22red <- WGCNA_MasterModData %>% 
-  dplyr::filter(case_when(Day == 'Day22' ~ moduleColor %in% 'red'))
-
-
-# create a vector to filter with 
-d2tuquoise_filter          <- d2turquoise %>% dplyr::filter(!Protein_name %in% ' uncharacterized') # removed "uncharacterized from protein names
-d2tuquoise_proteinNames    <- paste(d2tuquoise_filter$Protein_name, collapse="|") # separate all protein names by | to use grep to subset anoter dataframe 
-
-
-d22red_filter              <- d22red %>% dplyr::filter(!Protein_name %in% ' uncharacterized') # removed "uncharacterized from protein names
-d22red_proteinNames       <- paste(d22red_filter$Protein_name, collapse="|") # separate all protein names by | to use grep to subset anoter dataframe 
-
-# subsets
-d22red_SUBSET  <- subset(d22red_filter, grepl(d2tuquoise_proteinNames, Protein_name)) 
-d22red_SUBSET$Protein_name
-
-
+sort(d2turquoise_SUBSET$Protein_name)
+# zinc finger,, carnosine synthase, EIF3, glutathione peroxidase 2, 
+# 
 
 # ============================================================================= #
 # Co-expression Pattern: LOW Expression under Low Aragonite
@@ -234,13 +121,13 @@ d22red_SUBSET$Protein_name
 # here we are looking for the following 
 # overlap between D1 blue and D22 green - each have significnat low expression from aragonite low)
 
-d22green <- WGCNA_MasterModData %>% 
-  dplyr::filter(case_when(Day == 'Day22' ~ moduleColor %in% 'green'))
+d22green <- WGCNA_MasterGO %>% 
+  dplyr::filter(case_when(Day == 'Day18' ~ moduleColor %in% 'green'))
 
-d22blue  <- WGCNA_MasterModData %>% 
-  dplyr::filter(case_when(Day == 'Day22' ~ moduleColor %in% 'blue')) 
+d22blue  <- WGCNA_MasterGO %>% 
+  dplyr::filter(case_when(Day == 'Day18' ~ moduleColor %in% 'blue')) 
 
-d2blue  <- WGCNA_MasterModData %>% 
+d2blue  <- WGCNA_MasterGO %>% 
   dplyr::filter(case_when(Day == 'Day2' ~ moduleColor %in% 'blue')) 
 
 # create a vector to filter with 
@@ -255,15 +142,16 @@ d2blue_proteinNames       <- paste(d2blue_filter$Protein_name, collapse="|") # s
 
 # subsets
 d22green_SUBSET  <- subset(d22green_filter, grepl(d2blue_proteinNames, Protein_name)) 
-unique(sort(d22green_SUBSET$Protein_name)) # all of green D22 that also contains blue D1
+d22green_SUBSET$Protein_name # all of green D22 that also contains blue D1
 
 d22blue_SUBSET  <- subset(d22blue_filter, grepl(d2blue_proteinNames, Protein_name)) 
-unique(sort(d22blue_SUBSET$Protein_name)) # all of green D22 that also contains blue D1
+sort(d22blue_SUBSET$Protein_name) # all of green D22 that also contains blue D1
+
 
 # genes unique to d2 blue - ommit those that are shared with d22 blue 
 d2blue_SUBSET  <- d2blue %>% filter(!(Protein_name %in% unique(d22blue_SUBSET$Protein_name))) 
 sort(d2blue_SUBSET$Protein_name)
-# apolipoproteinm ATP synthase, sytochrome c oxidase, glutathione S transferase, mucin, malatate dehydrogenasefructose biphosphate aldolase
+# 
 
 
 # (2) Take these UNIQUE module D22 Green genes - which overlap with module D22 Tan?

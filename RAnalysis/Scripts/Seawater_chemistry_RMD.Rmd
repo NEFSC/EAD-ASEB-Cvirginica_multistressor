@@ -174,6 +174,7 @@ colnames(carbchem.MASTER_wideMEANS)
 
 # final table
 
+carbchem.MASTER_wideMEANS <- carbchem.MASTER_wideMEANS %>% arrange(WAr_out)
 
 FINAL_TABLE                <- data.frame(matrix(nrow = nrow(carbchem.MASTER_wideMEANS), ncol = 1))
 
@@ -183,51 +184,51 @@ FINAL_TABLE$OA             <- carbchem.MASTER_wideMEANS$pCO2
 
 FINAL_TABLE$temp           <- carbchem.MASTER_wideMEANS$Temp
 
-FINAL_TABLE$Salinity       <-  paste( (paste( (signif(carbchem.MASTER_wideMEANS$Salinity, digits=3)),
-                                     (signif(carbchem.MASTER_wideStErr$Salinity, digits=3)), sep=" ± ")),
+FINAL_TABLE$Salinity       <-  paste( (paste( (signif(carbchem.MASTER_wideMEANS$Salinity, digits=4)),
+                                     (signif(carbchem.MASTER_wideStErr$Salinity, digits=1)), sep=" ± ")),
                                      " (",
                                      carbchem.MASTER_wideN$Salinity,
                                      ")",
                                      sep = "")
 
 FINAL_TABLE$pCO2           <-  paste( (paste( (signif(carbchem.MASTER_wideMEANS$pCO2_out_matm, digits=3)),
-                                     (signif(carbchem.MASTER_wideStErr$pCO2_out_matm, digits=3)), sep=" ± ")),
+                                     (signif(carbchem.MASTER_wideStErr$pCO2_out_matm, digits=2)), sep=" ± ")),
                                      " (",
                                      carbchem.MASTER_wideN$pCO2_out_matm,
                                      ")",
                                      sep = "")
 
 FINAL_TABLE$Temperature    <- paste( (paste( (signif(carbchem.MASTER_wideMEANS$t_oC__treatment, digits=3)),
-                                     (signif(carbchem.MASTER_wideStErr$t_oC__treatment, digits=3)), sep=" ± ")),
+                                     (signif(carbchem.MASTER_wideStErr$t_oC__treatment, digits=1)), sep=" ± ")),
                                      " (",
                                      carbchem.MASTER_wideN$t_oC__treatment,
                                      ")",
                                      sep = "")
 
-FINAL_TABLE$pH             <- paste( (paste( (signif(carbchem.MASTER_wideMEANS$pH_out_chamber, digits=3)),
+FINAL_TABLE$pH             <- paste( (paste( (signif(carbchem.MASTER_wideMEANS$pH_out_chamber, digits=5)),
                                      (signif(carbchem.MASTER_wideStErr$pH_out_chamber, digits=3)), sep=" ± ")),
                                      " (",
                                      carbchem.MASTER_wideN$pH_out_chamber,
                                      ")",
                                      sep = "")
+# Sahnnon 12/13/2022 - requested to remove HCO3 and CO2 from the table 
+# FINAL_TABLE$HCO3           <-  paste( (paste( (signif(carbchem.MASTER_wideMEANS$HCO3_out_mmol_gSW, digits=3)),
+#                                      (signif(carbchem.MASTER_wideStErr$HCO3_out_mmol_gSW, digits=3)), sep=" ± ")),
+#                                      " (",
+#                                      carbchem.MASTER_wideN$HCO3_out_mmol_gSW,
+#                                      ")",
+#                                      sep = "")
+# 
+# FINAL_TABLE$CO3           <-  paste( (paste( (signif(carbchem.MASTER_wideMEANS$CO3_out_mmol_gSW, digits=3)),
+#                                              "±",
+#                                      (signif(carbchem.MASTER_wideStErr$CO3_out_mmol_gSW, digits=3)), sep="  ")),
+#                                      " (",
+#                                      carbchem.MASTER_wideN$CO3_out_mmol_gSW,
+#                                      ")",
+#                                      sep = "")
 
-FINAL_TABLE$HCO3           <-  paste( (paste( (signif(carbchem.MASTER_wideMEANS$HCO3_out_mmol_gSW, digits=3)),
-                                     (signif(carbchem.MASTER_wideStErr$HCO3_out_mmol_gSW, digits=3)), sep=" ± ")),
-                                     " (",
-                                     carbchem.MASTER_wideN$HCO3_out_mmol_gSW,
-                                     ")",
-                                     sep = "")
-
-FINAL_TABLE$CO3           <-  paste( (paste( (signif(carbchem.MASTER_wideMEANS$CO3_out_mmol_gSW, digits=3)),
-                                             "±",
-                                     (signif(carbchem.MASTER_wideStErr$CO3_out_mmol_gSW, digits=3)), sep="  ")),
-                                     " (",
-                                     carbchem.MASTER_wideN$CO3_out_mmol_gSW,
-                                     ")",
-                                     sep = "")
-
-FINAL_TABLE$TA             <- paste( (paste( (signif(carbchem.MASTER_wideMEANS$TA__mmol_gSW__Corrected_with_the_CRM, digits=3)),
-                                     (signif(carbchem.MASTER_wideStErr$TA__mmol_gSW__Corrected_with_the_CRM, digits=3)), sep=" ± ")),
+FINAL_TABLE$TA             <- paste( (paste( (signif(carbchem.MASTER_wideMEANS$TA__mmol_gSW__Corrected_with_the_CRM, digits=6)),
+                                     (signif(carbchem.MASTER_wideStErr$TA__mmol_gSW__Corrected_with_the_CRM, digits=4)), sep=" ± ")),
                                      " (",
                                      carbchem.MASTER_wideN$TA__mmol_gSW__Corrected_with_the_CRM,
                                      ")",
