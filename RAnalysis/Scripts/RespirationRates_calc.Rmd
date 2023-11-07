@@ -1,0 +1,179 @@
+---
+title: "RespirationRates_calc"
+author: "Samuel Gurr"
+date: "2023-10-15"
+output: html_document
+---
+
+# Purpose: Oyster project 2021 - Respiration rate data 
+# analysis of respiration rate data
+# Written by: Sam J Gurr (last edit 9/14/2021)
+
+```{r, setup}
+# LOAD PACKAGES 
+
+library(dplyr)
+library(ggplot2)
+library(reshape2)
+library(lme4)
+library(lmerTest)
+library(performance) # check check_model QC 
+library(see)
+library(patchwork)
+library(forcats)
+# library(lawstat)
+library(car)
+library(bestNormalize)
+library(car)
+
+
+# SET WORKING DIRECTORY 
+knitr::opts_knit$set(root.dir = "C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/")
+
+```
+
+
+
+# LOAD DATA 
+
+```{r, load data}
+exp_metadata <- read.csv(file="Data/ExperimentMetadata.csv", header=T) # treatment assignments to 'Chamber_Tank'
+counts_resp  <- read.csv(file="Data/Counts_resp.csv", header=T) # reference for the respirometry data - contains the 'Chamber_Tank' for each sensor channel (whether an animal or a blank)
+resp.ref     <- read.csv(file="Data/Respiration/Reference_master.csv", header=T) # reference for the respirometry data - contains the 'Chamber_Tank' for each sensor channel (whether an animal or a blank)
+resp.data    <- read.csv(file="Output/Respiration/Cumulative_resp_alpha0.4.csv", header=T) %>% # read the calculate raw rates from 'resp_LoLin' script - contains the calculated rate (not normalized for blanks) for each sensor-channel
+                          dplyr::filter(!Filename %in% '1_3_19_21_raw.txt') # use 1_3_19_21_new_sensor_for_7_raw.txt
+resp.data[2,3] <- -0.0046 # 1_3_19_21_raw - CH2
+resp.data[3,3] <- -0.0072 # 1_3_19_21_raw - CH3
+
+# merge the exp_metadata with the resp.data
+resp.ref_merged                 <- merge(exp_metadata, resp.ref, by = 'Chamber_tank', all=TRUE) # all TRUE allows us to keep the blanks
+resp.data_merged                <- merge(resp.data, resp.ref_merged, by = c('Date', 'Channel','Notes','Filename')) # out master file moving forward....
+resp.data_merged$TempCarbSal    <- paste(resp.data_merged$Temp, resp.data_merged$pCO2, resp.data_merged$Salinity, sep ='')
+
+```
+
+
+
+# CALCULATE RESPIRATION RATES 
+
+
+* first and foremost, the blanks 
+
+
+```{r, sum table of blanks by unique identifier}
+
+
+dates.runs <- resp.data_merged %>%  # call table
+  dplyr::distinct(Date, Notes) # call all unique values for date run and sw condition
+dates.runs <- na.omit(dates.runs)
+
+
+# call dataframe and build table to rbind in for loop
+blanks_total <- data.frame() # start dataframe 
+# for loop. objective = obtian a mean value for all blanks specific to date, run #, seawater treatment
+for(i in 1:nrow(dates.runs)) {
+  data <- resp.data_merged %>% 
+    dplyr::select(Date,Channel, Chamber_tank, Notes, Lpc,  Leq, Lz) %>% 
+    dplyr::filter(!is.na(Lpc)) %>% # ommits empty resp channels (if any)
+    dplyr::filter(Notes == dates.runs[i,2])
+  
+  blanks <- data %>%
+    dplyr::filter(Chamber_tank == "blank") %>% 
+    dplyr::select(!Chamber_tank) %>% 
+    dplyr::mutate(filename = dates.runs[i,2])
+  
+  blanks.table <- data.frame(matrix(nrow = nrow(blanks),ncol = 7)) # make a table template
+  colnames(blanks.table)<-c('Date', 'Channel', 'BLANK.Lpc', 'BLANK.Leq' , 'BLANK.Lz', 'filename', 'Notes') # names for comuns in the for loop
+  
+  blanks.table$Date      <- blanks$Date
+  blanks.table$Channel   <- blanks$Channel
+  blanks.table$Notes     <- blanks$Notes
+  blanks.table$BLANK.Lpc <- blanks$Lpc
+  blanks.table$BLANK.Leq <- blanks$Leq
+  blanks.table$BLANK.Lz  <- blanks$Lz
+  blanks.table$filename  <- blanks$filename
+  # blanks.table$alpha <- data[1,9] # set at start of script - reresents the proportion of data for final estimate of slopes (Lpc, Leq, Lz)
+  
+  df <- data.frame(blanks.table) # name dataframe for this singl e row
+  blanks_total <- rbind(blanks_total,df) #bind to a cumulative list dataframe
+  print(blanks_total) # print to monitor progress
+}
+
+blanks_total2 <- blanks_total %>% 
+  #dplyr::filter(!(filename =='20210319_new_sensor_7' & Channel == 'CH8')) %>% # positive blank rate - omit, use other blank in file
+  dplyr::filter(!(filename =='20210319' & Channel == 'CH4')) %>% # slightly positive rate - omit, use other blank in the file 
+  dplyr::filter(!(filename =='20210430_LOWtemp_HIGHsal' & Channel == 'CH8')) %>% # abnormally higher than other blank, error  -omit, use other blank on file
+  dplyr::filter(!(filename =='20210507_LOWtemp_HIGHsal' & Channel == 'CH4')) %>% # abnormally higher than other blank, error -omit, use other blank on file
+  mutate(across(everything(), ~ ifelse(. < 0, 0, .))) # all other positive rates hug zero, (i.e. 0.00089) - thus make zero 
+  
+blanks_means <- blanks_total2 %>% 
+  group_by(Date, Notes) %>% 
+  dplyr::summarise(BLANK.mean.Lpc = mean(abs(BLANK.Lpc)),
+                   BLANK.mean.Leq = mean(abs(BLANK.Leq)), 
+                   BLANK.mean.Lz = mean(abs(BLANK.Lz)))
+
+head(blanks_means)
+
+```
+
+
+* merge the blanks with the actual rate data 
+
+
+```{r, merge blanks with data}
+
+# merge blanks with the summary table and calculate the normalized rates 
+
+Resp.blanks.merge <- merge(resp.data_merged, blanks_means, by=c("Date", "Notes")) %>% # NOTE: this repeats for every distinct length value
+  dplyr::filter(!Chamber_tank =='blank') %>% 
+  dplyr::filter(!Lpc > 0) %>% # 14 with positive rate raw value - omitted
+  dplyr::mutate(resp_norm = abs(Lpc) - BLANK.mean.Lpc) # calc resp norm - note Lpc is still raw data  - thus a positive resp norm means blank > sample resp - bad data! 
+
+```
+
+* # filter for postive rates - look at the outliers in which the animal rates were < the blank! 
+
+```{r}
+Resp.blanks.merge_OM <- Resp.blanks.merge %>% 
+                          dplyr::filter(!resp_norm < 0)  # omits respiration rate values showing an increase in O2 over time 
+Resp.outliers <- Resp.blanks.merge %>% 
+                    dplyr::filter(resp_norm < 0)  # only 3 rates were ommitted
+
+```
+
+* calculate the rates!
+
+
+```{r, calc rates}
+
+
+# calculate resp rates
+# vial.vol <- 0.08 # milliliters (ml)
+vial.vol <- 2.2 # milliliters (ml) - small Loligo chambers
+
+# narrow down the clumns that matter
+Resp.Master <- merge(Resp.blanks.merge_OM[,c(1,3,5,9:13,17)], counts_resp[,c(1,6:7)], by = c('Date','Chamber_tank'))
+View(Resp.Master) # take a gander if you wanna
+
+Resp.Master$resp_ng_L_indiv_hr <- ( 
+  ( ( (abs(Resp.Master$resp_norm)*1000000) * # call absolute value of resp in mg per minute - convert to ng min-1 (note negatives should aredy be omitted!_)
+      (vial.vol/1000) ) / # correct ng minute-1 to ng liter-1 by multiplying by the resp vial in liters
+      Resp.Master$Counts ) * # normalize by individual or larvae count - as to ng L-1 individual-1
+    (60)) # correct for the time; final value is ng Liter-1 individual-1 hour-1
+
+# mean sd rates
+mean(Resp.Master$resp_ng_L_indiv_hr) # mean = 1.423157
+sd(Resp.Master$resp_ng_L_indiv_hr) # sd= 2.027203
+
+```
+
+* save the calc master file 
+
+```{r, save the calc file}
+
+# write master Resp file ------------------------------------------------------------------------------------- #
+write.csv(Resp.Master, 
+          "Output/Respiration/RespirationMaster.csv")# write
+
+
+```

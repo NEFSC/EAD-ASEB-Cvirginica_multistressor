@@ -1,0 +1,437 @@
+---
+title: "RespirationRates_analysis"
+author: "Samuel Gurr"
+date: "2023-10-15"
+output: html_document
+---
+
+# Purpose: Oyster project 2021 - Respiration rate data 
+# analysis of respiration rate data
+# Written by: Sam J Gurr (last edit 10/14/2023
+
+# load packages and working dir
+
+```{r, setup}
+# LOAD PACKAGES 
+library(emmeans)
+library(car)
+library(ggpubr)
+library(rcompanion)
+library(emmeans)
+library(forcats)
+library(dplyr)
+# SET WORKING DIRECTORY 
+knitr::opts_knit$set(root.dir = "C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/")
+
+```
+
+
+# Load data 
+
+```{r, load data}
+Resp.Master  <- read.csv(file="Output/Respiration/RespirationMaster.csv", header=T) # reference for the respirometry data - contains the 'Chamber_Tank' for each sensor channel (whether an animal or a blank)
+
+```
+
+(1) 'APRIL' as 24 hours post ferilization
+
+* call the data
+```{r, 24 HPF call data}
+# model effect of treatment on resp rate 20210430
+Resp_APRIL <- Resp.Master %>% 
+  dplyr::filter(Date %in% '4/30/2021') # %>% 
+Resp_APRIL # view the data
+View(Resp_APRIL)
+```
+
+* run the mod
+```{r, 24 HPF run da mod}
+
+# Three way ANOVA 
+LMmod.APRIL   <- aov(lm(resp_ng_L_indiv_hr~Temp*pCO2*Salinity,data=Resp_APRIL))
+shapiro.test(residuals(LMmod.APRIL)) # 0.009733 - non normal
+leveneTest(LMmod.APRIL) # 0.3256 - variance okay
+summary(LMmod.APRIL)
+
+# LOG transform
+LMmod.APRIL_T   <- aov(lm(log(resp_ng_L_indiv_hr)~Temp*pCO2*Salinity,data=Resp_APRIL))
+shapiro.test(residuals(LMmod.APRIL_T)) # 0.6472
+leveneTest(LMmod.APRIL_T) # 0.6339
+summary(LMmod.APRIL_T)
+# Df Sum Sq Mean Sq F value  Pr(>F)   
+# Temp                1  4.622   4.622   5.769 0.02881 * 
+# pCO2                1  0.303   0.303   0.378 0.54710   
+# Salinity            1  1.523   1.523   1.901 0.18693   
+# Temp:pCO2           1  8.930   8.930  11.145 0.00417 **
+# Temp:Salinity       1  1.591   1.591   1.986 0.17792   
+# pCO2:Salinity       1  2.690   2.690   3.357 0.08560 . 
+# Temp:pCO2:Salinity  1  0.251   0.251   0.314 0.58321   
+# Residuals          16 12.821   0.801 
+# post hoc tests 
+
+# use emmeans to get the letters for the tukey posthoc test
+posthoc<-emmeans(LMmod.APRIL_T, pairwise~Temp:pCO2, adjust="tukey")
+multcomp::cld(posthoc$emmeans,alpha = 0.5, Letters = letters)
+# Temp pCO2 emmean    SE df lower.CL upper.CL .group
+# H    L    -1.819 0.365 16   -2.593  -1.0439  a    
+# L    H    -0.716 0.365 16   -1.491   0.0586   b   
+# H    H    -0.374 0.365 16   -1.149   0.4009   bc  
+# L    L     0.279 0.365 16   -0.496   1.0538    c  
+
+# Summary table to report mean se data and percent differences
+# main effect of temperature 
+Resp_APRIL %>% 
+  group_by(Temp) %>% 
+  summarise_each(funs(mean, sd, se=sd(.)/sqrt(n())),resp_ng_L_indiv_hr)
+
+# Temp  mean  sd        se
+# H	0.6335014	1.076005	0.3106158	
+# L	1.5151186	1.802943	0.5204648	
+
+((1.5151186-0.6335014)/1.5151186)*100 # 58.188
+
+# post hoc interaction term 
+Resp_APRIL %>% 
+  dplyr::mutate(Temp_pCO2 = paste(Temp,pCO2, sep = '')) %>% 
+  group_by(Temp_pCO2) %>% 
+  summarise_each(funs(mean, sd, se=sd(.)/sqrt(n())),resp_ng_L_indiv_hr)
+
+# Temp_pCO2 mean      sd          se
+# HH	      1.0799260	1.43531100	0.58596326	
+# HL	      0.1870767	0.09329505	0.03808755	
+# LH	      0.7878666	0.95776865	0.39100741	
+# LL	      2.2423705	2.22815140	0.90963900
+
+((2.2423705-0.7878666)/2.2423705)*100 # 64.86457
+((2.2423705-0.1870767)/2.2423705)*100 # 91.65719
+
+```
+
+* plot a guy 
+
+```{r, plots plots plots!}
+
+APRIL_all <- Resp_APRIL %>%
+                  dplyr::mutate(Temp_pCO2 = paste(Temp,pCO2, sep = '')) %>% 
+                  dplyr::mutate(full.treatment = (paste(Temp, pCO2, Salinity,sep=''))) %>%
+                  dplyr::mutate(full.treatment = fct_relevel(full.treatment,
+                                            "LHL", "LHH", "HHL",'HHH',
+                                            "LLL", "LLH", "HLL", 'HLH')) %>%
+                  ggplot(aes(fct_relevel(Temp_pCO2, c("LH", "HH", "LL", "HL")), # x 
+                             resp_ng_L_indiv_hr,
+                             fill = factor(Salinity)) ) +
+                        scale_fill_manual(values=c("white", "grey10")) +
+                        geom_boxplot(size=0.2, alpha=0.1) +
+                        geom_point(aes(shape=Salinity),
+                               size = 2, 
+                               position = position_jitterdodge(jitter.width = 0.5)) +
+                        labs(title = "C virginica, 24 hr larvae", 
+                             y = expression(Respiration~rate~"("~ng~L^{-1}~O[2]%.%indiv^{-1}%.% hr^{-1}~")"), 
+                             x = "Temp_pCO2_Salinity") + 
+                        scale_y_continuous(expand = c(0, 0), limits = c(0, NA)) +
+                        annotate("text", x=4, y=0.8, label = "c (1.3 medArag)", size  =3) +
+                        annotate("text", x=2, y=3, label = "ab (0.54 medArag)", size =3) +
+                        annotate("text", x=1, y=3, label = "b (0.45 medArag)", size  =3) +
+                        annotate("text", x=3, y=5, label = "a (1.03 medArag)", size  =3) +
+                        #annotate("rect", xmin = 0, xmax = 4.5, ymin = 0, ymax = 6.5,alpha = .2) +
+                        theme_classic() 
+
+APRIL_all
+
+pdf("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Output/Respiration/Day1_RR_posthoc.pdf", width=8, height=6)
+print(APRIL_all)
+dev.off()
+
+APRIL_all <- Resp_APRIL %>%
+                  dplyr::mutate(Temp_pCO2 = paste(Temp,pCO2, sep = '')) %>% 
+                  dplyr::mutate(full.treatment = (paste(Temp, pCO2, Salinity,sep=''))) %>%
+                  dplyr::mutate(full.treatment = fct_relevel(full.treatment,
+                                            "LHL", "LHH", "HHL",'HHH',
+                                            "LLL", "LLH", "HLL", 'HLH')) %>%
+                  ggplot(aes(fct_relevel(Temp_pCO2, c("LH", "HH", "LL", "HL")), # x 
+                             resp_ng_L_indiv_hr,
+                             fill = factor(Salinity)) ) +
+                        scale_fill_manual(values=c("white", "grey10")) +
+                        geom_boxplot(size=0.2, alpha=0.1) +
+                        geom_point(aes(shape=Salinity),
+                               size = 2, 
+                               position = position_jitterdodge(jitter.width = 0.5)) +
+                        labs(title = "C virginica, 24 hr larvae", 
+                             y = expression(Respiration~rate~"("~ng~L^{-1}~O[2]%.%indiv^{-1}%.% hr^{-1}~")"), 
+                             x = "Temp_pCO2_Salinity") + 
+                        scale_y_continuous(expand = c(0, 0), limits = c(0, NA)) +
+                        annotate("text", x=4, y=0.8, label = "c (1.3 medArag)", size  =3) +
+                        annotate("text", x=2, y=3, label = "ab (0.54 medArag)", size =3) +
+                        annotate("text", x=1, y=3, label = "b (0.45 medArag)", size  =3) +
+                        annotate("text", x=3, y=5, label = "a (1.03 medArag)", size  =3) +
+                        #annotate("rect", xmin = 0, xmax = 4.5, ymin = 0, ymax = 6.5,alpha = .2) +
+                        theme_classic() 
+
+
+
+APRIL_all_MEANSe <- Resp_APRIL %>%
+  dplyr::mutate(Temp_pCO2 = paste(Temp,pCO2, sep = '')) %>% 
+  dplyr::mutate(full.treatment = (paste(Temp, pCO2, Salinity,sep=''))) %>%
+  dplyr::mutate(full.treatment = fct_relevel(full.treatment,
+                                            "LHL", "LHH", "HHL",'HHH',
+                                            "LLL", "LLH", "HLL", 'HLH')) %>%
+  ggplot(aes(fct_relevel(Temp_pCO2, c("LH", "HH", "LL", "HL")), # x 
+                        resp_ng_L_indiv_hr,
+                        fill = factor(Salinity)),
+                        group= full.treatment) +
+  geom_point(aes(shape = Salinity, group= full.treatment),
+             size =2,
+             position = position_jitterdodge(jitter.width = 0.5)) +
+  stat_summary(aes(group= full.treatment),
+               fun = mean, 
+               fun.min = function(x) mean(x) - sd(x)/sqrt(length(x)), 
+               fun.max = function(x) mean(x) + sd(x)/sqrt(length(x)),
+               geom = 'errorbar',  width = 0.25,
+               position = position_jitterdodge(jitter.width = 0.5)) +
+  stat_summary(aes(group= full.treatment),
+               fun = mean, fun.min = mean, fun.max = mean,
+               geom = 'point',  size = 5, shape = 20, color = "red",
+               position = position_jitterdodge(jitter.width = 0.5)) +
+  # scale_y_continuous(limits = c(0, 30)) +
+  # scale_shape_manual(values = c(16, 15)) +
+  # labs(x = '', y = '') +
+  scale_shape_manual(values = c(16, 15)) +
+  scale_fill_manual(values=c("white", "grey10")) +
+                        labs(title = "C virginica, 24 hr larvae", 
+                             y = expression(Respiration~rate~"("~ng~L^{-1}~O[2]%.%indiv^{-1}%.% hr^{-1}~")"), 
+                             x = "Temp_pCO2_Salinity") + 
+                        scale_y_continuous(expand = c(0, 0), limits = c(0, NA)) +
+                        annotate("text", x=4, y=0.8, label = "c (1.3 medArag)", size  =3) +
+                        annotate("text", x=2, y=3, label = "ab (0.54 medArag)", size =3) +
+                        annotate("text", x=1, y=3, label = "b (0.45 medArag)", size  =3) +
+                        annotate("text", x=3, y=5, label = "a (1.03 medArag)", size  =3) +
+                        #annotate("rect", xmin = 0, xmax = 4.5, ymin = 0, ymax = 6.5,alpha = .2) +
+                        theme_classic() 
+
+
+
+pdf("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Output/Respiration/Day1_RR_posthoc_meanse.pdf", width=8, height=6)
+print(APRIL_all_MEANSe)
+dev.off()
+
+
+```
+
+
+```{r, temp by CO2 post hoc plot}
+
+APRIL_TemppCO2 <- Resp_APRIL %>%
+                    dplyr::mutate(Temp_pCO2 = 
+                                    paste0(Temp,pCO2, sep = '')) %>% 
+                    ggplot(aes(fct_relevel(Temp_pCO2, c("LH", "HH", "LL", "HL")), # x 
+                               resp_ng_L_indiv_hr,  # y
+                               group = factor(Temp_pCO2)) ) +
+                    geom_boxplot(size=0.2, alpha=0.1) +
+                    geom_point(aes(shape=Salinity),
+                               size = 2, 
+                               position = position_jitterdodge(jitter.width = 0.5)) +
+                    # scale_fill_manual(values=c("white", "grey40")) +
+                    labs(title = "C virginica, 24 hr larvae", 
+                         y = expression(Respiration~rate~"("~ng~L^{-1}~O[2]%.%indiv^{-1}%.% hr^{-1}~")"), 
+                         x = "Temp_pCO2") + 
+                    annotate("text", x=3.8, y=0.8, label = "c (1.3 medArag)", size  =3) +
+                    annotate("text", x=1.8, y=1.2, label = "ab (0.54 medArag)", size =3) +
+                    annotate("text", x=0.8, y=1.2, label = "b (0.45 medArag)", size  =3) +
+                    annotate("text", x=2.8, y=3.2, label = "a (1.03 medArag)", size  =3) +
+                    #annotate("rect", xmin = 0, xmax = 4.5, ymin = 0, ymax = 6.5,alpha = .2) +
+                    theme_classic() 
+
+APRIL_TemppCO2
+
+
+
+
+```
+
+setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Output/")
+pdf("Respiration/Day1_RR.pdf", width=8, height=12)
+ggarrange(APRIL_all,APRIL_TemppCO2, nrow=2)
+dev.off()
+
+```{r, heatplot}
+library(tidyr)
+Resp_means_APRIL <- Resp_APRIL %>% 
+  dplyr::mutate(Age = "24 hrs") %>% 
+  na.omit() %>% 
+  # dplyr::group_by(Temp, pCO2, Salinity, Age) %>% # group by all - NO interaction!
+  dplyr::group_by(Temp, pCO2, Age) %>% # group by temp and pCO2 - YES interaction!
+  dplyr::summarise(mean_RR = mean(resp_ng_L_indiv_hr), 
+                   n       = n(),
+                   sd_RR   = sd(resp_ng_L_indiv_hr),
+                   se_RR   = sd_RR/(sqrt(n)))
+
+
+# APRIL_MeanSE <- Resp_means_APRIL %>%
+#   dplyr::mutate(Temp_pCO2 = paste(Temp,pCO2, sep = '_')) %>% 
+#   ggplot(aes(Temp_pCO2, mean_RR , fill = factor(Salinity))) +
+#   geom_errorbar(aes(ymin = mean_RR - se_RR, 
+#                     ymax = mean_RR + se_RR), 
+#                 width = 0.5, 
+#                 position= "dodge2") +
+#   geom_point(shape = 21, size = 2, position = position_jitterdodge(jitter.width = 0.1))+
+#   scale_fill_manual(values=c("white", "grey40")) +
+#   labs(title = "C virginica, 24 hr larvae", 
+#        y = expression(Respiration~rate~"("~ng~L^{-1}~O[2]%.%indiv^{-1}%.% hr^{-1}~")"), 
+#        x = "Temp_pCO2") + 
+#   theme_classic() 
+# APRIL_MeanSE
+
+Heatplot_RR_APRIL <- Resp_means_APRIL %>% 
+                        dplyr::mutate(Temp_pCO2 = (paste(Temp, pCO2,sep=''))) %>% 
+                        # dplyr::mutate(OA_Sal = (paste(pCO2, Salinity,sep=''))) %>% 
+                        ggplot(aes(x = as.factor(Age),
+                                   y = mean_RR)) +
+                                   #shape = stage)) + 
+                        geom_rect(aes(fill = mean_RR), 
+                                  xmin = -Inf, 
+                                  xmax = Inf, 
+                                  ymin = -Inf, 
+                                  ymax = Inf, 
+                                  alpha = 0.3) +
+                        geom_point(color = 'black') +
+                        geom_errorbar(aes(ymin = mean_RR - se_RR, 
+                                          ymax = mean_RR + se_RR), 
+                                      width = 0.5, 
+                                      position= "dodge2") +
+                        theme_bw() +  
+                        theme(panel.grid.major = element_blank(),
+                              panel.grid.minor = element_blank()) +
+                        # facet_grid(vars(Temp), 
+                                   # vars(fct_relevel(OA_Sal, c("HL", "LL", "HH", "LH")))) +
+                        facet_grid(vars(Temp),
+                                   vars(fct_relevel(Temp_pCO2, c("HL", "LL", "HH", "LH")))) +
+                        scale_fill_gradient(low = "orange", 
+                                            high = "forestgreen", 
+                                            aesthetics = "fill")
+
+Heatplot_RR_APRIL
+# 
+# setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Output/")
+# pdf("Respiration/Day1_RR_heatplot.pdf", width=8, height=6)
+# print(Heatplot_RR_APRIL)
+# dev.off()
+
+
+# setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Output/")
+# pdf("Respiration/Day1_RR_posthoc.pdf", width=8, height=6)
+# print(APRIL_MeanSE)
+# dev.off()
+
+
+```
+
+
+# MAY - 8 days post fertilization---------------------------------------------------------- #
+
+
+```{r}
+# model effect of treatment on resp rate 20210507
+Resp_MAY <- Resp.Master %>% 
+  dplyr::filter(Date %in% '5/7/2021')  %>% 
+  dplyr::mutate(Age = '8days') 
+
+  
+Resp_MAY # view the data
+```
+
+```{r}
+# Three way ANOVA 
+LMmod.MAY   <- aov(lm(resp_ng_L_indiv_hr~Temp*pCO2*Salinity,data=Resp_MAY))
+shapiro.test(residuals(LMmod.MAY)) # 0.006028
+leveneTest(LMmod.MAY) # 0.764 good
+summary(LMmod.MAY)
+# log transformation
+LMmod.MAY_T   <- aov(lm(log(resp_ng_L_indiv_hr)~Temp*pCO2*Salinity,data=Resp_MAY))
+shapiro.test(residuals(LMmod.MAY_T)) # 0.7608
+leveneTest(LMmod.MAY_T) # 0.8419 good
+summary(LMmod.MAY_T)
+# Df Sum Sq Mean Sq F value Pr(>F)  
+# Temp           1  3.355   3.355   3.544 0.0924 .
+# pCO2           1  0.972   0.972   1.027 0.3373  
+# Salinity       1  3.664   3.664   3.870 0.0807 .
+# Temp:pCO2      1  3.794   3.794   4.008 0.0763 .
+# Temp:Salinity  1  0.022   0.022   0.023 0.8825  
+# pCO2:Salinity  1  0.117   0.117   0.123 0.7334  
+# Residuals      9  8.521   0.947
+
+```
+```{r}
+# Figures
+Resp_MAY_select  <- Resp_MAY %>% 
+  dplyr::select(c('resp_ng_L_indiv_hr', 'Temp', 'pCO2', 'Salinity')) %>% 
+  dplyr::mutate(Age = '8days')
+
+
+May_all <- Resp_MAY_select %>%
+                  dplyr::mutate(Temp_pCO2 = paste(Temp,pCO2, sep = '')) %>% 
+                  dplyr::mutate(full.treatment = (paste(Temp, pCO2, Salinity,sep=''))) %>%
+                  dplyr::mutate(full.treatment = fct_relevel(full.treatment,
+                                            "LHL", "LHH", "HHL",'HHH',
+                                            "LLL", "LLH", "HLL", 'HLH')) %>%
+                  ggplot(aes(fct_relevel(Temp_pCO2, c("LH", "HH", "LL", "HL")), # x 
+                             resp_ng_L_indiv_hr,
+                             fill = factor(Salinity)) ) +
+                        scale_fill_manual(values=c("white", "grey10")) +
+                        geom_boxplot(size=0.2, alpha=0.1) +
+                        geom_point(aes(shape=Salinity),
+                               size = 2, 
+                               position = position_jitterdodge(jitter.width = 0.5)) +
+                        labs(title = "C virginica, 8 day larvae", 
+                             y = expression(Respiration~rate~"("~ng~L^{-1}~O[2]%.%indiv^{-1}%.% hr^{-1}~")"), 
+                             x = "Temp_pCO2") + 
+                        scale_y_continuous(expand = c(0, 0), limits = c(0, NA)) +
+                        theme_classic() 
+
+May_all
+
+setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Output/")
+pdf("Respiration/Day8_RR.pdf", width=8, height=6)
+print(May_all)
+dev.off()
+
+```
+Resp_means_MAY <- Resp_MAY_select %>% 
+  na.omit() %>% 
+  dplyr::group_by(Temp, pCO2, Salinity, Age) %>% 
+  dplyr::summarise(mean_RR = mean(resp_ng_L_indiv_hr), 
+                   n       = n(),
+                   sd_RR   = sd(resp_ng_L_indiv_hr),
+                   se_RR   = sd_RR/(sqrt(n)))
+
+
+Heatplot_RR_MAY <- Resp_means_MAY %>% 
+  dplyr::mutate(OA_Sal = (paste(pCO2, Salinity,sep=''))) %>% 
+  ggplot(aes(x = as.factor(Age),
+             y = mean_RR)) +
+  #shape = stage)) + 
+  geom_rect(aes(fill = mean_RR), 
+            xmin = -Inf, 
+            xmax = Inf, 
+            ymin = -Inf, 
+            ymax = Inf, 
+            alpha = 0.3) +
+  geom_point(color = 'black') +
+  geom_errorbar(aes(ymin = mean_RR - se_RR, 
+                    ymax = mean_RR + se_RR), 
+                width = 0.5, 
+                position= "dodge2") +
+  theme_bw() +  
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank()) +
+  facet_grid(vars(Temp), 
+             vars(fct_relevel(OA_Sal, c("HL", "LL", "HH", "LH")))) +
+  scale_fill_gradient(low = "orange", 
+                      high = "forestgreen", 
+                      aesthetics = "fill")
+
+setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Output/")
+pdf("Respiration/Day8_RR_heatplot.pdf", width=8, height=6)
+print(Heatplot_RR_MAY)
+dev.off()
+
+
