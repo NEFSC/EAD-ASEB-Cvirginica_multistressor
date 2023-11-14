@@ -12,47 +12,41 @@ output:
 
 # load libraries
 
-```{r, include=FALSE}
+```{r setup, include=FALSE}
 library(ggplot2)
 library(dplyr)
 library(tidyverse)
-# library(multcompView)
-# library(agricolae)
 library(dplyr)
 library(lme4)
 library(ggplot2)
 library(nlme)
 library(car)
 library(performance)
-# library(stargazer)
 library(emmeans)
 library(pander)
-# library(survminer)
 library(survival)
-# library(adjustedCurves)
-# library(riskRegression)
-# library(pammtools)
-# library(bestNormalize)
+library(vegan)
+library(tidyverse)
+# SET WORKING DIRECTORY 
+knitr::opts_knit$set(root.dir = "C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/")
 ```
 
 
-# Set Path & load data
+# load data
 
-```{r setup}
-
-setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis")
+```{r load data}
 
 # survival data
-Survival_dat <- read.csv("Data/Survival/Survival_master.csv", header = T) %>% 
+Survival_data <- read.csv("Data/Survival/Survival_master.csv", header = T) %>% 
                             dplyr::mutate(random_fact = paste( substr(Temp,1,1), 
                                                                substr(OA,1,1), 
                                                                substr(Salinity,1,1), '_', Replicate, sep = ''))
-View(Survival_dat)
+# View(Survival_dat)
 # head(Survival_dat) # view first few lines
 ```
 
 
-# prep data 
+# Prep data 
 
 ```{r, prep the raw data for stats} 
 # extract the experiment data with corresponding sample Ids from the averaged data master file...
@@ -65,9 +59,7 @@ Exp_data <-  Survival_dat %>%
  
  
  
- Plot all data
- 
- 
+# Plot all data
 ```{r survival to hatch and day 15 - for MAS presentation} 
  
 ######################################################## #
@@ -247,18 +239,256 @@ dev.off()
 ```
 
 
+# Survival STATS 
 
-:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-# Survival STATS ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::  :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+```{r PERMANOVA prep n' plot all data}
 
+All_Survival <- Survival_dat %>% 
+                dplyr::select(Day,Id.,Survival,OA,Salinity,Temp) %>% 
+                dplyr::rename(sample.id = Id.)
+All_Survival$sample.id <- as.character(All_Survival$sample.id)
+
+All_Survival_boxplot <- ggplot(data=All_Survival, 
+                             aes(x=fct_relevel(Salinity, c("Low", "High")), 
+                                 y=Survival, 
+                                 colour=fct_relevel(OA, c("High", "Low")), 
+                                 linetype= fct_relevel(Temp, c("Low", "High")))) +
+                             # scale_linetype(c("dotted","solid")) +
+                             scale_linetype_manual(breaks=c("Low", "High"), values=c("dashed","solid")) +
+                             scale_colour_manual(breaks=c("Low", "High"), values=c("#56B4E9","#E69F00")) +
+                             geom_point(aes(colour = fct_relevel(OA, c("High", "Low"))), 
+                                        position = position_dodge2(width = 0.75)) + 
+                             stat_summary(fun.y="mean", size = 0.8,
+                                          position = position_dodge2(width = 1)) +
+                             stat_summary(fun.min = function(x) mean(x) - sd(x)/sqrt(length(x)), 
+                                          fun.max = function(x) mean(x) + sd(x)/sqrt(length(x)),
+                                          geom = 'errorbar', 
+                                          position = position_dodge2(width = 1)) +
+                             labs(title="Survival data", x ="Salinity", y = "Larvae size (μm)") +
+                             theme_classic() +
+                             theme(panel.grid.major = element_blank(), 
+                                   panel.grid.minor = element_blank(), 
+                                   axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
+                                   axis.text=element_text(size=12),
+                                  legend.position="none") +
+                             facet_wrap(~Day, scales = "free_y")
+All_Survival_boxplot
+
+pdf("Output/Survival/plots/Survival_all_MeanSE.pdf", width=11, height=8)
+print(All_Survival_boxplot)
+dev.off()
+
+```
+
+
+* metadata dataframes - ommit the DV
+```{r, metadata}
+
+# METADATA
+D1_metadata  <- All_Survival %>% filter(Day=="1") %>% dplyr::select(-Survival)
+D4_metadata  <- All_Survival %>% filter(Day=="4") %>% dplyr::select(-Survival)
+D8_metadata  <- All_Survival %>% filter(Day=="8") %>% dplyr::select(-Survival)
+D11_metadata <- All_Survival %>% filter(Day=="11") %>% dplyr::select(-Survival)
+D15_metadata <- All_Survival %>% filter(Day=="15") %>% dplyr::select(-Survival)
+D18_metadata <- All_Survival %>% filter(Day=="18") %>% dplyr::select(-Survival)
+```
+
+
+* call only the DV, compute euclidean distance matrix (ideal for continuous data)
+```{r, eclidean distance matrix}
+# CALL JUST THE LENGTH DATA TO COMPUTE DISTANCE MATRIX
+D1_surv           <- (All_Survival %>% filter(Day=="1"))[, 'Survival', drop = FALSE]
+D1_distance_euc   <- vegdist(D1_surv, "euclidean")
+
+D4_surv           <- (All_Survival %>% filter(Day=="4"))[, 'Survival', drop = FALSE]
+D4_distance_euc   <- vegdist(D4_surv, "euclidean")
+
+D8_surv           <- (All_Survival %>% filter(Day=="8"))[, 'Survival', drop = FALSE]
+D8_distance_euc   <- vegdist(D8_surv, "euclidean")
+
+D11_surv           <- (All_Survival %>% filter(Day=="11"))[, 'Survival', drop = FALSE]
+D11_distance_euc   <- vegdist(D11_surv, "euclidean")
+
+D15_surv           <- (All_Survival %>% filter(Day=="15"))[, 'Survival', drop = FALSE]
+D15_distance_euc   <- vegdist(D15_surv, "euclidean")
+
+D18_surv           <- (All_Survival %>% filter(Day=="18"))[, 'Survival', drop = FALSE]
+D18_distance_euc   <- vegdist(D18_surv, "euclidean")
+
+```
+
+
+* convert to square matrix (column and row names as sample ID)
+```{r, square the eclidean distance matrix}
+# CREATE SQUARE MATRIX ASSIGN ROW NAMES AND COLUMN NAMES AS THE GROUP VAR
+D1_distance_mtx           <- as.matrix(D1_distance_euc)
+rownames(D1_distance_mtx) <- (All_Survival %>% filter(Day=="1"))$sample.id
+colnames(D1_distance_mtx) <- (All_Survival %>% filter(Day=="1"))$sample.id
+
+D4_distance_mtx           <- as.matrix(D4_distance_euc)
+rownames(D4_distance_mtx) <- (All_Survival %>% filter(Day=="4"))$sample.id
+colnames(D4_distance_mtx) <- (All_Survival %>% filter(Day=="4"))$sample.id
+
+D8_distance_mtx           <- as.matrix(D8_distance_euc)
+rownames(D8_distance_mtx) <- (All_Survival %>% filter(Day=="8"))$sample.id
+colnames(D8_distance_mtx) <- (All_Survival %>% filter(Day=="8"))$sample.id
+
+D11_distance_mtx           <- as.matrix(D11_distance_euc)
+rownames(D11_distance_mtx) <- (All_Survival %>% filter(Day=="11"))$sample.id
+colnames(D11_distance_mtx) <- (All_Survival %>% filter(Day=="11"))$sample.id
+
+D15_distance_mtx           <- as.matrix(D15_distance_euc)
+rownames(D15_distance_mtx) <- (All_Survival %>% filter(Day=="15"))$sample.id
+colnames(D15_distance_mtx) <- (All_Survival %>% filter(Day=="15"))$sample.id
+
+D18_distance_mtx           <- as.matrix(D18_distance_euc)
+rownames(D18_distance_mtx) <- (All_Survival %>% filter(Day=="18"))$sample.id
+colnames(D18_distance_mtx) <- (All_Survival %>% filter(Day=="18"))$sample.id
+
+# Then...
+# CONVERT THE ROWNAME TO FIRST COLUMN, CONVERT TO DATAFRAME TO DO SO
+D1_distance  <- tibble::rownames_to_column(as.data.frame(D1_distance_mtx), "sample.id")
+D4_distance  <- tibble::rownames_to_column(as.data.frame(D4_distance_mtx), "sample.id")
+D8_distance  <- tibble::rownames_to_column(as.data.frame(D8_distance_mtx), "sample.id")
+D11_distance <- tibble::rownames_to_column(as.data.frame(D11_distance_mtx), "sample.id")
+D15_distance <- tibble::rownames_to_column(as.data.frame(D15_distance_mtx), "sample.id")
+D18_distance <- tibble::rownames_to_column(as.data.frame(D18_distance_mtx), "sample.id")
+
+```
+
+
+* join the metadata tothe distance matrices - for the RHS (IVs) of adonis!
+```{r, inner join - used for independent variable calls}
+
+# NOW USE INNER_JOIN TO MERGE THE METADATA 
+D1_meta_distance  <- inner_join(D1_distance,  D1_metadata, by = "sample.id")
+D4_meta_distance  <- inner_join(D4_distance,  D4_metadata, by = "sample.id")
+D8_meta_distance  <- inner_join(D8_distance,  D8_metadata, by = "sample.id")
+D11_meta_distance <- inner_join(D11_distance, D11_metadata, by = "sample.id")
+D15_meta_distance <- inner_join(D15_distance, D15_metadata, by = "sample.id")
+D18_meta_distance <- inner_join(D18_distance, D18_metadata, by = "sample.id")
+
+```
+
+
+* isolate the distance data - for the LHS (DV) of adonis!
+```{r, isolate the dependent variable dist data}
+# get the dist matrix
+D1_dist  <- D1_meta_distance  %>% dplyr::select(all_of(D1_meta_distance$sample.id)) %>% as.dist() 
+D4_dist  <- D4_meta_distance  %>% dplyr::select(all_of(D4_meta_distance$sample.id)) %>% as.dist() 
+D8_dist  <- D8_meta_distance  %>% dplyr::select(all_of(D8_meta_distance$sample.id)) %>% as.dist() 
+D11_dist <- D11_meta_distance %>% dplyr::select(all_of(D11_meta_distance$sample.id)) %>% as.dist() 
+D15_dist <- D15_meta_distance %>% dplyr::select(all_of(D15_meta_distance$sample.id)) %>% as.dist() 
+D18_dist <- D18_meta_distance %>% dplyr::select(all_of(D18_meta_distance$sample.id)) %>% as.dist() 
+```
+
+* Finally the time is here... Lets run it!
+* run adonis for eudlidean dist length by OA * Temp * Salinty
+* Notes: run within each day from the mean length per tank replicate (A, B, C) with 1000 permutations,
+we day 19 data has only 5 tanks remaining with length measurements, just completed for days between 1-15
+```{r, run adonis2 }
+# RUN ADONIS
+# formula as () LHS (disc required!) ~ RHS (your metadata), data = metadata, perms)
+D1_adonis_run   <- adonis2(D1_dist  ~ OA*Temp*Salinity, data=D1_meta_distance, perms = permutations) 
+D4_adonis_run   <- adonis2(D4_dist  ~ OA*Temp*Salinity, data=D4_meta_distance, perms = permutations) 
+D8_adonis_run   <- adonis2(D8_dist  ~ OA*Temp*Salinity, data=D8_meta_distance, perms = permutations) 
+D11_adonis_run  <- adonis2(D11_dist ~ OA*Temp*Salinity, data=D11_meta_distance, perms = permutations) 
+D15_adonis_run  <- adonis2(D15_dist ~ OA*Temp*Salinity, data=D15_meta_distance, perms = permutations) 
+D18_adonis_run  <- adonis2(D18_dist ~ OA*Temp*Salinity, data=D18_meta_distance, perms = permutations) 
+
+write.csv(as.data.frame(D1_adonis_run), "Output/Survival/stats_tables/D1_PERMANOVA.csv")# write
+write.csv(as.data.frame(D4_adonis_run), "Output/Survival/stats_tables/D4_PERMANOVA.csv")# write
+write.csv(as.data.frame(D8_adonis_run), "Output/Survival/stats_tables/D8_PERMANOVA.csv")# write
+write.csv(as.data.frame(D11_adonis_run), "Output/Survival/stats_tables/D11_PERMANOVA.csv")# write
+write.csv(as.data.frame(D15_adonis_run), "Output/Survival/stats_tables/D15_PERMANOVA.csv")# write
+write.csv(as.data.frame(D18_adonis_run), "Output/Survival/stats_tables/D18_PERMANOVA.csv")# write
+```
+
+* day 1 
+```{r, cases day 1 adonis2}
+# CASES TO FOLLOW INTERACTION TERMS
+D1_adonis_run # we see main effects of OA, Temp and Salinity and interaction OA:Salinity
+# CREATE AN OA_SALINITY COLUMN
+D1_meta_distance  <- D1_meta_distance %>% dplyr::mutate(OA_Salinity = paste0(OA,' x ',Salinity))
+# TRUNCATE THE DATA FOR EACH PAIR BASED ON OA AND SALINITY, WITH UNIQUE TITLE
+# Note: two two-factor variables == 6 possible pairs 
+# METADATA (IV)
+D1_HH_LL_metadata <- D1_meta_distance %>% dplyr::filter(OA_Salinity %in% c('High x High', 'Low x Low'))
+D1_HH_LH_metadata <- D1_meta_distance %>% dplyr::filter(OA_Salinity %in% c('High x High', 'Low x High'))
+D1_HH_HL_metadata <- D1_meta_distance %>% dplyr::filter(OA_Salinity %in% c('High x High', 'High x Low'))
+D1_HL_LH_metadata <- D1_meta_distance %>% dplyr::filter(OA_Salinity %in% c('High x Low', 'Low x High'))
+D1_HL_LL_metadata <- D1_meta_distance %>% dplyr::filter(OA_Salinity %in% c('High x Low', 'Low x Low'))
+D1_LH_LL_metadata <- D1_meta_distance %>% dplyr::filter(OA_Salinity %in% c('Low x High', 'Low x Low'))
+# DISTANCE (DV)
+D1_HH_LL_dist     <- D1_meta_distance %>% 
+  dplyr::filter(sample.id %in% D1_HH_LL_metadata$sample.id) %>% 
+  dplyr::select(D1_HH_LL_metadata$sample.id) %>% 
+  as.dist() 
+D1_HH_LH_dist     <- D1_meta_distance %>% 
+  dplyr::filter(sample.id %in% D1_HH_LH_metadata$sample.id) %>% 
+  dplyr::select(D1_HH_LH_metadata$sample.id) %>% 
+  as.dist() 
+D1_HH_HL_dist     <- D1_meta_distance %>% 
+  dplyr::filter(sample.id %in% D1_HH_HL_metadata$sample.id) %>% 
+  dplyr::select(D1_HH_HL_metadata$sample.id) %>% 
+  as.dist() 
+D1_HL_LH_dist     <- D1_meta_distance %>% 
+  dplyr::filter(sample.id %in% D1_HL_LH_metadata$sample.id) %>% 
+  dplyr::select(D1_HL_LH_metadata$sample.id) %>% 
+  as.dist() 
+D1_HL_LL_dist     <- D1_meta_distance %>% 
+  dplyr::filter(sample.id %in% D1_HL_LL_metadata$sample.id) %>% 
+  dplyr::select(D1_HL_LL_metadata$sample.id) %>% 
+  as.dist() 
+D1_LH_LL_dist     <- D1_meta_distance %>% 
+  dplyr::filter(sample.id %in% D1_LH_LL_metadata$sample.id) %>% 
+  dplyr::select(D1_LH_LL_metadata$sample.id) %>% 
+  as.dist()
+
+# RUN ADONIS FOR EACH PAIR
+D1_adonis_HH_LL   <- adonis2(D1_HH_LL_dist  ~ OA_Salinity, data=D1_HH_LL_metadata, perms = permutations) # nope
+D1_adonis_HH_LH   <- adonis2(D1_HH_LH_dist  ~ OA_Salinity, data=D1_HH_LH_metadata, perms = permutations) # nope
+D1_adonis_HH_HL   <- adonis2(D1_HH_HL_dist  ~ OA_Salinity, data=D1_HH_HL_metadata, perms = permutations) # nope
+D1_adonis_HL_LH   <- adonis2(D1_HL_LH_dist  ~ OA_Salinity, data=D1_HL_LH_metadata, perms = permutations) # nope
+D1_adonis_HL_LL   <- adonis2(D1_HL_LL_dist  ~ OA_Salinity, data=D1_HL_LL_metadata, perms = permutations) # yup
+D1_adonis_LH_LL   <- adonis2(D1_LH_LL_dist  ~ OA_Salinity, data=D1_LH_LL_metadata, perms = permutations) # nope
+
+# plot with letters - dotted line = low temperature, red = low salinity
+Age1_ShellLength_Boxplot <- ggplot(data=Age1_raw_length, 
+                                   aes(x=fct_relevel(OA, c("Low", "High")), 
+                                         y=length_um, 
+                                         colour=fct_relevel(Salinity, c("Low", "High")), 
+                                         linetype= Temp)) +
+                              geom_boxplot() + 
+                              stat_summary(fun.y="mean",position = position_dodge2(width = 0.75)) +
+                              labs(title="Age = 24 hours", x ="pCO2 level", y = "Larvae size (μm)") +
+                              theme_classic() +
+                              theme(panel.grid.major = element_blank(), 
+                                    panel.grid.minor = element_blank(), 
+                                    axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
+                                    axis.text=element_text(size=12),
+                                    legend.position="none")
+```
+ 
 
 ### Age 24 hours ALL DATA ------------
 
 ```{r SURVIVAL Age 24 hours - all data}
-age_1<- Survival_dat %>%
+age_1 <- All_Survival %>%
           filter(Day=="1")
+
+# PERMANOVA - Resp_APRIL multivariate anova 
+D1_surv_metadata      <- age_1 %>% dplyr::select(-Survival) # ONLY IVs AND THE UNIQUE IDENTIFIER TO JOIN LATER
+D1_surv               <- age_1[, 'Survival', drop = FALSE] # CALL THE DEPENDENT VAR
+D1_surv_distance_euc  <- vegdist(D1_surv, "euclidean") # EUCLIDEAN DISTNACE FOR CONTINUOUS VARIABLES
+D1_surv_distance_mtx  <- as.matrix(D1_surv_distance_euc)
+rownames(D1_surv_distance_mtx) <- age_1$sample.id # SQUARE RE MATRIX WITH UNIQUE IDENTIFIER FOR EACH INDIVIDUAL
+colnames(D1_surv_distance_mtx) <- age_1$sample.id# SQUARE MATRIX WITH UNIQUE IDENTIFIER FOR EACH INDIVIDUAL
+D1_surv_distance               <- tibble::rownames_to_column(as.data.frame(D1_surv_distance_mtx), "sample.id")
+D1_surv_meta_distance          <- inner_join(D1_surv_metadata,D1_surv_distance, by = "sample.id") # JOIN BASED ON UNIQUE IDENTIFIER
+D1_surv_dist                   <- D1_surv_meta_distance  %>% dplyr::select(all_of(D1_surv_meta_distance$sample.id)) %>% as.dist() 
+adonis_run                <- adonis2(D1_surv_dist  ~ OA*Temp*Salinity, data=D1_surv_meta_distance, perms = 1000) 
+adonis_run
 
 
 # Age 1 Length mod - all data -------------------------------------------------------------------------------------- #
@@ -282,9 +512,11 @@ qqnorm(resid(Age1_Survival_lme_mod)) # check for normality of residuals - looks 
 
 
 
-
-
 Age1_Survival_lm_mod <- lm(Survival~OA*Salinity*Temp,data=age_1)
+shapiro.test(residuals(Age1_Survival_lm_mod)) #0.156
+leveneTest(residuals(Age1_Survival_lm_mod) ~ age_1$Temp*age_1$OA*age_1$Salinity) # 0.8279- pass
+boxplot(residuals(Age1_Survival_lm_mod) ~ age_1$Temp*age_1$OA*age_1$Salinity) # visual of residuals grouped
+qqnorm(resid(Age1_Survival_lm_mod)) # check for normality of residuals - looks okay
 pander(anova(Age1_Survival_lm_mod), style='rmarkdown') # anova table of lmr
 # |        &nbsp;        | Df |  Sum Sq  | Mean Sq  | F value |  Pr(>F)   |
 # |:--------------------:|:--:|:--------:|:--------:|:-------:|:---------:|
@@ -296,16 +528,11 @@ pander(anova(Age1_Survival_lm_mod), style='rmarkdown') # anova table of lmr
 # |  **Salinity:Temp**   | 1  | 0.005716 | 0.005716 |  2.07   |  0.1695   |
 # | **OA:Salinity:Temp** | 1  | 0.008549 | 0.008549 |  3.096  |  0.09758  |
 # |    **Residuals**     | 16 | 0.04418  | 0.002761 |   NA    |    NA     |
-shapiro.test(residuals(Age1_Survival_lm_mod)) #0.156
-leveneTest(residuals(Age1_Survival_lm_mod) ~ age_1$Temp*age_1$OA*age_1$Salinity) # 0.8279- pass
-boxplot(residuals(Age1_Survival_lm_mod) ~ age_1$Temp*age_1$OA*age_1$Salinity) # visual of residuals grouped
-qqnorm(resid(Age1_Survival_lm_mod)) # check for normality of residuals - looks okay
-
 
 
 
 # post hoc tests --------------------------------------------------------------------------------------------------- #
-posthoc<-emmeans(Age1_Survival_lme_mod, pairwise~OA:Salinity, adjust="tukey")
+posthoc<-emmeans(Age1_Survival_lm_mod, pairwise~OA:Salinity, adjust="tukey")
 multcomp::cld(posthoc$emmeans,alpha = 0.5, Letters = letters)
 #  OA   Salinity emmean     SE df lower.CL upper.CL .group
 #  High Low       0.382 0.0215 16    0.336    0.427  a    

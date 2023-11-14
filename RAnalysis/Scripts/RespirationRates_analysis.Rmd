@@ -20,6 +20,8 @@ library(rcompanion)
 library(emmeans)
 library(forcats)
 library(dplyr)
+library(vegan)
+library(tidyverse)
 # SET WORKING DIRECTORY 
 knitr::opts_knit$set(root.dir = "C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/")
 
@@ -41,10 +43,10 @@ Resp.Master  <- read.csv(file="Output/Respiration/RespirationMaster.csv", header
 Resp_APRIL <- Resp.Master %>% 
   dplyr::filter(Date %in% '4/30/2021') # %>% 
 Resp_APRIL # view the data
-View(Resp_APRIL)
+# View(Resp_APRIL)
 ```
 
-* run the mod
+* run assumptions for three-way anova model
 ```{r, 24 HPF run da mod}
 
 # Three way ANOVA 
@@ -54,20 +56,34 @@ leveneTest(LMmod.APRIL) # 0.3256 - variance okay
 summary(LMmod.APRIL)
 
 # LOG transform
-LMmod.APRIL_T   <- aov(lm(log(resp_ng_L_indiv_hr)~Temp*pCO2*Salinity,data=Resp_APRIL))
+LMmod.APRIL_T   <- aov(lm(log(resp_ng_L_indiv_hr)~pCO2*Temp*Salinity,data=Resp_APRIL))
 shapiro.test(residuals(LMmod.APRIL_T)) # 0.6472
 leveneTest(LMmod.APRIL_T) # 0.6339
 summary(LMmod.APRIL_T)
-# Df Sum Sq Mean Sq F value  Pr(>F)   
-# Temp                1  4.622   4.622   5.769 0.02881 * 
+# Df                    Sum Sq Mean Sq F value  Pr(>F)   
 # pCO2                1  0.303   0.303   0.378 0.54710   
+# Temp                1  4.622   4.622   5.769 0.02881 * 
 # Salinity            1  1.523   1.523   1.901 0.18693   
-# Temp:pCO2           1  8.930   8.930  11.145 0.00417 **
-# Temp:Salinity       1  1.591   1.591   1.986 0.17792   
+# pCO2:Temp           1  8.930   8.930  11.145 0.00417 **
 # pCO2:Salinity       1  2.690   2.690   3.357 0.08560 . 
-# Temp:pCO2:Salinity  1  0.251   0.251   0.314 0.58321   
-# Residuals          16 12.821   0.801 
+# Temp:Salinity       1  1.591   1.591   1.986 0.17792   
+# pCO2:Temp:Salinity  1  0.251   0.251   0.314 0.58321   
+# Residuals          16 12.821   0.801  
 # post hoc tests 
+
+# PERMANOVA - Resp_APRIL mltvariate anova 
+RR_metadata           <- Resp_APRIL %>% dplyr::select(Temp,pCO2,Salinity,Chamber_tank) %>% dplyr::rename(sample.id = Chamber_tank) # all but the DV - only IVs
+RR_metadata$sample.id <- as.character(RR_metadata$sample.id)
+RR_data               <- Resp_APRIL[, 'resp_ng_L_indiv_hr', drop = FALSE]
+RR_distance_euc       <- vegdist(RR_data, "euclidean")
+RR_distance_mtx           <- as.matrix(RR_distance_euc)
+rownames(RR_distance_mtx) <- Resp_APRIL$Chamber_tank
+colnames(RR_distance_mtx) <- Resp_APRIL$Chamber_tank
+RR_distance               <- tibble::rownames_to_column(as.data.frame(RR_distance_mtx), "sample.id")
+RR_meta_distance          <- inner_join(RR_metadata,RR_distance, by = "sample.id")
+RR_dist                   <- RR_meta_distance  %>% dplyr::select(all_of(RR_meta_distance$sample.id)) %>% as.dist() 
+adonis_run                <- adonis2(RR_dist  ~ pCO2*Temp*Salinity, data=RR_meta_distance, perms = 1000) 
+adonis_run
 
 # use emmeans to get the letters for the tukey posthoc test
 posthoc<-emmeans(LMmod.APRIL_T, pairwise~Temp:pCO2, adjust="tukey")
