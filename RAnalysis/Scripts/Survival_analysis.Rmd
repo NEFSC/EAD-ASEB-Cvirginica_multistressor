@@ -50,7 +50,7 @@ Survival_data <- read.csv("Data/Survival/Survival_master.csv", header = T) %>%
 
 ```{r, prep the raw data for stats} 
 # extract the experiment data with corresponding sample Ids from the averaged data master file...
-Exp_data <-  Survival_dat %>% 
+Exp_data <-  Survival_data %>% 
                 filter(Day %in% 1) %>% 
                 dplyr::select(c('Temp','OA','Salinity','Replicate','Id.', 'pH', 'AR')) %>% 
                 dplyr::rename(Sample.ID = Id., Aragonite_saturation = AR)
@@ -64,7 +64,7 @@ Exp_data <-  Survival_dat %>%
  
 ######################################################## #
 # Survival day 1
-Survival_means_day1 <- Survival_dat %>% 
+Survival_means_day1 <- Survival_data %>% 
                                 dplyr::filter(Day == 1) %>% 
                                 na.omit() %>% 
                                 dplyr::group_by(Day, OA, Salinity, Temp) %>% 
@@ -243,7 +243,7 @@ dev.off()
 
 ```{r PERMANOVA prep n' plot all data}
 
-All_Survival <- Survival_dat %>% 
+All_Survival <- Survival_data %>% 
                 dplyr::select(Day,Id.,Survival,OA,Salinity,Temp) %>% 
                 dplyr::rename(sample.id = Id.)
 All_Survival$sample.id <- as.character(All_Survival$sample.id)
@@ -454,20 +454,58 @@ D1_adonis_HL_LL   <- adonis2(D1_HL_LL_dist  ~ OA_Salinity, data=D1_HL_LL_metadat
 D1_adonis_LH_LL   <- adonis2(D1_LH_LL_dist  ~ OA_Salinity, data=D1_LH_LL_metadata, perms = permutations) # nope
 
 # plot with letters - dotted line = low temperature, red = low salinity
-Age1_ShellLength_Boxplot <- ggplot(data=Age1_raw_length, 
-                                   aes(x=fct_relevel(OA, c("Low", "High")), 
-                                         y=length_um, 
-                                         colour=fct_relevel(Salinity, c("Low", "High")), 
-                                         linetype= Temp)) +
-                              geom_boxplot() + 
-                              stat_summary(fun.y="mean",position = position_dodge2(width = 0.75)) +
-                              labs(title="Age = 24 hours", x ="pCO2 level", y = "Larvae size (μm)") +
-                              theme_classic() +
-                              theme(panel.grid.major = element_blank(), 
-                                    panel.grid.minor = element_blank(), 
-                                    axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
-                                    axis.text=element_text(size=12),
-                                    legend.position="none")
+age_1 <- All_Survival %>%
+          filter(Day=="1")
+Age1_Survival_Boxplot <- ggplot(data=age_1, 
+                                 aes(x=fct_relevel(Salinity, c("Low", "High")), 
+                                 y=Survival, 
+                                 colour=fct_relevel(OA, c("High", "Low")), 
+                                 linetype= fct_relevel(Temp, c("Low", "High")))) +
+                             # scale_linetype(c("dotted","solid")) +
+                             scale_linetype_manual(breaks=c("Low", "High"), values=c("dashed","solid")) +
+                             scale_colour_manual(breaks=c("Low", "High"), values=c("#56B4E9","#E69F00")) +
+                             geom_point(aes(colour = fct_relevel(OA, c("High", "Low"))), 
+                                        position = position_dodge2(width = 0.75)) + 
+                             stat_summary(fun.y="mean", size = 0.8,
+                                          position = position_dodge2(width = 1)) +
+                             stat_summary(fun.min = function(x) mean(x) - sd(x)/sqrt(length(x)), 
+                                          fun.max = function(x) mean(x) + sd(x)/sqrt(length(x)),
+                                          geom = 'errorbar', 
+                                          position = position_dodge2(width = 1)) +
+                             labs(title="Survival data", x ="Salinity", y = "Larvae size (μm)") +
+                             theme_classic() +
+                             theme(panel.grid.major = element_blank(), 
+                                   panel.grid.minor = element_blank(), 
+                                   axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
+                                   axis.text=element_text(size=12),
+                                  legend.position="none") 
+
+
+age1_pCO2_meanSE <- age_1 %>% 
+                      dplyr::select(OA,Survival) %>% 
+                      dplyr::group_by(OA) %>% 
+                      dplyr::summarise_each(funs(mean,sd,se=sd(.)/sqrt(n())))
+# High	0.4250463	0.08458204	0.02441673	
+# Low	0.4938117	0.08239617	0.02378573
+((0.4938117-0.4250463)/0.4938117)*100 # 13.92543 % higher survival under low pCO2
+age1_Temp_meanSE <- age_1 %>% 
+                      dplyr::select(Temp,Survival) %>% 
+                      dplyr::group_by(Temp) %>% 
+                      dplyr::summarise_each(funs(mean,sd,se=sd(.)/sqrt(n())))
+# High	0.5105556	0.06313277	0.01822486	
+# Low	0.4083025	0.08266608	0.02386364	
+((0.5105556-0.4083025)/0.5105556)*100 # 20.02781 % higher survival under high temperature
+age1_OASalinity_meanSE <- age_1 %>% 
+                      dplyr::mutate(OA_Salinity = paste0(OA,"_x_",Salinity)) %>% 
+                      dplyr::select(OA_Salinity,Survival) %>% 
+                      dplyr::group_by(OA_Salinity) %>% 
+                      dplyr::summarise_each(funs(mean,sd,se=sd(.)/sqrt(n())))
+# High_x_High	0.4682407	0.06943548	0.02834692	
+# High_x_Low	0.3818519	0.08024935	0.03276166	
+# Low_x_High	0.4781481	0.09188739	0.03751287	
+# Low_x_Low	0.5094753	0.07683721	0.03136866
+
+((0.5094753-0.3818519)/0.5094753)*100 # 25.04997% lower survival under high pCO2 low sal than low pCO2 low sal
 ```
  
 

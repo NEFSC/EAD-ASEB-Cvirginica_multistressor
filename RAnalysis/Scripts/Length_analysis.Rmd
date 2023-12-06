@@ -496,6 +496,58 @@ Age1_ShellLength_Boxplot <- ggplot(data=Age1_raw_length,
                                     axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
                                     axis.text=element_text(size=12),
                                     legend.position="none")
+
+# explore the mean SE and percent change with model results 
+# main effects of pCO2 temperature and salinity 
+
+Age1_raw_length %>% dplyr::select(OA, Temp, Salinity,length_um) %>% 
+                      dplyr::group_by(OA, Temp, Salinity) %>% 
+                      dplyr::summarise_each(funs(mean,sd,se=sd(.)/sqrt(n()), n = n()))
+# N = 150 per treatment
+
+#pCO2
+age1_pCO2_meanSE <- Age1_raw_length %>% 
+                      dplyr::select(OA,length_um) %>% 
+                      dplyr::group_by(OA) %>% 
+                      dplyr::summarise_each(funs(mean,sd,se=sd(.)/sqrt(n())))
+age1_pCO2_meanSE
+# High	70.19591	4.239491	0.1730765	
+# Low	74.05942	3.682447	0.1503353
+((74.05942-70.19591)/74.05942)*100 # 5.2 % larger under low pCO2
+
+# Temperature
+age1_Temp_meanSE <- Age1_raw_length %>% 
+                      dplyr::select(Temp,length_um) %>% 
+                      dplyr::group_by(Temp) %>% 
+                      dplyr::summarise_each(funs(mean,sd,se=sd(.)/sqrt(n())))
+age1_Temp_meanSE
+# High	72.92781	4.429291	0.1808250	
+# Low	71.32752	4.255381	0.1737252
+((72.92781-71.32752)/72.92781)*100 # 2.2  % larger under high termperature
+
+# Salinity
+age1_Salinity_meanSE <- Age1_raw_length %>% 
+                      dplyr::select(Salinity,length_um) %>% 
+                      dplyr::group_by(Salinity) %>% 
+                      dplyr::summarise_each(funs(mean,sd,se=sd(.)/sqrt(n()), n = n()))
+age1_Salinity_meanSE
+# High	74.16354	3.874498	0.1581757	
+# Low	70.09179	3.961609	0.1617320	
+((74.16354-70.09179)/74.16354)*100 # 5.5 % larger under high Salinity 
+
+# pCO2 x Salinity interaction
+age1_OASalinity_meanSE <- Age1_raw_length %>% 
+                      dplyr::mutate(OA_Salinity = paste0(OA,"_x_",Salinity)) %>%                       
+                      dplyr::select(OA_Salinity,length_um) %>% 
+                      dplyr::group_by(OA_Salinity) %>% 
+                      dplyr::summarise_each(funs(mean,sd,se=sd(.)/sqrt(n()), n = n()))
+age1_OASalinity_meanSE
+# High_x_High	72.68150	3.535329	0.2041123	300
+# High_x_Low	67.71032	3.333242	0.1924448	300
+# Low_x_High	75.64558	3.628713	0.2095038	300
+# Low_x_Low	72.47325	2.991651	0.1727231	300
+((75.64558-67.71032)/75.64558)*100 # 10.49005 % larger under Low_x_High than High_x_Low
+
 ```
  
 * day 4 
@@ -516,35 +568,35 @@ D4_LH_LL_metadata <- D4_meta_distance %>% dplyr::filter(OA_Temp %in% c('Low x Hi
 # DISTANCE (DV)
 D4_HH_LL_dist     <- D4_meta_distance %>% 
   dplyr::filter(sample.id %in% D4_HH_LL_metadata$sample.id) %>% 
-  dplyr::select(D1_HH_LL_metadata$sample.id) %>% 
+  dplyr::select(D4_HH_LL_metadata$sample.id) %>% 
   as.dist() 
 D4_HH_LH_dist     <- D4_meta_distance %>% 
   dplyr::filter(sample.id %in% D4_HH_LH_metadata$sample.id) %>% 
-  dplyr::select(D1_HH_LH_metadata$sample.id) %>% 
+  dplyr::select(D4_HH_LH_metadata$sample.id) %>% 
   as.dist() 
 D4_HH_HL_dist     <- D4_meta_distance %>% 
   dplyr::filter(sample.id %in% D4_HH_HL_metadata$sample.id) %>% 
-  dplyr::select(D1_HH_HL_metadata$sample.id) %>% 
+  dplyr::select(D4_HH_HL_metadata$sample.id) %>% 
   as.dist() 
 D4_HL_LH_dist     <- D4_meta_distance %>% 
   dplyr::filter(sample.id %in% D4_HL_LH_metadata$sample.id) %>% 
-  dplyr::select(D1_HL_LH_metadata$sample.id) %>% 
+  dplyr::select(D4_HL_LH_metadata$sample.id) %>% 
   as.dist() 
 D4_HL_LL_dist     <- D4_meta_distance %>% 
   dplyr::filter(sample.id %in% D4_HL_LL_metadata$sample.id) %>% 
-  dplyr::select(D1_HL_LL_metadata$sample.id) %>% 
+  dplyr::select(D4_HL_LL_metadata$sample.id) %>% 
   as.dist() 
 D4_LH_LL_dist     <- D4_meta_distance %>% 
   dplyr::filter(sample.id %in% D4_LH_LL_metadata$sample.id) %>% 
-  dplyr::select(D1_LH_LL_metadata$sample.id) %>% 
+  dplyr::select(D4_LH_LL_metadata$sample.id) %>% 
   as.dist()
 
 # RUN ADONIS FOR EACH PAIR
-D4_adonis_HH_LL   <- adonis2(D4_HH_LL_dist  ~ OA_Temp, data=D4_HH_LL_metadata, perms = permutations) # nope
+D4_adonis_HH_LL   <- adonis2(D4_HH_LL_dist  ~ OA_Temp, data=D4_HH_LL_metadata, perms = permutations) # yup
 D4_adonis_HH_LH   <- adonis2(D4_HH_LH_dist  ~ OA_Temp, data=D4_HH_LH_metadata, perms = permutations) # yup
 D4_adonis_HH_HL   <- adonis2(D4_HH_HL_dist  ~ OA_Temp, data=D4_HH_HL_metadata, perms = permutations) # nope
 D4_adonis_HL_LH   <- adonis2(D4_HL_LH_dist  ~ OA_Temp, data=D4_HL_LH_metadata, perms = permutations) # yup
-D4_adonis_HL_LL   <- adonis2(D4_HL_LL_dist  ~ OA_Temp, data=D4_HL_LL_metadata, perms = permutations) # yup
+D4_adonis_HL_LL   <- adonis2(D4_HL_LL_dist  ~ OA_Temp, data=D4_HL_LL_metadata, perms = permutations) # nope
 D4_adonis_LH_LL   <- adonis2(D4_LH_LL_dist  ~ OA_Temp, data=D4_LH_LL_metadata, perms = permutations) # yup
 
 # plot with letters - dotted line = low temperature, red = low salinity
@@ -563,9 +615,50 @@ Age4_ShellLength_Boxplot <- ggplot(data=Age4_raw_length,
                                     axis.text=element_text(size=12),
                                     legend.position="none")
 
+# Summary stats for N per treatment
+Age4_summary <- Age4_raw_length %>% dplyr::select(OA, Temp, Salinity,length_um) %>% 
+                      dplyr::group_by(OA, Temp, Salinity) %>% 
+                      dplyr::summarise_each(funs(mean,sd,se=sd(.)/sqrt(n()), n = n()))
+mean(Age4_summary$n) # mean = 50.25
+sd(Age4_summary$n)# SD = 11.49845
 
+# explore the PERMANOVA responses - main effects of pCO2 and salinity followed by pCO2xtemperature interaction
 
+# pCO2 main effect 
+age4_pCO2_meanSE <- Age4_raw_length %>% 
+                      dplyr::select(OA,length_um) %>% 
+                      dplyr::group_by(OA) %>% 
+                      dplyr::summarise_each(funs(mean,sd,se=sd(.)/sqrt(n())))
+age4_pCO2_meanSE
+# High	76.70462	9.541234	0.7254066	
+# Low	84.77301	9.675344	0.6393647	
+((84.77301-76.70462)/84.77301)*100 # 9.51764 % larger under low pCO2
+
+# salinity main effect 
+age4_Salinity_meanSE <- Age4_raw_length %>% 
+                      dplyr::select(Salinity,length_um) %>% 
+                      dplyr::group_by(Salinity) %>% 
+                      dplyr::summarise_each(funs(mean,sd,se=sd(.)/sqrt(n())))
+age4_Salinity_meanSE
+# High	83.46450	10.16818	0.7154307	
+# Low	79.11545	10.20752	0.7217809	
+((83.46450-79.11545)/83.46450)*100 # 5.210658 % larger under high salinity
+
+# pCO2 and temp interaction term
+age4_OATemp_meanSE <- Age4_raw_length %>% 
+                      dplyr::mutate(OA_Temp = paste0(OA, "_x_", Temp)) %>% 
+                      dplyr::select(OA_Temp,length_um) %>% 
+                      dplyr::group_by(OA_Temp) %>% 
+                      dplyr::summarise_each(funs(mean,sd,se=sd(.)/sqrt(n())))
+age4_OATemp_meanSE
+# High_x_High	74.93013	9.712118	1.0996808	
+# High_x_Low	78.16158	9.195128	0.9434002	
+# Low_x_High	88.33520	10.721876	1.0721876	
+# Low_x_Low	82.01163	7.761141	0.6833304	
+((88.33520-74.93013)/88.33520)*100 # 15.17523 % smaller under High_x_High relative to Low_x_High
+((88.33520-78.16158)/88.33520)*100 # 11.51706 % smaller under High_x_Low relative to Low_x_High
 ```
+
   
 * day 8 
 ```{r, cases day 8 adonis2}
@@ -632,8 +725,49 @@ Age8_ShellLength_Boxplot <- ggplot(data=Age8_raw_length,
                                     axis.text=element_text(size=12),
                                     legend.position="none")
 
+# explore the PERMANOVA responses - main effects of pCO2 and salinity followed by pCO2xtemperature interaction
 
+Age8_summary <- Age8_raw_length %>% dplyr::select(OA, Temp, Salinity,length_um) %>% 
+                      dplyr::group_by(OA, Temp, Salinity) %>% 
+                      dplyr::summarise_each(funs(mean,sd,se=sd(.)/sqrt(n()), n = n()))
+mean(Age8_summary$n) # mean = 210.375
+sd(Age8_summary$n)# SD = 40.13882
 
+# explore the PERMANOVA responses - main effects of pCO2 and salinity followed by pCO2xtemperature interaction
+
+# pCO2 main effect 
+age8_pCO2_meanSE <- Age8_raw_length %>% 
+                      dplyr::select(OA,length_um) %>% 
+                      dplyr::group_by(OA) %>% 
+                      dplyr::summarise_each(funs(mean,sd,se=sd(.)/sqrt(n())))
+age8_pCO2_meanSE
+# High	97.11573	16.23607	0.5794904	
+# Low	115.94102	27.09128	0.9040478	
+((115.94102-97.11573)/115.94102)*100 # 16.23695 % larger under low pCO2
+
+# Salinity main effect 
+age8_Salinity_meanSE <- Age8_raw_length %>% 
+                      dplyr::select(Salinity,length_um) %>% 
+                      dplyr::group_by(Salinity) %>% 
+                      dplyr::summarise_each(funs(mean,sd,se=sd(.)/sqrt(n())))
+age8_Salinity_meanSE
+# High	114.35630	26.52823	0.8548602	
+# Low	97.53579	17.48773	0.6517291
+((114.35630-97.53579)/114.35630)*100 # 14.70886 % larger under high salinity
+
+# pCO2 and temp interaction term
+age8_OATemp_meanSE <- Age8_raw_length %>% 
+                      dplyr::mutate(OA_Temp = paste0(OA, "_x_", Temp)) %>% 
+                      dplyr::select(OA_Temp,length_um) %>% 
+                      dplyr::group_by(OA_Temp) %>% 
+                      dplyr::summarise_each(funs(mean,sd,se=sd(.)/sqrt(n())))
+age8_OATemp_meanSE
+# High_x_High	96.64262	18.08435	0.9338719	
+# High_x_Low	97.54845	14.34770	0.7085822	
+# Low_x_High	124.69074	31.04733	1.4245492	
+# Low_x_Low	106.11569	17.15803	0.8342519	
+((124.69074-96.64262)/124.69074)*100 # 22.49415 % smaller under High_x_High relative to Low_x_High
+((124.69074-97.54845)/124.69074)*100 # 21.76769 % smaller under High_x_Low relative to Low_x_High
 ```
   
 * day 11 
@@ -701,8 +835,48 @@ Age11_ShellLength_Boxplot <- ggplot(data=Age11_raw_length,
                                     axis.text=element_text(size=12),
                                     legend.position="none")
 
+# explore the PERMANOVA responses - main effects of pCO2 and salinity followed by pCO2xtemperature interaction
+
+Age11_summary <- Age11_raw_length %>% dplyr::select(OA, Temp, Salinity,length_um) %>% 
+                      dplyr::group_by(OA, Temp, Salinity) %>% 
+                      dplyr::summarise_each(funs(mean,sd,se=sd(.)/sqrt(n()), n = n()))
+mean(Age11_summary$n) # mean = 55.875
+sd(Age11_summary$n)# SD = 29.1422
 
 
+# salinity main effect 
+age11_Salinity_meanSE <- Age11_raw_length %>% 
+                      dplyr::select(Salinity,length_um) %>% 
+                      dplyr::group_by(Salinity) %>% 
+                      dplyr::summarise_each(funs(mean,sd,se=sd(.)/sqrt(n())))
+age11_Salinity_meanSE
+# High	144.4325	50.91659	2.910708	
+# Low	118.0298	30.66179	2.582189
+((144.4325-118.0298)/144.4325)*100 # 18.2803 % larger under high salinity
+
+# temperature main effect 
+age11_Temp_meanSE <- Age11_raw_length %>% 
+                      dplyr::select(Temp,length_um) %>% 
+                      dplyr::group_by(Temp) %>% 
+                      dplyr::summarise_each(funs(mean,sd,se=sd(.)/sqrt(n())))
+age11_Temp_meanSE
+# High	160.0100	49.96401	3.192084	
+# Low	107.1093	18.74936	1.319201
+((160.0100-107.1093)/160.0100)*100 # 33.06087 % larger under high temperature
+
+# temp x salinity interaction term
+age11_TempSalinity_meanSE <- Age11_raw_length %>% 
+                      dplyr::mutate(Temp_Salinity = paste0(Temp, "_x_", Salinity)) %>% 
+                      dplyr::select(Temp_Salinity,length_um) %>% 
+                      dplyr::group_by(Temp_Salinity) %>% 
+                      dplyr::summarise_each(funs(mean,sd,se=sd(.)/sqrt(n())))
+age11_TempSalinity_meanSE
+# High_x_High	170.8969	48.90280	3.624917	
+# High_x_Low	128.5592	38.59962	4.863095	
+# Low_x_High	105.5895	18.76234	1.684908	
+# Low_x_Low	109.5253	18.59285	2.105226	
+((170.8969-105.5895)/170.8969)*100 # 38.2145 % smaller under Low_x_High relative to High_x_High
+((170.8969-128.5592)/170.8969)*100 # 24.77383 % smaller under High_x_Low relative to High_x_High
 ```
   
   
@@ -756,7 +930,7 @@ D15_adonis_HL_LL   <- adonis2(D15_HL_LL_dist  ~ Temp_Salinity, data=D15_HL_LL_me
 D15_adonis_LH_LL   <- adonis2(D15_LH_LL_dist  ~ Temp_Salinity, data=D15_LH_LL_metadata, perms = permutations) # nope
 
 # plot with letters - dotted line = low temperature, red = low salinity
-Age8_ShellLength_Boxplot <- ggplot(data=Age8_raw_length, 
+Age15_ShellLength_Boxplot <- ggplot(data=Age15_raw_length, 
                                    aes(x=fct_relevel(OA, c("Low", "High")), 
                                          y=length_um, 
                                          colour=fct_relevel(Salinity, c("Low", "High")), 
@@ -772,6 +946,47 @@ Age8_ShellLength_Boxplot <- ggplot(data=Age8_raw_length,
                                     legend.position="none")
 
 
+# explore the PERMANOVA responses - main effects of pCO2 and salinity followed by pCO2xtemperature interaction
+
+Age15_summary <- Age15_raw_length %>% dplyr::select(OA, Temp, Salinity,length_um) %>% 
+                      dplyr::group_by(OA, Temp, Salinity) %>% 
+                      dplyr::summarise_each(funs(mean,sd,se=sd(.)/sqrt(n()), n = n()))
+mean(Age15_summary$n) # mean = 47.14286
+sd(Age15_summary$n)# SD = 25.91929
+
+# salinity main effect 
+age15_Salinity_meanSE <- Age15_raw_length %>% 
+                      dplyr::select(Salinity,length_um) %>% 
+                      dplyr::group_by(Salinity) %>% 
+                      dplyr::summarise_each(funs(mean,sd,se=sd(.)/sqrt(n())))
+age15_Salinity_meanSE
+# High	221.8048	85.03881	5.69462	
+# Low	189.7829	70.65317	6.83030	
+((221.8048-189.7829)/221.8048)*100 # 14.43697 % larger under high salinity
+
+# temperature main effect 
+age15_Temp_meanSE <- Age15_raw_length %>% 
+                      dplyr::select(Temp,length_um) %>% 
+                      dplyr::group_by(Temp) %>% 
+                      dplyr::summarise_each(funs(mean,sd,se=sd(.)/sqrt(n())))
+age15_Temp_meanSE
+# High	255.0615	65.11517	4.400075	
+# Low	125.3223	20.10262	1.908056	
+((255.0615-125.3223)/255.0615)*100 # 50.86585 % larger under high temperature
+
+# temp x salinity interaction term
+age15_TempSalinity_meanSE <- Age15_raw_length %>% 
+                      dplyr::mutate(Temp_Salinity = paste0(Temp, "_x_", Salinity)) %>% 
+                      dplyr::select(Temp_Salinity,length_um) %>% 
+                      dplyr::group_by(Temp_Salinity) %>% 
+                      dplyr::summarise_each(funs(mean,sd,se=sd(.)/sqrt(n())))
+age15_TempSalinity_meanSE
+# High_x_High	270.1614	58.32591	4.762290	
+# High_x_Low	222.2357	67.39709	8.113656	
+# Low_x_High	122.4419	19.38224	2.268520	
+# Low_x_Low	130.8555	20.55663	3.334725	
+((270.1614-122.4419)/270.1614)*100 # 54.67824 % smaller under Low_x_High relative to High_x_High
+((270.1614-222.2357)/270.1614)*100 # 17.73965 % smaller under High_x_Low relative to High_x_High
 
 ```
   

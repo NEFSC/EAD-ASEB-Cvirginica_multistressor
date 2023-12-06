@@ -46,7 +46,7 @@ Resp_APRIL # view the data
 # View(Resp_APRIL)
 ```
 
-* run assumptions for three-way anova model
+* Runs stats (ultimately report PERMANOVA as ANOVA assumptions are not possible here)
 ```{r, 24 HPF run da mod}
 
 # Three way ANOVA 
@@ -54,22 +54,6 @@ LMmod.APRIL   <- aov(lm(resp_ng_L_indiv_hr~Temp*pCO2*Salinity,data=Resp_APRIL))
 shapiro.test(residuals(LMmod.APRIL)) # 0.009733 - non normal
 leveneTest(LMmod.APRIL) # 0.3256 - variance okay
 summary(LMmod.APRIL)
-
-# LOG transform
-LMmod.APRIL_T   <- aov(lm(log(resp_ng_L_indiv_hr)~pCO2*Temp*Salinity,data=Resp_APRIL))
-shapiro.test(residuals(LMmod.APRIL_T)) # 0.6472
-leveneTest(LMmod.APRIL_T) # 0.6339
-summary(LMmod.APRIL_T)
-# Df                    Sum Sq Mean Sq F value  Pr(>F)   
-# pCO2                1  0.303   0.303   0.378 0.54710   
-# Temp                1  4.622   4.622   5.769 0.02881 * 
-# Salinity            1  1.523   1.523   1.901 0.18693   
-# pCO2:Temp           1  8.930   8.930  11.145 0.00417 **
-# pCO2:Salinity       1  2.690   2.690   3.357 0.08560 . 
-# Temp:Salinity       1  1.591   1.591   1.986 0.17792   
-# pCO2:Temp:Salinity  1  0.251   0.251   0.314 0.58321   
-# Residuals          16 12.821   0.801  
-# post hoc tests 
 
 # PERMANOVA - Resp_APRIL mltvariate anova 
 RR_metadata           <- Resp_APRIL %>% dplyr::select(Temp,pCO2,Salinity,Chamber_tank) %>% dplyr::rename(sample.id = Chamber_tank) # all but the DV - only IVs
@@ -264,10 +248,7 @@ APRIL_TemppCO2
 
 ```
 
-setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Output/")
-pdf("Respiration/Day1_RR.pdf", width=8, height=12)
-ggarrange(APRIL_all,APRIL_TemppCO2, nrow=2)
-dev.off()
+
 
 ```{r, heatplot}
 library(tidyr)
@@ -376,6 +357,7 @@ summary(LMmod.MAY_T)
 # Residuals      9  8.521   0.947
 
 ```
+
 ```{r}
 # Figures
 Resp_MAY_select  <- Resp_MAY %>% 
