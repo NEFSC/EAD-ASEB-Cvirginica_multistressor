@@ -7,9 +7,6 @@ output:
   html_document: default
 ---
 
-
-
-
 # load libraries
 
 ```{r setup, include=FALSE}
@@ -33,7 +30,6 @@ library(tidyverse)
 knitr::opts_knit$set(root.dir = "C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis") 
 
 ```
-
 
 # Set Path & load data
 
@@ -232,7 +228,15 @@ Master_Lengths <- rbind(Age1_raw_length,
 
 write.csv(Master_Lengths, "Data/Length/cumulative_raw/Length_cumulative_raw.csv")# write
 
-?scale_linetype
+
+
+```
+
+# PLOTS
+
+## boxplots
+```{r, bxplots all data facetted by age}
+# ?scale_linetype
 # plot all 
 All_length_boxplot <- ggplot(data=(Master_Lengths %>% dplyr::filter(!Age %in% c(19, 22))), 
                              aes(x=fct_relevel(Salinity, c("Low", "High")), 
@@ -252,6 +256,53 @@ All_length_boxplot <- ggplot(data=(Master_Lengths %>% dplyr::filter(!Age %in% c(
                                    axis.text=element_text(size=12),
                                   legend.position="none") +
                              facet_wrap(~Age, scales = "free_y")
+
+pdf("Output/Length/plots/Length_all_boxplots.pdf", width=11, height=8)
+print(All_length_boxplot)
+dev.off()
+
+```
+
+
+## regresions (exploratory for aragonite correlation)
+```{r, regression with aragonite sat}
+# ?scale_linetype
+# plot all 
+
+Master_Lengths_Rep_means   <- Master_Lengths %>% 
+                                  dplyr::select(c(Age, Temp, OA, Salinity, Replicate, Aragonite_saturation, length_um)) %>% 
+                                  dplyr::group_by(Age, Temp, OA, Salinity, Aragonite_saturation, Replicate) %>% 
+                                  dplyr::summarise_each(funs(mean,sd,se=sd(.)/sqrt(n()))) 
+
+Master_Lengths_Treat_means <- Master_Lengths_Rep_means %>% 
+                                  dplyr::select(-c(Replicate)) %>% 
+                                  dplyr::group_by(Age, Temp, OA, Salinity, Aragonite_saturation) %>% 
+                                  dplyr::summarise_each(funs(mean,sd,se=sd(.)/sqrt(n()))) 
+
+
+
+All_length_regressions_arag <- ggplot(data=(Master_Lengths_Rep_means %>% 
+                                              dplyr::filter(!Age %in% c(19, 22)) %>% 
+                                              dplyr::mutate(AllTreat = paste0(OA,' x ',Salinity,' x ',Temp)) %>% 
+                                              dplyr::mutate(mean = as.numeric(mean))), 
+                                   aes(x=as.numeric(Aragonite_saturation), 
+                                       y=mean, 
+                                       linetype= fct_relevel(Temp, c("Low", "High")))) +
+                                   scale_linetype_manual(breaks=c("Low", "High"), values=c("dashed","solid")) +
+                                   geom_point() + 
+                                   geom_smooth(method = "loess", fill = NA, color = 'grey') +
+                                   stat_summary(fun.y="mean", size = 0.5) +
+                                   stat_summary(fun.min = function(x) mean(x) - sd(x)/sqrt(length(x)), 
+                                                fun.max = function(x) mean(x) + sd(x)/sqrt(length(x)),
+                                                geom = 'errorbar')+ # position = position_dodge2(width = 1)
+                                   labs(title="Length data", x ="Aragonite Saturation State", y = "Larvae size (μm)") +
+                                   theme_classic() +
+                                   theme(panel.grid.major = element_blank(), 
+                                         panel.grid.minor = element_blank(), 
+                                         axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
+                                         axis.text=element_text(size=12),
+                                        legend.position="none") +
+                                   facet_wrap(~Age, scales = "free_y")
 
 pdf("Output/Length/plots/Length_all_boxplots.pdf", width=11, height=8)
 print(All_length_boxplot)
@@ -659,7 +710,6 @@ age4_OATemp_meanSE
 ((88.33520-78.16158)/88.33520)*100 # 11.51706 % smaller under High_x_Low relative to Low_x_High
 ```
 
-  
 * day 8 
 ```{r, cases day 8 adonis2}
 # CASES TO FOLLOW INTERACTION TERMS
@@ -879,8 +929,7 @@ age11_TempSalinity_meanSE
 ((170.8969-128.5592)/170.8969)*100 # 24.77383 % smaller under High_x_Low relative to High_x_High
 ```
   
-  
-  * day 15 
+* day 15 
 ```{r, cases day 15 adonis2}
 # CASES TO FOLLOW INTERACTION TERMS
 D15_adonis_run # we see main effects of OA, Temp and interaction OA:Temp
@@ -1007,26 +1056,31 @@ Length_means <- Master_Lengths %>%
 
 
 GR_means <- as.data.frame(Length_means %>% 
-  filter(Age %in% c(1,15)) %>% 
+  filter(Age %in% c(1,4,15)) %>% 
   dplyr::select(c(Age, OA, Salinity, Temp, mean_length)) %>% 
   dplyr::group_by(OA, Salinity, Temp)  %>% 
   tidyr::spread(Age, mean_length) %>%  # new columns titled 1 and 15 for he Age and with values for the 
   # length data grouped by treatment 
   dplyr::mutate(Growth_rate_umday = (`15` - `1`) / 14) %>% 
-  dplyr::select(!c(`1`,`15`))) # note 1 missing value for OA High Temp Low Salinity Low
+  dplyr::mutate(Growth_rate_umday_d4_d15 = (`15`- `4`) / 9) %>% 
+  dplyr::select(!c(`1`,`4`,`15`))) # note 1 missing value for OA High Temp Low Salinity Low
 
+# once value has no length values on day 15 - calculate for day 11 endpoint
 getNA <- as.data.frame(Length_means %>% 
-  filter(Age %in% c(1,11)) %>% 
+  filter(Age %in% c(1,4,11)) %>% 
   dplyr::select(c(Age, OA, Salinity, Temp, mean_length)) %>% 
   dplyr::group_by(OA, Salinity, Temp)  %>% 
   tidyr::spread(Age, mean_length) %>%  # new columns titled 1 and 15 for he Age and with values for the 
   # length data grouped by treatment 
   dplyr::mutate(Growth_rate_umday = (`11` - `1`) / 13) %>% 
-  dplyr::select(!c(`1`,`11`))) # 2.612424 for OA High Temp Low Salinity Low, insert into the other table
+  dplyr::mutate(Growth_rate_umday_d4_d15 = (`11` - `4`) / 7) %>% 
+  dplyr::select(!c(`1`,`4`,`11`))) # 2.612424 for OA High Temp Low Salinity Low, insert into the other table
 
 GR_means[4,4] = 2.612424
+GR_means[4,5] = 4.030921
 
-GR_means$Growth_rate_umday <- as.numeric(GR_means$Growth_rate_umday)
+GR_means$Growth_rate_umday        <- as.numeric(GR_means$Growth_rate_umday)
+GR_means$Growth_rate_umday_d4_d15 <- as.numeric(GR_means$Growth_rate_umday_d4_d15) # with the exception of one value with d 11 enpoint!
 
 Length_means_MASTER <- merge(Length_means, GR_means, by=c('OA', 'Salinity', 'Temp'))
 
@@ -1080,6 +1134,52 @@ pdf("Output/Length/plots/Length_day1_day15.pdf", width=11, height=5)
 print(Heatplot_larvae)
 dev.off()
 
+
+
+
+Heatplot_larvae_4_to_15 <- Length_means_MASTER_larvae %>% 
+                      dplyr::filter(!Age %in% 1) %>% 
+                      dplyr::mutate(OA_Sal = 
+                                      paste(substr(OA,1,1),
+                                      substr(Salinity,1,1),
+                                      sep = '')) %>% 
+                       ggplot(aes(x = Age,
+                                  y = mean_length)) + 
+                       geom_rect(aes(fill = Growth_rate_umday_d4_d15), 
+                                   xmin = -Inf, 
+                                   xmax = Inf, 
+                                   ymin = -Inf, 
+                                   ymax = Inf, 
+                                   alpha = 0.3) +
+                      geom_point(color = 'black') +
+                      geom_line(aes(x = Age,
+                                    y = mean_length)) +
+                       geom_errorbar(aes(ymin = mean_length - se_length, 
+                                         ymax = mean_length + se_length), 
+                                        width = 0.5, 
+                                        position= "dodge2") +
+                      geom_smooth(method = "lm", 
+                                  se = FALSE, 
+                                  size = 1, 
+                                  color = 'white') +
+                      theme_bw() +  
+                      theme(panel.grid.major = element_blank(),
+                            panel.grid.minor = element_blank()) +
+                      facet_grid(vars(Temp), 
+                                 vars(fct_relevel(OA_Sal, c("HL", "LL", "HH", "LH")))) +
+                      geom_text(size = 2, 
+                                   aes(x = 12, 
+                                       y = 0.8, 
+                                       label = paste0(round(Growth_rate_umday_d4_d15,2),"um day-1"))) +
+                      scale_fill_gradient(low = "orange", 
+                                           high = "forestgreen", 
+                                           aesthetics = "fill")
+
+       
+setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis")
+pdf("Output/Length/plots/Length_day4_day15.pdf", width=11, height=5)
+print(Heatplot_larvae_4_to_15)
+dev.off()
 
 ```
 

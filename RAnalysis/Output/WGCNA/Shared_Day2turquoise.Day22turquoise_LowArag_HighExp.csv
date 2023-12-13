@@ -1,98 +1,24 @@
-Cvirginica_TranscriptID,Protein_name,
-XM_022485580.1, 14-3-3 protein epsilon-like,Adapter protein implicated in the regulation of a large spectrum of both general and specialized signaling pathways
-XM_022489180.1, 14-3-3 protein epsilon-like,
-XM_022487313.1, 14-3-3 protein homolog 2-like,
-XM_022487533.1, 14-3-3 protein homolog 2-like,
-XM_022439490.1, 26S proteasome non-ATPase regulatory subunit 13-like,
-XM_022486559.1, 26S proteasome non-ATPase regulatory subunit 4-like,
-XM_022486347.1, 26S proteasome non-ATPase regulatory subunit 7-like,
-XM_022458694.1," 28S ribosomal protein S24, mitochondrial-like",
-XM_022488315.1," 33 kDa inner dynein arm light chain, axonemal-like",
-XM_022465374.1," 39S ribosomal protein L30, mitochondrial-like",
-XM_022485345.1," alanine--glyoxylate aminotransferase 2, mitochondrial-like",Catalyzes the pyridoxal 5'-phosphate-dependent transamination of alanine with glyoxylate as an amino group acceptor
-XM_022441907.1, alpha-crystallin A chain-like,Contributes to the transparency and refractive index of the lens (By similarity).
-XM_022479553.1, basic salivary proline-rich protein 2-like,
-XM_022459652.1, BUB3-interacting and GLEBS motif-containing protein ZNF207-like,spindle assembly
-XM_022464315.1, calcyclin-binding protein-like,
-XM_022475835.1, calmodulin-like,
-XM_022475836.1, calmodulin-like,
-XM_022486438.1, chromobox protein homolog 1-like,promotes transcriptional repression of select genes 
-XM_022487841.1, COP9 signalosome complex subunit 7b-like,"he CSN complex is an essential regulator of the ubiquitin (Ubl) conjugation pathway by mediating the deneddylation of the cullin subunits of SCF-type E3 ligase complexes, l"
-XM_022470439.1, delta-aminolevulinic acid dehydratase-like,Catalyzes an early step in the biosynthesis of tetrapyrroles. 
-XM_022488325.1, density-regulated protein homolog,Regulates translation as part of a complex with MCTS1. Specifically required for translational re-initiation in mRNAs containing upstream open reading frames (
-XM_022444641.1, DNA excision repair protein ERCC-1-like,"Responsible, in conjunction with SLX4, for the first step in the repair of interstrand cross-links (ICL). Participates in the processing of anaphase bridge-generating DNA structures"
-XM_022487888.1, dolichyl-diphosphooligosaccharide--protein glycosyltransferase 48 kDa subunit-like,complex that catalyzes the initial transfer of a defined glycan (Glc3Man9GlcNAc2 in eukaryotes) from the lipid carrier dolichol-pyrophosphate to an asparagine residue within an Asn-X-Ser/Thr 
-XM_022489447.1, dynein light chain roadblock-type 2,ought to be involved in linking dynein to cargos and to adapter proteins that regulate dynein function
-XM_022440051.1, elongation factor Tu-like,GTP-dependent binding of aminoacyl-tRNA to the A-site of ribosomes during protein biosynthesis. 
-XM_022487094.1, endoplasmic reticulum resident protein 29-like,lays an important role in the processing of secretory proteins within the endoplasmic reticulum (
-XM_022478975.1, enolase-phosphatase E1-like,
-XM_022457516.1, eukaryotic translation initiation factor 3 subunit E-like,Functions in the early steps of protein synthesis of a small number of specific mRNAs. A
-XM_022467571.1, eukaryotic translation initiation factor 3 subunit G-like,
-XM_022462108.1, eukaryotic translation initiation factor 3 subunit L-like,
-XM_022462109.1, eukaryotic translation initiation factor 3 subunit L-like,
-XM_022432669.1, eukaryotic translation initiation factor 4E type 2-like,
-XM_022469465.1, fibronectin type III domain-containing protein 2-like,
-XM_022463464.1, group XIIA secretory phospholipase A2-like,PA2 catalyzes the calcium-dependent hydrolysis of the 2-acyl groups
-XM_022430438.1," grpE protein homolog 1, mitochondrial-like","Essential component of the PAM complex, a complex required for the translocation of transit peptide-containing proteins from the inner membrane into the mitochondrial matrix in an ATP-dependent manner."
-XM_022460702.1, H/ACA ribonucleoprotein complex subunit 1-like,
-XM_022478802.1, helix-loop-helix protein delilah-like,
-XM_022490012.1," heterogeneous nuclear ribonucleoprotein A1, A2/B1 homolog",
-XM_022445895.1, high mobility group protein B3-like,Multifunctional protein with various roles in different cellular compartments. May act in a redox sensitive manner. Associates with chromatin and binds DNA with a preference for non-canonical DNA structures such as single-stranded DNA. C
-XM_022445925.1, high mobility group protein B3-like,
-XM_022457515.1, histone H2A.V,
-XM_022459637.1, histone H2A.V,
-XM_022468647.1, innexin unc-9-like,Plays a role in maintaining gap junction activity to promote locomotio
-XM_022472960.1, insulinoma-associated protein 1a-like,May act as a transcriptional regulator. 
-XM_022486772.1, intraflagellar transport protein 20 homolog,Part of intraflagellar transport (IFT) particles involved in ciliary process assembly. May play a role in the trafficking of ciliary membrane proteins from the Golgi complex to the cilium. 
-XM_022467495.1, jupiter microtubule associated homolog 1-like,Modulates negatively AKT-mediated GSK3B signaling
-XM_022463657.1, minor histocompatibility antigen H13-like,atalyzes intramembrane proteolysis of some signal peptides after they have been cleaved from a preprotein
-XM_022433301.1, myophilin-like,
-XM_022468693.1, neutral and basic amino acid transport protein rBAT-like,
-XM_022478150.1, neutral and basic amino acid transport protein rBAT-like,
-XM_022457253.1, NHP2-like protein 1,
-XM_022486641.1, nucleoside diphosphate kinase 7-like,
-XM_022461524.1, prefoldin subunit 1-like,promotes folding
-XM_022437259.1, prefoldin subunit 3-like,
-XM_022470492.1, prefoldin subunit 6-like,
-XM_022472141.1, probable syndecan,Cell surface proteoglycan that bears heparan sulfate (By 
-XM_022473237.1, proteasome subunit alpha type-6-like,Component of the 20S core proteasome complex involved in the proteolytic degradation of most intracellular proteins. 
-XM_022460056.1, protein BUD31 homolog,Involved in the pre-mRNA splicing process 
-XM_022480165.1, protein DDI1 homolog 2-like,"Required, with DDI2, for cellular survival following replication stress. Together or redudantly with DDI2, removes RTF2 from stalled forks to allow cell cycle progression after replication stress and maintains genome integrity"
-XM_022460751.1, protein FAM183B-like,
-XM_022478430.1, protein lin-52 homolog,
-XM_022479226.1, protein spalten-like,Involved in cell-type differentiation and morphogenesis.
-XM_022490402.1, ribosome maturation protein SBDS-like,Required for the assembly of mature ribosomes and ribosome biogenesis.
-XM_022481809.1, RNA polymerase II subunit A C-terminal domain phosphatase SSU72-like,
-XM_022463181.1, RNA-binding protein 12B-like,
-XM_022440260.1, ruvB-like 1,activity suggesting a role in nuclear processes such as recombination and transcription (By similarity).
-XM_022463662.1, serine/arginine-rich splicing factor 2-like,May participate in several chromatin remodeling complexes that mediate the ATP-dependent exchange of histones and remodel chromatin by shifting nucleosomes (
-XM_022485330.1, signal peptidase complex subunit 1-like,Component of the signal peptidase complex (SPC) which catalyzes the cleavage of N-terminal signal sequences from nascent proteins as they are translocated into the lumen of the endoplasmic reticulum
-XM_022444348.1, small nuclear ribonucleoprotein F,"Plays a role in pre-mRNA splicing as a core component of the spliceosomal U1, "
-XM_022477666.1, sodium-dependent phosphate transport protein 2B-like,nvolved in actively transporting phosphate into cells via Na+ cotransport.
-XM_022469418.1, spliceosome RNA helicase DDX39B,volved in nuclear export of spliced and unspliced mRNA. 
-XM_022458053.1, splicing factor U2AF 50 kDa subunit-like,Plays a role in pre-mRNA splicing and 3'-end processing
-XM_022472320.1, T-complex protein 1 subunit alpha-like,"Component of the chaperonin-containing T-complex (TRiC), a molecular chaperone complex that assists the folding of proteins upon ATP hydrolysis "
-XM_022430858.1, T-complex protein 1 subunit beta-like,
-XM_022478553.1, T-complex protein 1 subunit delta-like,
-XM_022479411.1, T-complex protein 1 subunit gamma-like,
-XM_022438739.1, T-complex protein 1 subunit theta-like,
-XM_022487501.1, T-complex protein 1 subunit zeta-like,
-XM_022484822.1, tektin-1-like, Forms filamentous polymers in the walls of ciliary and flagellar microtubules
-XM_022440769.1, thioredoxin domain-containing protein 9-like,"Significantly diminishes the chaperonin TCP1 complex ATPase activity, thus negatively impacts protein folding, including that of actin or tubulin"
-XM_022461911.1, uncharacterized methyltransferase-like C25B8.10-like,
-XM_022438604.1, transcription initiation factor TFIID subunit 13-like,he TFIID basal transcription factor complex plays a major role in the initiation of RNA polymerase II (Pol II)-dependent transcription
-XM_022457528.1, U2 small nuclear ribonucleoprotein A'-like,Involved in pre-mRNA splicing as component of the spliceosome
-XM_022470082.1, U3 small nucleolar RNA-associated protein 18 homolog,nvolved in nucleolar processing of pre-18S ribosomal RNA and ribosome assembly
-XM_022470654.1, U3 small nucleolar RNA-associated protein 18 homolog,
-XM_022430449.1, uncharacterized,
-XM_022432481.1, uncharacterized,
-XM_022435436.1, uncharacterized,
-XM_022438323.1, uncharacterized,
-XM_022454826.1, uncharacterized,
-XM_022461625.1, uncharacterized,
-XM_022477680.1, uncharacterized,
-XM_022481278.1, uncharacterized,
-XM_022485833.1, uncharacterized,
-XM_022487891.1, uncharacterized,
-XM_022437412.1, uncharacterized methyltransferase-like C25B8.10,
-XM_022442631.1, universal stress protein PHOS32-like,
+"","Cvirginica_TranscriptID","Protein_name"
+"1","XM_022430595.1"," transcription factor HES-4-like"
+"2","XM_022431186.1"," threonine-rich protein-like"
+"3","XM_022436740.1"," uncharacterized"
+"4","XM_022441849.1"," mitochondrial inner membrane protease subunit 2-like"
+"5","XM_022443918.1"," 26S proteasome non-ATPase regulatory subunit 14"
+"6","XM_022447835.1"," calmodulin-2-like"
+"7","XM_022455910.1"," 3-hydroxyisobutyryl-CoA hydrolase, mitochondrial-like"
+"8","XM_022457546.1"," low-density lipoprotein receptor-like"
+"9","XM_022459059.1"," uncharacterized"
+"10","XM_022459439.1"," 40S ribosomal protein S24-like"
+"11","XM_022461241.1"," uncharacterized"
+"12","XM_022461445.1"," uncharacterized"
+"13","XM_022462347.1"," uncharacterized"
+"14","XM_022466507.1"," temptin-like"
+"15","XM_022469531.1"," hypoxia up-regulated protein 1-like"
+"16","XM_022470031.1"," carnosine synthase 1-like"
+"17","XM_022470765.1"," uncharacterized"
+"18","XM_022476947.1"," Golgi phosphoprotein 3 homolog sauron-like"
+"19","XM_022480617.1"," mid1-interacting protein 1A-like"
+"20","XM_022484348.1"," probable tRNA N6-adenosine threonylcarbamoyltransferase"
+"21","XM_022484965.1"," serine/threonine-protein kinase NLK-like"
+"22","XM_022488553.1"," uncharacterized"
+"23","XM_022489746.1"," TSC22 domain family protein 1-like"

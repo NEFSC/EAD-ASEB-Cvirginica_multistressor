@@ -68,21 +68,69 @@ RR_meta_distance          <- inner_join(RR_metadata,RR_distance, by = "sample.id
 RR_dist                   <- RR_meta_distance  %>% dplyr::select(all_of(RR_meta_distance$sample.id)) %>% as.dist() 
 adonis_run                <- adonis2(RR_dist  ~ pCO2*Temp*Salinity, data=RR_meta_distance, perms = 1000) 
 adonis_run
+#                    Df SumOfSqs      R2      F Pr(>F)  
+# pCO2                1    0.473 0.00890 0.2310  0.683  
+# Temp                1    4.663 0.08773 2.2771  0.140  
+# Salinity            1    4.786 0.09005 2.3371  0.125  
+# pCO2:Temp           1    8.265 0.15549 4.0357  0.049 *
+# pCO2:Salinity       1    0.442 0.00832 0.2159  0.658  
+# Temp:Salinity       1    0.671 0.01261 0.3274  0.610  
+# pCO2:Temp:Salinity  1    1.086 0.02044 0.5305  0.497  
+# Residual           16   32.768 0.61646                
+# Total              23   53.156 1.00000
 
-# use emmeans to get the letters for the tukey posthoc test
-posthoc<-emmeans(LMmod.APRIL_T, pairwise~Temp:pCO2, adjust="tukey")
-multcomp::cld(posthoc$emmeans,alpha = 0.5, Letters = letters)
-# Temp pCO2 emmean    SE df lower.CL upper.CL .group
-# H    L    -1.819 0.365 16   -2.593  -1.0439  a    
-# L    H    -0.716 0.365 16   -1.491   0.0586   b   
-# H    H    -0.374 0.365 16   -1.149   0.4009   bc  
-# L    L     0.279 0.365 16   -0.496   1.0538    c  
+# POSTHOC PERMANOVA proptocol - run the four treatment combinations 
+# CRE AN OA_SALINITY COLUMNATE
+RR_meta_distance  <- RR_meta_distance %>% dplyr::mutate(pCO2_Temp = paste0(pCO2,' x ',Temp))
+# TRUNCATE THE DATA FOR EACH PAIR BASED ON OA AND SALINITY, WITH UNIQUE TITLE
+# Note: two two-factor variables == 6 possible pairs 
+# METADATA (IV)
+RR_HH_LL_metadata <- RR_meta_distance %>% dplyr::filter(pCO2_Temp %in% c('H x H', 'L x L'))
+RR_HH_LH_metadata <- RR_meta_distance %>% dplyr::filter(pCO2_Temp %in% c('H x H', 'L x H'))
+RR_HH_HL_metadata <- RR_meta_distance %>% dplyr::filter(pCO2_Temp %in% c('H x H', 'H x L'))
+RR_HL_LH_metadata <- RR_meta_distance %>% dplyr::filter(pCO2_Temp %in% c('H x L', 'L x H'))
+RR_HL_LL_metadata <- RR_meta_distance %>% dplyr::filter(pCO2_Temp %in% c('H x L', 'L x L'))
+RR_LH_LL_metadata <- RR_meta_distance %>% dplyr::filter(pCO2_Temp %in% c('L x H', 'L x L'))
+# DISTANCE (DV)
+RR_HH_LL_dist     <- RR_meta_distance %>% 
+  dplyr::filter(sample.id %in% RR_HH_LL_metadata$sample.id) %>% 
+  dplyr::select(RR_HH_LL_metadata$sample.id) %>% 
+  as.dist() 
+RR_HH_LH_dist     <- RR_meta_distance %>% 
+  dplyr::filter(sample.id %in% RR_HH_LH_metadata$sample.id) %>% 
+  dplyr::select(RR_HH_LH_metadata$sample.id) %>% 
+  as.dist() 
+RR_HH_HL_dist     <- RR_meta_distance %>% 
+  dplyr::filter(sample.id %in% RR_HH_HL_metadata$sample.id) %>% 
+  dplyr::select(RR_HH_HL_metadata$sample.id) %>% 
+  as.dist() 
+RR_HL_LH_dist     <- RR_meta_distance %>% 
+  dplyr::filter(sample.id %in% RR_HL_LH_metadata$sample.id) %>% 
+  dplyr::select(RR_HL_LH_metadata$sample.id) %>% 
+  as.dist() 
+RR_HL_LL_dist     <- RR_meta_distance %>% 
+  dplyr::filter(sample.id %in% RR_HL_LL_metadata$sample.id) %>% 
+  dplyr::select(RR_HL_LL_metadata$sample.id) %>% 
+  as.dist() 
+RR_LH_LL_dist     <- RR_meta_distance %>% 
+  dplyr::filter(sample.id %in% RR_LH_LL_metadata$sample.id) %>% 
+  dplyr::select(RR_LH_LL_metadata$sample.id) %>% 
+  as.dist()
+
+# RUN ADONIS FOR EACH PAIR
+RR_adonis_HH_LL   <- adonis2(RR_HH_LL_dist  ~ pCO2_Temp, data=RR_HH_LL_metadata, perms = permutations) # nope
+RR_adonis_HH_LH   <- adonis2(RR_HH_LH_dist  ~ pCO2_Temp, data=RR_HH_LH_metadata, perms = permutations) # yup
+RR_adonis_HH_HL   <- adonis2(RR_HH_HL_dist  ~ pCO2_Temp, data=RR_HH_HL_metadata, perms = permutations) # nope
+RR_adonis_HL_LH   <- adonis2(RR_HL_LH_dist  ~ pCO2_Temp, data=RR_HL_LH_metadata, perms = permutations) # yup
+RR_adonis_HL_LL   <- adonis2(RR_HL_LL_dist  ~ pCO2_Temp, data=RR_HL_LL_metadata, perms = permutations) # nope
+RR_adonis_LH_LL   <- adonis2(RR_LH_LL_dist  ~ pCO2_Temp, data=RR_LH_LL_metadata, perms = permutations) # yup
 
 # Summary table to report mean se data and percent differences
 # main effect of temperature 
 Resp_APRIL %>% 
   group_by(Temp) %>% 
   summarise_each(funs(mean, sd, se=sd(.)/sqrt(n())),resp_ng_L_indiv_hr)
+
 
 # Temp  mean  sd        se
 # H	0.6335014	1.076005	0.3106158	
@@ -102,8 +150,42 @@ Resp_APRIL %>%
 # LH	      0.7878666	0.95776865	0.39100741	
 # LL	      2.2423705	2.22815140	0.90963900
 
-((2.2423705-0.7878666)/2.2423705)*100 # 64.86457
 ((2.2423705-0.1870767)/2.2423705)*100 # 91.65719
+((0.7878666-0.1870767)/0.7878666)*100 # 76.25528
+
+
+Age1_RR_MeanSE <- ggplot(data=Resp_APRIL, 
+                             aes(x=fct_relevel(Salinity, c("L", "H")), 
+                                 y=resp_ng_L_indiv_hr, 
+                                 colour=fct_relevel(pCO2, c("H", "L")), 
+                                 linetype= fct_relevel(Temp, c("L", "H")))) +
+                             scale_linetype_manual(breaks=c("L", "H"), values=c("dashed","solid")) +
+                             scale_colour_manual(breaks=c("L", "H"), values=c("#56B4E9","#E69F00")) +
+                             geom_point(aes(colour = fct_relevel(pCO2, c("H", "L"))), 
+                                        position = position_dodge2(width = 0.75)) + 
+                             stat_summary(fun.y="mean", size = 0.8,
+                                          position = position_dodge2(width = 1)) +
+                             stat_summary(fun.min = function(x) mean(x) - sd(x)/sqrt(length(x)), 
+                                          fun.max = function(x) mean(x) + sd(x)/sqrt(length(x)),
+                                          geom = 'errorbar', 
+                                          position = position_dodge2(width = 1)) +
+                              labs(title="Age = 24 hours", x ="Salinity", y = "Larvae RR (ng L-1 indiv-1 hr-1)") +
+                              theme_classic() +
+                              theme(panel.grid.major = element_blank(), 
+                                    panel.grid.minor = element_blank(), 
+                                    axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
+                                    axis.text=element_text(size=12),
+                                    legend.position="none")
+
+Age1_RR_MeanSE
+
+# save the plot 
+setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis")
+pdf("Output/Respiration/Day1_MeanSE.pdf", width=8, height=6)
+print(Age1_RR_Boxplot)
+dev.off()
+
+
 
 ```
 
