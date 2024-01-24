@@ -440,7 +440,8 @@ sd(cor_d18_HighSal$MM.blue)   # 0.1143647
 ModMem_D2         <- read.csv(file="Output/WGCNA/day2_larvae/d2.WGCNA_ModulMembership.csv", header=T) %>%  na.omit()
 
 # data frames and loop sets for the for statement below;
-D2_modCols        <- as.data.frame(unique(ModMem_D2$moduleColor)) %>% dplyr::filter(.[[1]] %in% c('black', 'blue', 'brown', 'pink', 'red', 'turquoise')) # yellow and green were NOT significant
+D2_modCols        <- as.data.frame(unique(ModMem_D2$moduleColor)) %>% 
+                        dplyr::filter(.[[1]] %in% c('black', 'blue', 'brown', 'pink', 'red', 'turquoise')) # yellow and green were NOT significant
 D2_modCols_cutoff <- data.frame()
 
 for (i in 1:nrow(D2_modCols)) {
@@ -450,12 +451,12 @@ for (i in 1:nrow(D2_modCols)) {
   
   # all modules per mod color (with significant eigengene-treatment interaction) - no Module Membership threshold
   ModMem         <- ModMem_D2 %>% 
-    dplyr::select(c('TranscriptID', 'GO.terms', 'Protein_name', 'KEGG_ID', moduleColor, loopModCol_p, loopModCol_cor)) %>% 
+    dplyr::select(c('geneSymbol','TranscriptID', 'GO.terms', 'Protein_name', 'KEGG_ID', moduleColor, loopModCol_p, loopModCol_cor)) %>% 
     dplyr::filter(moduleColor %in% loopModCol)
   # all modules per mod color (with significant eigengene-treatment interaction) - Module Membership p < 0.05 based on DEG overalap (view R script)
   ModMem_0.05    <- ModMem %>% 
-    dplyr::filter(.[[6]] < 0.05 & .[[7]] > 0.6) %>% 
-    dplyr::rename(MM.p = 6, MM.cor = 7) %>% 
+    dplyr::filter(.[[7]] < 0.05 & .[[8]] > 0.6) %>% 
+    dplyr::rename(MM.p = 7, MM.cor = 8) %>% 
     dplyr::arrange(desc(MM.cor))
 
   df                <- data.frame(ModMem_0.05) # name dataframe for this single row
@@ -485,12 +486,12 @@ for (i in 1:nrow(D18_modCols)) {
   
   # all modules per mod color (with significant eigengene-treatment interaction) - no Module Membership threshold
   ModMem         <- ModMem_D18 %>% 
-    dplyr::select(c('TranscriptID', 'GO.terms', 'Protein_name', 'KEGG_ID', moduleColor, loopModCol_p, loopModCol_cor)) %>% 
+    dplyr::select(c('geneSymbol','TranscriptID', 'GO.terms', 'Protein_name', 'KEGG_ID', moduleColor, loopModCol_p, loopModCol_cor)) %>% 
     dplyr::filter(moduleColor %in% loopModCol)
   # all modules per mod color (with significant eigengene-treatment interaction) - Module Membership p < 0.05 based on DEG overalap (view R script)
   ModMem_0.05    <- ModMem %>% 
-    dplyr::filter(.[[6]] < 0.05 & .[[7]] > 0.6) %>% 
-    dplyr::rename(MM.p = 6, MM.cor = 7) %>% 
+    dplyr::filter(.[[7]] < 0.05 & .[[8]] > 0.6) %>% 
+    dplyr::rename(MM.p = 7, MM.cor = 8) %>% 
     dplyr::arrange(desc(MM.cor))
   
   df                <- data.frame(ModMem_0.05) # name dataframe for this single row

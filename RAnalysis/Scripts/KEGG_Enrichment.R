@@ -5,7 +5,7 @@
 ---
   
 # INFORMATION FOR KEGG IN R FOUND HERE: (http://yulab-smu.top/clusterProfiler-book/chapter6.html#kegg-over-representation-test)
-install.packages("fBasics")
+
 # LOAD PACKAGES
 library(reactome.db)
 library(clusterProfiler)
@@ -22,15 +22,19 @@ library(fBasics)
 library(dplyr)
 library(KEGGREST)
 library(ggplot2)
+
+
 # SET WORKING DIRECTORY   ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::;: #
 setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis")
 
 # LOAD DATA :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::;: #
 
 # WGCNA results (all treatments)
-d2_WGCNA.data                <- read.csv("Output/WGCNA/day2_larvae/d2.WGCNA_ModulMembership.csv")
+d2_WGCNA.data                <- read.csv("Output/WGCNA/day2_larvae/d2.WGCNA_ModulMembership_RRcutoff.csv")
 d2_WGCNA.data_hightemp       <- read.csv("Output/WGCNA/day2_larvae_hightemp/d2.WGCNA_ModulMembership.csv")
 d18_WGCNA.data               <- read.csv("Output/WGCNA/day18_spat/d18.WGCNA_ModulMembership.csv")
+d18_WGCNA.data               <- read.csv("Output/WGCNA/day18_spat/d18.WGCNA_ModulMembership_RRcutoff.csv")
+
 
 Ref_Master                   <- read.csv(file = "Data/TagSeq/Seq_details/Seq_Reference_Master.csv",header = T) %>% 
                                         dplyr::rename('TranscriptID' = 'Cvirginica_TranscriptID')
@@ -79,98 +83,111 @@ Day2_WGCNA_sigmodules <- as.data.frame(c('pink',
                                          'red', 
                                          'yellow'))
 # prep loop for cumulative output table 
-df_total             <- data.frame() # start dataframe 
-KEGG.Day2           <- data.frame(matrix(nrow = 1, ncol = 8)) # create dataframe to save cumunalitively during for loop
-colnames(KEGG.Day2) <- c('Day', 'modColor', 'KEGGID_pathway', 'pathway.name' , 'Num.genes', 'Gene.IDs', 'p.value', 'log10_pvalue') # names for comuns in the for loop
+df_total            <- data.frame() # start dataframe 
+KEGG.Day2           <- data.frame(matrix(nrow = 1, ncol = 9)) # create dataframe to save cumunalitively during for loop
+colnames(KEGG.Day2) <- c('Day', 'modColor', 'KEGGID_pathway', 'pathway.name' , 
+                         'Num.genes.all', 'Num.genes.exp', 'Gene.IDs', 'p.value', 'log10_pvalue') # names for comuns in the for loop
+
+pathtable <- as.data.frame(pathways.list) %>% 
+                dplyr::mutate(pathname = sapply(strsplit(pathways.list, " - Crassostrea"), "[",1)) %>% 
+                tibble::rownames_to_column("crg_code")
 
 for (i in 1:nrow(Day2_WGCNA_sigmodules)) {
-    modColor <- Day2_WGCNA_sigmodules[i,1]
-    loopmodColor_cor <- paste("MM.", modColor, sep = '')
-    loopmodColor_p   <- paste("p.MM.", modColor, sep = '')
-    ModuleLoop                     <- as.data.frame(d2_WGCNA.data %>% dplyr::filter(moduleColor %in% modColor)  %>% 
-                                                      dplyr::select(c('TranscriptID', 'KEGG_ID', 'geneSymbol', moduleColor, loopmodColor_p, loopmodColor_cor)) %>% 
-                                                      dplyr::filter(.[[5]] < 0.05 & .[[6]] > 0.6) %>% # filter based on thresholds set in the WGCNA + DESeq2 overlap w/PCA 
-                                                      dplyr::select(c('TranscriptID', 'KEGG_ID',5)) %>% 
-                                                      na.omit() %>% 
-                                                      dplyr::mutate(KEGG_ID = gsub(".*:","",KEGG_ID)) %>% 
-                                                      unnest(KEGG_ID))
+    modColor   <- Day2_WGCNA_sigmodules[i,1]
+    ModuleLoop <- as.data.frame(d2_WGCNA.data %>% 
+                                  dplyr::filter(moduleColor %in% modColor)  %>% 
+                                  dplyr::select(c('TranscriptID', 'KEGG_ID', 'geneSymbol', 'MM.p', 'MM.cor')) %>% 
+                                  dplyr::filter(.[[4]] < 0.05 & .[[5]] > 0.6) %>% # filter based on thresholds set in the WGCNA + DESeq2 overlap w/PCA 
+                                  dplyr::select(c('TranscriptID', 'KEGG_ID', 'MM.p')) %>% 
+                                  na.omit() %>% 
+                                  dplyr::mutate(KEGG_ID = gsub(".*:","",KEGG_ID)) %>% 
+                                  unnest(KEGG_ID))
     geneList <- ModuleLoop[,3]
     names(geneList) <- ModuleLoop$KEGG_ID
     # Wilcoxon test for each pathway
+    # length(genes.by.pathway$crg04814)
     pVals.by.pathway <- t(sapply(names(genes.by.pathway),
                                  function(pathway) {
-                                   pathway.genes <- genes.by.pathway[[pathway]]
+                                   pathway.genes         <- genes.by.pathway[[pathway]]
                                    list.genes.in.pathway <- intersect(names(geneList), pathway.genes)
                                    list.genes.not.in.pathway <- setdiff(names(geneList), list.genes.in.pathway)
                                    scores.in.pathway <- geneList[list.genes.in.pathway]
                                    scores.not.in.pathway <- geneList[list.genes.not.in.pathway]
                                    if (length(scores.in.pathway) > 0){
-                                     p.value <- wilcox.test(scores.in.pathway, scores.not.in.pathway, alternative = "less")$p.value
+                                     p.value <- wilcox.test(scores.in.pathway, 
+                                                            (length(pathway.genes) - scores.in.pathway),
+                                                            #scores.not.in.pathway,
+                                                            alternative = "less")$p.value
                                    } else{
                                      p.value <- NA
                                    }
-                                   return(c(p.value = p.value, Annotated = length(list.genes.in.pathway), GeneIDs = list(list.genes.in.pathway) ))
+                                   return(c(p.value = p.value, Num_total_in_pathway = length(pathway.genes), Annotated = length(list.genes.in.pathway), GeneIDs = list(list.genes.in.pathway) ))
                                  }
     ))
+    
     # Assemble output table
     outdat <- data.frame(pathway.code = rownames(pVals.by.pathway)) %>% 
-      dplyr::mutate(Num.genes = as.data.frame(pVals.by.pathway)$Annotated) %>% 
-      dplyr::mutate(Gene.IDs = as.data.frame(pVals.by.pathway)$GeneIDs) %>% 
-      dplyr::rename(KEGGID_pathway = pathway.code) %>% 
-      dplyr::mutate(pathway.name = pathways.list[(paste('path:',KEGGID_pathway, sep = ''))]) %>% 
-      dplyr::mutate(pathway.name = gsub(" -.*","",pathway.name))  %>% 
-      dplyr::mutate(p.value =  pVals.by.pathway[,"p.value"])  %>% 
-      dplyr::mutate(Day = 'Day2')  %>% 
-      dplyr::mutate(modColor = modColor)  %>% 
-      dplyr::filter(p.value < 0.05) %>% 
-      #na.omit() %>% 
-      dplyr::mutate(log10_pvalue = -log10(as.numeric(p.value))) 
+                dplyr::mutate(Num.genes.all = as.data.frame(pVals.by.pathway)$Num_total_in_pathway) %>%
+                dplyr::mutate(Num.genes.exp = as.data.frame(pVals.by.pathway)$Annotated) %>% 
+                dplyr::mutate(ene.IDs = as.data.frame(pVals.by.pathway)$GeneIDsG) %>% 
+                dplyr::rename(KEGGID_pathway = pathway.code) %>% 
+                dplyr::mutate(pathway.name =  (pathtable %>% dplyr::filter(crg_code == KEGGID_pathway))$pathname ) %>% 
+                # dplyr::mutate(pathway.name = gsub(" -.*","",pathway.name))  %>% 
+                dplyr::mutate(p.value =  pVals.by.pathway[,"p.value"])  %>% 
+                dplyr::mutate(Day = 'Day2')  %>% 
+                dplyr::mutate(modColor = modColor)  %>% 
+                dplyr::filter(p.value < 0.05) %>% 
+                #na.omit() %>% 
+                dplyr::mutate(log10_pvalue = -log10(as.numeric(p.value))) 
     
     KEGG.Day2 <- rbind(KEGG.Day2,outdat) #bind to a cumulative list dataframe
     print(KEGG.Day2) # print to monitor progress
   }
-
+View(KEGG.Day2)
 KEGG.Day2OM <- na.omit(KEGG.Day2) %>% 
-  dplyr::mutate(Num.genes = as.numeric(Num.genes))
-# KEGG.Day2OM
+   dplyr::arrange()
+KEGG.Day2OM
 library(tidytext)
+
+
 # View(KEGG.Day2OM)
-Day2_KEGGSegmentPlot <- KEGG.Day2OM %>%  
-  dplyr::filter(modColor %in% c('brown', 'blue', 'turquoise', 'red', 'pink', 'black')) %>% 
-  dplyr::mutate(modColor = factor(modColor , levels = c('brown', 'blue', 'turquoise', 'red', 'pink', 'black'))) %>%  # for the correct order of facets in the plot below
-  dplyr::mutate(pathway.name = reorder_within(pathway.name, log10_pvalue, modColor)) %>% 
-  ggplot(aes(x=reorder(pathway.name, log10_pvalue), y= log10_pvalue, group = modColor)) + 
-  geom_segment(aes(x=pathway.name, xend=pathway.name, y=1, yend=log10_pvalue, color=modColor,
-               #aes(x=pathway.name, xend=pathway.name, y=min(log10_pvalue), yend=max(log10_pvalue)),  
-               #linetype=NA, 
-               size=3)) +   # Draw dashed lines
-  geom_point( aes(col=modColor, size=Num.genes), shape =21,  fill = "white") +   # Draw points
-  scale_color_manual(values = c('brown', 'blue', 'turquoise', 'red', 'pink', 'black')) +
-  #ylim(0,8) +
-  labs(title="Day 2", 
-       x = "Pathway",
-       y = "-Log(pvalue)",
-       subtitle="KEGGREST") +
-  theme_classic() + 
-  theme(
-    panel.grid.minor.y = element_blank(),
-    panel.grid.major.y = element_blank(),
-    legend.position="bottom"
-  ) +
-  xlab("") +
-  ylab("") +
-  ggtitle("Day 2 KEGGREST") +
-  theme(panel.border = element_blank(), # Set border
-        panel.grid.major = element_blank(), #Set major gridlines
-        panel.grid.minor = element_blank(), #Set minor gridlines
-        axis.line = element_line(colour = "black"), #Set axes color
-        plot.background=element_blank()) + #Set the plot background #set title attributes
-  coord_flip() +
-  facet_wrap(modColor ~., 
-             scales="free_y", 
-             ncol= 1, 
-             strip.position="right", 
-             shrink = T)
+Day2_KEGGSegmentPlot <- KEGG.Day2 %>%  
+                          dplyr::filter(modColor %in% c('brown', 'blue', 'turquoise', 'red', 'pink', 'black')) %>% 
+                          dplyr::mutate(modColor = factor(modColor , levels = c('brown', 'blue', 'turquoise', 'red', 'pink', 'black'))) %>%  # for the correct order of facets in the plot below
+                          dplyr::mutate(pathway.name = reorder_within(pathway.name, log10_pvalue, modColor)) %>% 
+                          ggplot(aes(x=reorder(pathway.name, log10_pvalue), y= log10_pvalue, group = modColor)) + 
+                          geom_segment(aes(x=pathway.name, xend=pathway.name, 
+                                           y=1, yend=log10_pvalue, color=modColor,
+                                       #aes(x=pathway.name, xend=pathway.name, y=min(log10_pvalue), yend=max(log10_pvalue)),  
+                                       #linetype=NA, 
+                                       size=3)) +   # Draw dashed lines
+                          geom_point( aes(col=modColor, size=Num.genes), shape =21,  fill = "white") +   # Draw points
+                          scale_color_manual(values = c('brown', 'blue', 'turquoise', 'red', 'pink', 'black')) +
+                          #ylim(0,8) +
+                          labs(title="Day 2", 
+                               x = "Pathway",
+                               y = "-Log(pvalue)",
+                               subtitle="KEGGREST") +
+                          theme_classic() + 
+                          theme(
+                            panel.grid.minor.y = element_blank(),
+                            panel.grid.major.y = element_blank(),
+                            legend.position="bottom"
+                          ) +
+                          xlab("") +
+                          ylab("") +
+                          ggtitle("Day 2 KEGGREST") +
+                          theme(panel.border = element_blank(), # Set border
+                                panel.grid.major = element_blank(), #Set major gridlines
+                                panel.grid.minor = element_blank(), #Set minor gridlines
+                                axis.line = element_line(colour = "black"), #Set axes color
+                                plot.background=element_blank()) + #Set the plot background #set title attributes
+                          coord_flip() +
+                          facet_wrap(modColor ~., 
+                                     scales="free_y", 
+                                     ncol= 1, 
+                                     strip.position="right", 
+                                     shrink = T)
 #pdf(paste("Analysis/Output/KEGG/WGCNA/Day7_",modColor,"_RichFactorPlot.pdf", sep =''), width=5, height=6)
 print(Day2_KEGGSegmentPlot)
 
@@ -192,59 +209,63 @@ Day18_WGCNA_sigmodules <- as.data.frame(c('tan',
 
 # prep loop for cumulative output table 
 df_total             <- data.frame() # start dataframe 
-KEGG.Day22           <- data.frame(matrix(nrow = 1, ncol = 8)) # create dataframe to save cumunalitively during for loop
-colnames(KEGG.Day22) <- c('Day', 'modColor', 'KEGGID_pathway', 'pathway.name' , 'Num.genes', 'Gene.IDs', 'p.value', 'log10_pvalue') # names for comuns in the for loop
-  for (i in 1:nrow(Day18_WGCNA_sigmodules)) {
+KEGG.Day22           <- data.frame(matrix(nrow = 1, ncol = 9)) # create dataframe to save cumunalitively during for loop
+colnames(KEGG.Day22) <- c('Day', 'modColor', 'KEGGID_pathway', 'pathway.name' , 
+                         'Num.genes.all', 'Num.genes.exp', 'Gene.IDs', 'p.value', 'log10_pvalue') # names for comuns in the for loop
+for (i in 1:nrow(Day18_WGCNA_sigmodules)) {
         modColor <- Day18_WGCNA_sigmodules[i,1]
-        loopmodColor_cor <- paste("MM.", modColor, sep = '')
-        loopmodColor_p   <- paste("p.MM.", modColor, sep = '')
+        # loopmodColor_cor <- paste("MM.", modColor, sep = '')
+        # loopmodColor_p   <- paste("p.MM.", modColor, sep = '')
         
         ModuleLoop <- as.data.frame(d18_WGCNA.data %>% dplyr::filter(moduleColor %in% modColor)  %>% 
-                                                       dplyr::select(c('TranscriptID', 'KEGG_ID', 'geneSymbol', moduleColor, loopmodColor_p, loopmodColor_cor)) %>% 
-                                                       #dplyr::filter(.[[5]] < 0.05 & .[[6]] > 0.6) %>% # filter based on thresholds set in the WGCNA + DESeq2 overlap w/PCA 
-                                                       dplyr::select(c('TranscriptID', 'KEGG_ID',5)) %>% 
-                                                       na.omit() %>% 
-                                                       dplyr::mutate(KEGG_ID = gsub(".*:","",KEGG_ID)) %>% 
-                                                       unnest(KEGG_ID))
+                                      dplyr::select(c('TranscriptID', 'KEGG_ID', 'geneSymbol', 'MM.p', 'MM.cor')) %>% 
+                                      dplyr::filter(.[[4]] < 0.05 & .[[5]] > 0.6) %>% # filter based on thresholds set in the WGCNA + DESeq2 overlap w/PCA 
+                                      dplyr::select(c('TranscriptID', 'KEGG_ID', 'MM.p')) %>% 
+                                      na.omit() %>% 
+                                      dplyr::mutate(KEGG_ID = gsub(".*:","",KEGG_ID)) %>% 
+                                      unnest(KEGG_ID))
         geneList <- ModuleLoop[,3]
         names(geneList) <- ModuleLoop$KEGG_ID
         # Wilcoxon test for each pathway
+        
         pVals.by.pathway <- t(sapply(names(genes.by.pathway),
                                      function(pathway) {
-                                       pathway.genes <- genes.by.pathway[[pathway]]
+                                       pathway.genes         <- genes.by.pathway[[pathway]]
                                        list.genes.in.pathway <- intersect(names(geneList), pathway.genes)
                                        list.genes.not.in.pathway <- setdiff(names(geneList), list.genes.in.pathway)
                                        scores.in.pathway <- geneList[list.genes.in.pathway]
                                        scores.not.in.pathway <- geneList[list.genes.not.in.pathway]
                                        if (length(scores.in.pathway) > 0){
-                                         p.value <- wilcox.test(scores.in.pathway, scores.not.in.pathway, alternative = "less")$p.value
+                                         p.value <- wilcox.test(scores.in.pathway, 
+                                                                (length(pathway.genes) - scores.in.pathway),
+                                                                #scores.not.in.pathway,
+                                                                alternative = "less")$p.value
                                        } else{
                                          p.value <- NA
                                        }
-                                       return(c(p.value = p.value, Annotated = length(list.genes.in.pathway), GeneIDs = list(list.genes.in.pathway) ))
+                                       return(c(p.value = p.value, Num_total_in_pathway = length(pathway.genes), Annotated = length(list.genes.in.pathway), GeneIDs = list(list.genes.in.pathway) ))
                                      }
-                              ))
-        pVals.by.pathway
-      
+        ))
         # Assemble output table
-        #athways.list[(paste('path:',KEGGID_pathway, sep = ''))]
         outdat <- data.frame(pathway.code = rownames(pVals.by.pathway)) %>% 
-          dplyr::mutate(Num.genes = as.data.frame(pVals.by.pathway)$Annotated) %>% 
-          dplyr::mutate(Gene.IDs = as.data.frame(pVals.by.pathway)$GeneIDs) %>% 
-          dplyr::rename(KEGGID_pathway = pathway.code) %>% 
-          dplyr::mutate(pathway.name = pathways.list[(paste('path:',KEGGID_pathway, sep = ''))]) %>% 
-          dplyr::mutate(pathway.name = gsub(" -.*","",pathway.name))  %>% 
-          dplyr::mutate(p.value =  pVals.by.pathway[,"p.value"])  %>% 
-          dplyr::mutate(Day = 'Day22')  %>% 
-          dplyr::mutate(modColor = modColor)  %>% 
-          dplyr::filter(p.value < 0.05) %>% 
-          na.omit() %>% 
-          dplyr::mutate(log10_pvalue = -log10(as.numeric(p.value))) 
-    
+                  dplyr::mutate(Num.genes.all = as.data.frame(pVals.by.pathway)$Num_total_in_pathway) %>%
+                  dplyr::mutate(Num.genes.exp = as.data.frame(pVals.by.pathway)$Annotated) %>% 
+                  dplyr::mutate(Gene.IDs = as.data.frame(pVals.by.pathway)$GeneIDs) %>% 
+                  dplyr::rename(KEGGID_pathway = pathway.code) %>% 
+                  dplyr::mutate(pathway.name =  (pathtable %>% dplyr::filter(crg_code == KEGGID_pathway))$pathname ) %>% 
+                  # dplyr::mutate(pathway.name = gsub(" -.*","",pathway.name))  %>% 
+                  dplyr::mutate(p.value =  pVals.by.pathway[,"p.value"])  %>% 
+                  dplyr::mutate(Day = 'Day22')  %>% 
+                  dplyr::mutate(modColor = modColor)  %>% 
+                  dplyr::filter(p.value < 0.05) %>% 
+                  #na.omit() %>% 
+                  dplyr::mutate(log10_pvalue = -log10(as.numeric(p.value))) 
+        
         KEGG.Day22 <- rbind(KEGG.Day22,outdat) #bind to a cumulative list dataframe
-        print(KEGG.Day22) # print to monitor progress
+        # print(KEGG.Day22) # print to monitor progress
 }
-  
+View(KEGG.Day22)
+
 KEGG.Day22OM <-  na.omit(KEGG.Day22) %>% 
   dplyr::mutate(Num.genes = as.numeric(Num.genes))
 
@@ -313,7 +334,6 @@ print(plot)
   
   
   
-  
 
 # USING KEGGPROFILE 
 
@@ -328,17 +348,23 @@ Day2_WGCNA_sigmodules <- as.data.frame(c('pink',
                                          'black', 
                                          'red', 
                                          'yellow'))
+
+?enrichKEGG
 # note: added ModMemership cutoff (Pearson cor and pvalue) 
 # when calling 'ModuleLoop_KEGGIDs' - saved to a new directory
 for (i in 1:nrow(Day2_WGCNA_sigmodules)) {
   # start with loop by calling the row value common with the 'Master_KEGG_BPTerms' data frind from rbind above 
   modColor <- Day2_WGCNA_sigmodules[i,1]
-  loopmodColor_cor <- paste("MM.", modColor, sep = '')
-  loopmodColor_p   <- paste("p.MM.", modColor, sep = '')
   
   # call the module color in the Day 7 data
-  ModuleLoop                     <- d2_WGCNA.data %>% dplyr::filter(moduleColor %in% modColor)  %>% 
-                                      dplyr::select(c('TranscriptID', 'KEGG_ID', 'geneSymbol', moduleColor, loopmodColor_p, loopmodColor_cor)) 
+  ModuleLoop <- as.data.frame(d2_WGCNA.data %>% 
+                                dplyr::filter(moduleColor %in% modColor)  %>% 
+                                dplyr::select(c('TranscriptID', 'KEGG_ID', 'geneSymbol', 'MM.p', 'MM.cor')) %>% 
+                                dplyr::filter(.[[4]] < 0.05 & .[[5]] > 0.6) %>% 
+                                dplyr::select(c('TranscriptID', 'KEGG_ID', 'MM.p')) %>% 
+                                na.omit() %>% 
+                                dplyr::mutate(KEGG_ID = gsub(".*:","",KEGG_ID)) %>% 
+                                unnest(KEGG_ID))
   genes_per_module               <- length(unique(ModuleLoop$geneSymbol)) # nrow(ModuleLoop) # use this for the looped print out 
   annotgenes_per_module          <- nrow(ModuleLoop %>% dplyr::filter(!KEGG_ID %in% NA)) # nrow(ModuleLoop) # use this for the looped print out 
   
@@ -354,8 +380,8 @@ for (i in 1:nrow(Day2_WGCNA_sigmodules)) {
               genes_per_module, "unique genes per module", 
               annotgenes_per_module, " annotated; ", 
               genes_per_module_blasthit, " or", perc_annot_genes_with_blasthit,"% annotated genes with blasthit", sep = ' '))
-  
-  # Run KEGG analysis
+
+    # Run KEGG analysis
   ModuleLoop_KEGGIDs       <- as.data.frame(ModuleLoop %>% 
                                               dplyr::filter(.[[5]] < 0.05 & .[[6]] > 0.6) %>% # filter based on thresholds set in the WGCNA + DESeq2 overlap w/PCA 
                                               dplyr::select(c('TranscriptID', 'KEGG_ID')) %>% 
@@ -363,11 +389,27 @@ for (i in 1:nrow(Day2_WGCNA_sigmodules)) {
                                               dplyr::mutate(KEGG_ID = str_split(KEGG_ID,";")) %>% 
                                               unnest(KEGG_ID) %>% 
                                               dplyr::select(-'TranscriptID'))
-  
-  KEGG_vector_cvirg_Cgigas <- as.vector(gsub(".*:","", ModuleLoop_KEGGIDs$KEGG_ID)) # ommit the 'crg:' before the actual terms
-  KEGG_cgigas                     <- enrichKEGG(gene = KEGG_vector_cvirg_Cgigas, 
-                                                organism  = 'crg', # 'hsa' is human 'crg' is pacific oyster 
+  options(download.file.method = "auto")
+  KEGG_vector_cvirg_Cgigas <- as.vector(paste0('LOC', ModuleLoop$KEGG_ID)) # ommit the 'crg:' before the actual terms
+  x <- as.vector(c("105348584", "105317413", "105321007", "105318604", "105347464", "105333341", "105318673", "105333480"))
+  x2 <- as.vector(as.numeric(ModuleLoop$KEGG_ID))
+  data(geneList, package='DOSE')
+  de <- names(geneList)[1:100]
+  KEGG_cgigas                     <- enrichKEGG(gene = de, 
+                                                # organism  = 'crg', # 'hsa' is human 'crg' is pacific oyster 
                                                 pvalueCutoff = 0.05) 
+  data(geneList, package="DOSE")
+  install.packages(c('cli', 'data.table', 'digest', 'dplyr', 'fansi', 'glue', 'Matrix', 'plyr', 'purrr', 'rlang', 'tidyr', 'utf8', 'vctrs'))
+  .libPaths()
+  install.packages('rlang')
+  devtools::install_github("YuLab-SMU/clusterProfiler")
+  BiocManager::install("DOSE")
+  kk2 <- gseKEGG(geneList     = geneList,
+                 organism     = 'hsa',
+                 minGSSize    = 120,
+                 pvalueCutoff = 0.05,
+                 verbose      = FALSE)
+  head(geneList)
         # if loop to output the KEGG enrichment analysis ONLY if genes were successfully mapped...
         if (  nrow(as.data.frame(head(KEGG_cgigas))) > 0 ) {
           # creat dateframe and write the csv file out 
@@ -377,7 +419,7 @@ for (i in 1:nrow(Day2_WGCNA_sigmodules)) {
           KEGGoutput$GeneRatio_2  <- gsub("/"," of ", KEGGoutput$GeneRatio)
           KEGGoutput$Rich_Factor  <- (  (as.numeric(sub("/.*", "", KEGGoutput$GeneRatio))) / (as.numeric(sub("/.*", "", KEGGoutput$BgRatio)))  ) 
           
-          write.csv(KEGGoutput, file = paste("Output/WGCNA/day2_larvae/KEGG/MM_cutoff/Day2_",modColor,"_KEGG_allgenes.csv", sep ='')) 
+          write.csv(KEGGoutput, file = paste("Output/WGCNA/day2_larvae/KEGG/RR_cutoff/Day2_",modColor,"_KEGG_allgenes.csv", sep ='')) 
           
           # Plot
           plot<- KEGGoutput %>%  
@@ -413,8 +455,6 @@ for (i in 1:nrow(Day2_WGCNA_sigmodules)) {
             
     print(paste("Finished! Day2 module = ", modColor, sep = " "))
 }
-
-
 
 
 #  ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::;;;:::::::::::::: #

@@ -1,0 +1,1067 @@
+---
+title: "KEGG Enrichment WGCNA"
+author: "Samuel Gurr"
+date: "2024-01-24"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+# LOAD PACKAGES
+library(clusterProfiler)
+library(KEGGREST)
+library(tidyr)
+library(stringr)
+library(forcats)
+library(ggplot2)
+library(scales)
+library(ape)
+library(data.table)
+library(tidyverse)
+library(fBasics)
+library(dplyr)
+
+# set working directory
+knitr::opts_knit$set(root.dir = "C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis") # sets the working
+```
+
+
+# load data
+```{r  load data}
+
+# LOAD DATA
+# WGCNA results (all treatments)
+d2_WGCNA.data                <- read.csv("Output/WGCNA/day2_larvae/d2.WGCNA_ModulMembership_RRcutoff.csv")
+# d22_WGCNA.data               <- read.csv("Output/WGCNA/day18_spat/d18.WGCNA_ModulMembership.csv")
+d22_WGCNA.data               <- read.csv("Output/WGCNA/day18_spat/d18.WGCNA_ModulMembership_RRcutoff.csv")
+
+# reference Cvirginica
+Ref_Master                   <- read.csv(file = "Data/TagSeq/Seq_details/Seq_Reference_Master.csv",header = T) %>% 
+                                        dplyr::rename('TranscriptID' = 'Cvirginica_TranscriptID')
+
+# call kegg list
+Crass_virg_kegglist            <- keggList("cvn")
+Crass_virg_kegglist_dataframe  <- as.data.frame(Crass_virg_kegglist) %>%  rownames_to_column() # with will allow us to merge 
+colnames(Crass_virg_kegglist_dataframe) <- c('sseqid', 'Gene_name')
+
+Crass_gigas_kegglist           <- keggList("crg") # call the C. gigas genome! - notice the csa terms are rownames!
+Crass_gigas_kegglist_dataframe <- as.data.frame(Crass_gigas_kegglist) %>%  rownames_to_column() # with will allow us to merge 
+colnames(Crass_gigas_kegglist_dataframe) <- c('sseqid', 'Gene_name')
+
+```
+
+```{r}
+
+# Using KEGGREST
+# KEGGREST prep 
+pathways.list <- keggList("pathway", "cvn")
+pathways.list <- keggList("pathway", "crg")
+
+# Pull all genes for each pathway
+pathway.codes <- sub("path:", "", names(pathways.list)) 
+genes.by.pathway <- sapply(pathway.codes,
+                           function(pwid){
+                             pw <- keggGet(pwid)
+                             if (is.null(pw[[1]]$GENE)) return(NA)
+                             pw2 <- pw[[1]]$GENE[c(TRUE,FALSE)] # may need to modify this to c(FALSE, TRUE) for other organisms
+                             pw2 <- unlist(lapply(strsplit(pw2, split = ";", fixed = T), function(x)x[1]))
+                             return(pw2)
+                           }
+)
+head(genes.by.pathway)
+```
+
+# sig module assignments for for loops
+```{r}
+
+# day 2
+Day2_WGCNA_sigmodules <- as.data.frame(c('pink', 
+                                         'blue', 
+                                         'turquoise', 
+                                         'brown', 
+                                         'black', 
+                                         'red'))
+
+
+
+# day 22 
+Day22_WGCNA_sigmodules <- as.data.frame(c('tan', 
+                                            'red', 
+                                            'turquoise', 
+                                            'salmon', 
+                                            'blue',
+                                            'green'))
+
+```
+
+# Path table - essential for assigning path names later on..
+```{r}
+# this is used for the randsum - does not print out the path name with the wilcox test, need to merge 
+# it to the dataframe by common column (enirchKEGG in clusterProfiler inserts the KEGG pathway name - I will need the code to omit the Crassostrea string later..)
+pathtable <- as.data.frame(pathways.list) %>% 
+                dplyr::mutate(pathname = sapply(strsplit(pathways.list, " - Crassostrea"), "[",1)) %>% 
+                tibble::rownames_to_column("crg_code")
+
+```
+
+# q value (adjusted p value) following Benjamini-Hochberg Procedure
+```{r}
+# link - https://www.r-bloggers.com/2023/07/the-benjamini-hochberg-procedure-fdr-and-p-value-adjusted-explained/
+
+# Do it manually...
+pvalues    <- c(0.01,0.001, 0.05, 0.20, 0.15, 0.15) # mock p values 
+ranks      <- rank(pvalues, ties.method = "last") # ranks lowest to highest as integer - look at ranks
+p_m_over_k <- pvalues*length(pvalues)/ranks # length over rank
+for (r in length(pvalues):1) {
+  print(p_m_over_k[ranks>=r])
+}
+pvalues_adj<-c()
+for (i in 1:length(pvalues)) {
+  # find the rank
+  tmp_rank<-ranks[i]
+  # get all the p_m_over_k that are greater or equal to this rank
+  # and get the min value
+  pvalues_adj<-c(pvalues_adj, min(1,min(p_m_over_k[ranks>=tmp_rank])))
+}
+print(pvalues_adj, sig = 3) # 0.030 0.006 0.100 0.200 0.180 0.180
+
+# Use R package 
+fdrs<-p.adjust(pvalues, method="BH")
+print(fdrs, sig = 3) # 0.030 0.006 0.100 0.200 0.180 0.180
+
+# sanity check, does this manual method match?
+pvalues_adj == fdrs # all TRUE! (sometimes it says flase here, but they are the same)
+
+```
+
+# KEGG enrichment
+- enrichKEGG using clusterProfiler
+- wilkcoxranksum - pin the pvalues for 'in' vs 'out' pathway (from module membership 'WGCNA')
+
+## 24 hours
+* Run for loop for KEGG terms
+```{r 24 hours run KEGG}
+
+# prep loop for cumulative output table 
+df_total                   <- data.frame() # start dataframe 
+
+# run echirchKEGG using clusterProfiler
+KEGG.Day2_clustProfiler           <- data.frame(matrix(nrow = 1, ncol = 11)) # create dataframe to save cumunalitively during for loop
+colnames(KEGG.Day2_clustProfiler) <- c('Day', 'modColor', 'KEGGID_pathway', 'pathway.name' , 
+                                 'Num.genes.all', 'Num.genes.exp', 'Gene.IDs', 
+                                 'Rich_factor', 'pvalue', 'log10_pvalue', 'qvalue') # names for comuns in the for loop
+
+#eun qicox ranksun using the pvlues for WGCNA module membership
+KEGG.Day2_wilcox           <- data.frame(matrix(nrow = 1, ncol = 10)) # create dataframe to save cumunalitively during for loop
+colnames(KEGG.Day2_wilcox) <- c('Day', 'modColor', 'KEGGID_pathway', 'pathway.name' , 
+                                 'Num.genes.all', 'Num.genes.exp', 'Gene.IDs', 
+                                 'Rich_factor', 'pvalue', 'log10_pvalue') # names for comuns in the for loop
+# run for loop
+for (i in 1:nrow(Day2_WGCNA_sigmodules)) {
+    modColor   <- Day2_WGCNA_sigmodules[i,1]
+    ModuleLoop <- as.data.frame(d2_WGCNA.data %>% 
+                                  dplyr::filter(moduleColor %in% modColor)  %>% 
+                                  dplyr::select(c('TranscriptID', 'KEGG_ID', 'geneSymbol', 'MM.p', 'MM.cor')) %>% 
+                                  dplyr::filter(.[[4]] < 0.05 & .[[5]] > 0.6) %>% 
+                                  dplyr::select(c('TranscriptID', 'KEGG_ID', 'MM.p')) %>% 
+                                  na.omit() %>% 
+                                  dplyr::mutate(KEGG_ID = gsub(".*:","",KEGG_ID)) %>% 
+                                  unnest(KEGG_ID))
+    
+    # clusterProfiler
+              entrezID_vector <- as.vector(as.numeric(ModuleLoop$KEGG_ID))
+              KEGG_cgigas     <- enrichKEGG(gene = entrezID_vector, 
+                                        organism  = 'crg', # 'hsa' is human 'crg' is pacific oyster 
+                                        pvalueCutoff = 0.05) 
+                  if (  nrow(as.data.frame(head(KEGG_cgigas))) > 0 ) {
+                    # creat dateframe and write the csv file out 
+                    df                      <- as.data.frame(head(KEGG_cgigas))
+                    rownames(df)            <- c()
+                    KEGGoutput              <- as.data.frame(do.call(cbind.data.frame, df)) %>% 
+                                                dplyr::mutate(
+                                                              Rich_factor  = (  (as.numeric(sub("/.*", "", GeneRatio))) / 
+                                                                          (as.numeric(sub("/.*", "", BgRatio)))),
+                                                              Day = 'Day2',
+                                                              modColor = modColor) %>% 
+                                                dplyr::rename(KEGGID_pathway = ID,
+                                                              pathway.name   = Description,
+                                                              Gene.IDs       = geneID,
+                                                              Num.genes.exp  = Count) %>% 
+                                                dplyr::mutate(Num.genes.all  = (as.numeric(sub("/.*", "", BgRatio))), 
+                                                              log10_pvalue   = abs(log10(pvalue)),
+                                                              pathway.name = sapply(strsplit(pathway.name, " - Crassostrea"), "[",1)) %>% # ommit the unneeded pathway string
+                                                dplyr::select('Day', 'modColor', 'KEGGID_pathway', 'pathway.name',
+                                                              'Num.genes.all', 'Num.genes.exp', 'Gene.IDs',
+                                                              'Rich_factor', 'pvalue', 'log10_pvalue', 'qvalue') %>% 
+                                                arrange(desc(as.numeric(Rich_factor))) 
+                    
+                    write.csv(KEGGoutput, file = paste("Output/WGCNA/day2_larvae/KEGG/clusterProfiler/parsed_by_module/Day2_",modColor,"_KEGG_clusterProfiler.csv", sep ='')) 
+                    
+                    # Plot
+                    plot<- KEGGoutput %>%  
+                              ggplot(aes(x=reorder(pathway.name, Rich_factor), y= Rich_factor)) + 
+                              geom_point( aes(col=qvalue, size=Num.genes.exp)) +   # Draw points
+                              geom_segment(aes(x=pathway.name, 
+                                               xend=pathway.name, 
+                                               y=min(Rich_factor), 
+                                               yend=max(Rich_factor)),  
+                                           linetype=NA, 
+                                           size=0) +   # Draw dashed lines
+                              labs(title="Day 2", 
+                                   x = "Pathway",
+                                   y = "Rich Factor",
+                                   subtitle=paste("WGCNA Module:", modColor, sep =' ')) +
+                              theme_bw() +
+                              coord_flip()
+                     pdf(paste("Output/WGCNA/day2_larvae/KEGG/clusterProfiler/parsed_by_module/Richfactor_plots/Day2_",modColor,"_RichFactorPlot.pdf", sep =''), 
+                         width=8, height=6)
+                     print(plot)
+                     dev.off()
+                     
+                      # stringsplit and unnest for a data set of genes and IDs associated with each pathway 
+
+                      
+                      KEGGoutput$Gene.IDs               <- as.vector(strsplit(as.character(KEGGoutput$Gene.IDs), "/"))
+                      KEGGoutput_unnest                 <- unnest(KEGGoutput, Gene.IDs)
+                      KEGGoutput_unnest$Cgigas_KEGGID   <- paste("crg:", KEGGoutput_unnest$Gene.IDs, sep='')
+
+                      KEGGoutput_allgenes                 <- merge(KEGGoutput_unnest, Ref_Master_condenced, by='Cgigas_KEGGID') %>% 
+                                                                       group_by(pathway.name) %>% 
+                                                                       arrange(Cvirginica_Protein_name, .by_group = TRUE) %>% 
+                                                                       unique()
+                      write.csv(KEGGoutput_allgenes, file = paste("Output/WGCNA/day2_larvae/KEGG/clusterProfiler/parsed_by_module/Day2_",modColor,"_KEGG_clusterProfiler_unlisted.csv", sep ='')) 
+                      
+              
+                      # print(KEGG.Day2_clustProfiler) # print to monitor progress
+                      # master cumulative file
+                      KEGG.Day2_clustProfiler <- rbind(KEGG.Day2_clustProfiler,KEGGoutput) #bind to a cumulative list dataframe
+              
+              } else {}
+    
+    
+    
+    # wicox ranksum      
+                     
+              geneList <- ModuleLoop[,3]
+              names(geneList) <- ModuleLoop$KEGG_ID
+              # Wilcoxon test for each pathway
+              pVals.by.pathway <- t(sapply(names(genes.by.pathway),
+                                           function(pathway) {
+                                             
+                                             pathway.genes             <- genes.by.pathway[[pathway]]
+                                             list.genes.in.pathway     <- intersect(names(geneList), pathway.genes)
+                                             list.genes.not.in.pathway <- setdiff(names(geneList), list.genes.in.pathway)
+                                             scores.in.pathway         <- geneList[list.genes.in.pathway]
+                                             scores.not.in.pathway     <- geneList[list.genes.not.in.pathway]
+                                             
+                                             if (length(scores.in.pathway) > 0){
+                                               # Apply Wilcoxon rank-sum test to each pathway, testing if “in” p-values are smaller than “out” p-values:
+                                               p.value <- wilcox.test(scores.in.pathway, scores.not.in.pathway, alternative = "less")$p.value
+                                               
+                                             } else{
+                                               p.value <- NA
+                                             }
+                                             return(c(pvalue = p.value, 
+                                                      Num_total_in_pathway = length(pathway.genes), 
+                                                      Annotated = length(list.genes.in.pathway), 
+                                                      GeneIDs = list(list.genes.in.pathway),
+                                                      Rich_factor = length(list.genes.in.pathway) / length(pathway.genes) ))
+                                           }
+              ))
+              
+              # wicox Assemble output table
+              outdat <- data.frame(pathway.code = rownames(pVals.by.pathway)) %>% 
+                          dplyr::mutate(Day = 'Day2',
+                                        modColor = modColor) %>% 
+                          dplyr::rename(KEGGID_pathway = pathway.code) %>% 
+                          dplyr::mutate(pathway.name   =  (pathtable %>% dplyr::filter(crg_code == KEGGID_pathway))$pathname,
+                                        Num.genes.all  = as.data.frame(pVals.by.pathway)$Num_total_in_pathway, 
+                                        Num.genes.exp  = as.data.frame(pVals.by.pathway)$Annotated,
+                                        Gene.IDs       = as.data.frame(pVals.by.pathway)$GeneIDs,
+                                        Rich_factor    = as.numeric(pVals.by.pathway[,"Rich_factor"]),
+                                        pvalue         =  as.numeric(pVals.by.pathway[,"pvalue"])) %>% 
+                          dplyr::filter(pvalue < 0.05) %>% 
+                          dplyr::mutate(log10_pvalue = -log10(as.numeric(pvalue))) 
+              
+              KEGG.Day2_wilcox <- rbind(KEGG.Day2_wilcox,outdat) #bind to a cumulative list dataframe
+              # print(KEGG.Day2) # print to monitor progress
+}
+
+
+# first row NA for some reason, omit
+KEGG.Day2_clustProfilerOM <- na.omit(KEGG.Day2_clustProfiler)
+KEGG.Day2_wilcoxOM        <- na.omit(KEGG.Day2_wilcox) 
+
+# Benjamini-Hochberg Procedure for adjusted p value (q value)
+KEGG.Day2_wilcoxOM$qvalue       <- p.adjust(as.numeric(KEGG.Day2_wilcoxOM$pvalue), method="BH")
+KEGG.Day2_wilcoxOM$log10_qvalue <- abs(log10(KEGG.Day2_wilcoxOM$qvalue))
+```
+
+* 24 hours write output table (master)
+```{r output master}
+
+options(scipen = 999)
+
+# clusterprofiler output table 
+KEGG.Day2_clustProfiler_output <- KEGG.Day2_clustProfilerOM %>%  dplyr::mutate(
+                                                  time_point    = 'Day 2 larvae',
+                                                  Num.genes.exp = as.numeric(Num.genes.exp),
+                                                  modColor      = factor(as.factor(modColor), levels= c('brown', 'blue', 'turquoise', 
+                                                                                                        'red', 'pink', 'black')),
+                                                  Rich_factor   = as.numeric(signif(Rich_factor, digits = 2)),
+                                                  log10_qvalue  = as.numeric(signif( abs(log10(qvalue)), digits = 3))
+                                                        ) %>% 
+                                            
+                                            dplyr::rename(
+                                                  Description     = pathway.name,
+                                                  module          = modColor,
+                                                  Log_pvalue_adj  = log10_qvalue,
+                                                  count           = Num.genes.exp
+                                                        ) %>% 
+  
+                                            dplyr::select(
+                                              c('time_point','module','Log_pvalue_adj','count','Rich_factor','Description')
+                                                        ) %>% 
+                                            
+                                            group_by(module) %>% 
+                                            arrange(desc(Rich_factor), .by_group = TRUE)
+
+write.csv(KEGG.Day2_clustProfiler_output, file = paste("Output/WGCNA/day2_larvae/KEGG/clusterProfiler/Day2_KEGG_clusterProfiler.csv", sep ='')) 
+
+
+
+# wilcox output table 
+KEGG.Day2_KEGG.Day2_wilcox_output <- KEGG.Day2_wilcoxOM %>%  dplyr::mutate(
+                                                  time_point    = 'Day 2 larvae',
+                                                  Num.genes.exp = as.numeric(Num.genes.exp),
+                                                  modColor      = factor(as.factor(modColor), levels= c('brown', 'blue', 'turquoise', 
+                                                                                                        'red', 'pink', 'black')),
+                                                  Rich_factor   = as.numeric(signif(Rich_factor, digits = 2)),
+                                                  log10_qvalue       = as.numeric(signif(log10_qvalue, digits = 3))
+                                                        ) %>% 
+                                            
+                                            dplyr::rename(
+                                                  Description = pathway.name,
+                                                  module      = modColor,
+                                                  Log_pvalue_adj  = log10_qvalue,
+                                                  count       = Num.genes.exp
+                                                        ) %>% 
+  
+                                            dplyr::select(
+                                              c('time_point','module','Log_pvalue_adj','count','Rich_factor','Description')
+                                                        ) %>% 
+                                            
+                                            group_by(module) %>% 
+                                            arrange(desc(Rich_factor), .by_group = TRUE)
+
+write.csv(KEGG.Day2_KEGG.Day2_wilcox_output, file = paste("Output/WGCNA/day2_larvae/KEGG/wilcox_ranksum/Day2_KEGG_wilkcoxranksum.csv", sep ='')) 
+```
+
+* 24 hours  - unnest gene IDs
+- number of genes within each pathway are solely listed, we do not have the list of actual genes 
+  - unnest
+  - merge with reference
+```{r 24 hours clusterProfiler - all genes masterfile}
+
+head(KEGG.Day2_clustProfilerOM$Gene.IDs) # this is the column we are talking about 
+
+# unnest and correct the name (thse are C gigas ceg: gene names)
+KEGG.Day2_clustProfilerOM_unnest <- unnest(KEGG.Day2_clustProfilerOM, Gene.IDs) # unlisted all Gene IDs
+KEGG.Day2_clustProfilerOM_unnest$Cgigas_KEGGID <- paste("crg:", KEGG.Day2_clustProfilerOM_unnest$Gene.IDs, sep='')
+KEGG.Day2_clustProfilerOM_unnest <- KEGG.Day2_clustProfilerOM_unnest %>% 
+  
+                                              dplyr::mutate(
+                                                  time_point    = 'Day 2 larvae',
+                                                  modColor      = factor(as.factor(modColor), levels= c('brown', 'blue', 'turquoise', 
+                                                                                                        'red', 'pink', 'black')),
+                                                  Rich_factor   = as.numeric(signif(Rich_factor, digits = 2)),
+                                                  log10_qvalue  = as.numeric(signif(abs(log10(qvalue)), digits = 3))
+                                                        ) %>% 
+  
+                                              dplyr::rename(
+                                                  Description = pathway.name,
+                                                  module      = modColor,
+                                                  Log_pvalue_adj  = log10_qvalue,
+                                                  count       = Num.genes.exp
+                                                        ) %>% 
+
+                                              dplyr::select(
+                                              c('time_point','module', 'KEGGID_pathway', 'Log_pvalue_adj','Rich_factor','Description', 'Cgigas_KEGGID')
+                                                        ) %>% 
+  
+                                              group_by(module) %>% 
+  
+                                              arrange(desc(Rich_factor), .by_group = TRUE)
+
+# merge with a condenced reference of Cvirginica blast hits to the Crg identifier 
+Ref_Master_condenced <- Ref_Master %>% dplyr::select(Cvirginica_GeneID,Cgigas_KEGGID,Cvirginica_Protein_name)
+
+# merge reference condenced with the KEGG Day 22 as master file with protein names listed 
+KEGG.Day2_clustProfiler_all_genes   <- merge(KEGG.Day2_clustProfilerOM_unnest, Ref_Master_condenced, by='Cgigas_KEGGID') %>% 
+                                              group_by(module) %>% 
+                                              arrange(desc(Rich_factor), .by_group = TRUE) %>% unique()
+# write .csv file 
+write.csv(KEGG.Day2_clustProfiler_all_genes, file = paste("Output/WGCNA/day2_larvae/KEGG/clusterProfiler/Day2_KEGG_clusterProfiler_all_genes.csv", sep ='')) 
+
+```
+
+```{r 24 hours wilkcox ranksum - all genes masterfile}
+
+head(KEGG.Day2_wilcoxOM$Gene.IDs) # this is the column we are talking about 
+
+# unnest and correct the name (thse are C gigas ceg: gene names)
+KEGG.Day2_wilcoxOM_unnest <- unnest(KEGG.Day2_wilcoxOM, Gene.IDs) # unlisted all Gene IDs
+KEGG.Day2_wilcoxOM_unnest$Cgigas_KEGGID <- paste("crg:", KEGG.Day2_wilcoxOM_unnest$Gene.IDs, sep='')
+KEGG.Day2_wilcoxOM_unnest <- KEGG.Day2_wilcoxOM_unnest %>% 
+  
+                                              dplyr::mutate(
+                                                  time_point    = 'Day 2 larvae',
+                                                  modColor      = factor(as.factor(modColor), levels= c('brown', 'blue', 'turquoise', 
+                                                                                                        'red', 'pink', 'black')),
+                                                  Rich_factor   = as.numeric(signif(Rich_factor, digits = 2)),
+                                                  log10_qvalue  = as.numeric(signif(log10_qvalue, digits = 3))
+                                                        ) %>% 
+  
+                                              dplyr::rename(
+                                                  Description = pathway.name,
+                                                  module      = modColor,
+                                                  Log_pvalue_adj  = log10_qvalue,
+                                                  count       = Num.genes.exp
+                                                        ) %>% 
+
+                                              dplyr::select(
+                                              c('time_point','module', 'KEGGID_pathway', 'Log_pvalue_adj','Rich_factor','Description', 'Cgigas_KEGGID')
+                                                        ) %>% 
+  
+                                              group_by(module) %>% 
+  
+                                              arrange(desc(Rich_factor), .by_group = TRUE)
+
+# merge with a condenced reference of Cvirginica blast hits to the Crg identifier 
+Ref_Master_condenced <- Ref_Master %>% dplyr::select(Cvirginica_GeneID,Cgigas_KEGGID,Cvirginica_Protein_name)
+
+# merge reference condenced with the KEGG Day 22 as master file with protein names listed 
+KEGG.Day2_wilcoxOM_all_genes   <- merge(KEGG.Day2_wilcoxOM_unnest, Ref_Master_condenced, by='Cgigas_KEGGID') %>% 
+                                              group_by(module) %>% 
+                                              arrange(desc(Rich_factor), .by_group = TRUE) %>% unique()
+# write .csv file 
+write.csv(KEGG.Day2_wilcoxOM_all_genes, file = paste("Output/WGCNA/day2_larvae/KEGG/wilcox_ranksum/Day2_KEGG_wilkcoxranksum_all_genes.csv", sep ='')) 
+
+```
+
+* plot
+- view the output master chunk - use the 'output' files formatted for the supplementary table 
+- (i) KEGG.Day2_clustProfilerOM and (ii) KEGG.Day2_wilcoxOM
+```{r 24 hours clusterProfiler - plots}
+library(tidytext)
+Day2_SegmentPlot_clusterProfiler <- KEGG.Day2_clustProfilerOM %>%  
+                                          dplyr::filter(modColor %in% c('brown', 'blue', 'turquoise', 
+                                                                        'red', 'pink', 'black')) %>% 
+                                          dplyr::mutate(modColor = factor(modColor , levels = c('brown', 'blue', 'turquoise', 
+                                                                                                'red', 'pink', 'black'))) %>% 
+                                          dplyr::mutate(pathway.name = reorder_within(pathway.name, log10_pvalue, modColor)) %>% 
+                                          ggplot(aes(x=reorder(pathway.name, log10_pvalue), y= log10_pvalue, group = modColor)) + 
+                                          geom_segment(aes(x=pathway.name, xend=pathway.name, 
+                                                           y=1, yend=log10_pvalue, color=modColor,
+                                                       #aes(x=pathway.name, xend=pathway.name, y=min(log10_pvalue), yend=max(log10_pvalue)),  
+                                                       #linetype=NA, 
+                                                       size=3)) +   # Draw dashed lines
+                                          geom_point(aes(col=modColor, size=as.numeric(Num.genes.exp), fill = "white")) +   # Draw points
+                                          scale_color_manual(values = c('brown', 'blue', 'turquoise', 'red', 'pink', 'black')) +
+                                          #ylim(0,8) +
+                                          labs(title="Day 2", 
+                                               x = "Pathway",
+                                               y = "-Log(pvalue)",
+                                               subtitle="clusterProfiler") +
+                                          theme_classic() + 
+                                          theme(
+                                            panel.grid.minor.y = element_blank(),
+                                            panel.grid.major.y = element_blank(),
+                                            legend.position="bottom"
+                                          ) +
+                                          xlab("") +
+                                          ylab("") +
+                                          ggtitle("24 hours KEGG") +
+                                          theme(panel.border = element_blank(), # Set border
+                                                panel.grid.major = element_blank(), #Set major gridlines
+                                                panel.grid.minor = element_blank(), #Set minor gridlines
+                                                axis.line = element_line(colour = "black"), #Set axes color
+                                                plot.background=element_blank()) + #Set the plot background #set title attributes
+                                          coord_flip() +
+                                          facet_wrap(modColor ~., 
+                                                     scales="free_y", 
+                                                     ncol= 1, 
+                                                     strip.position="right", 
+                                                     shrink = T)
+
+
+
+Day2_RichFactor_clusterProfiler <- KEGG.Day2_clustProfilerOM %>%  
+                                        dplyr::filter(modColor %in% c('brown', 'blue', 'turquoise','red', 'pink', 'black')) %>% 
+                                        dplyr::mutate(modColor = factor(modColor , levels = c('brown', 'blue', 'turquoise', 'red', 'pink', 'black')),
+                                                      pathway.name = as.character(reorder_within(pathway.name, Rich_factor, modColor))) %>% 
+                                        dplyr::mutate(pathway.name = sapply(strsplit(pathway.name, "_"), "[",1)) %>% 
+                                        group_by(modColor) %>% arrange(desc(Rich_factor), .by_group = TRUE) %>% 
+                                            ggplot(aes(x=reorder(pathway.name, as.numeric(Rich_factor)), y= Rich_factor)) + 
+                                            geom_point( aes(col=log10_pvalue, size=as.numeric(Num.genes.exp))) +   # Draw points
+                                            scale_colour_gradient(low = "#D55E00", high = "#56B4E9", limits = c(0,30)) +
+                                            geom_segment(aes(x=pathway.name, 
+                                                             xend=pathway.name, 
+                                                             y=min(Rich_factor), 
+                                                             yend=max(Rich_factor)),  
+                                                         linetype=NA, 
+                                                         size=0) +   # Draw dashed lines
+                                            labs(title="24 hours KEGG", 
+                                                 x = "Pathway",
+                                                 y = "Rich Factor",
+                                                 subtitle="clusterProfiler") +
+                                            coord_flip() +
+                                            theme_bw() +
+                                            facet_wrap(~modColor,scales="free_y",ncol = 2) +
+                                            theme(
+                                              strip.background = element_rect(fill=NA),
+                                              strip.text = element_text(face="bold")
+                                            )
+# D2_RichFactor_Plots
+pdf("Output/WGCNA/day2_larvae/KEGG/clusterProfiler/Day2_KEGG_RichFactor_clusterProfiler.pdf", width = 10, height = 5)
+print(Day2_RichFactor_clusterProfiler)
+dev.off()
+
+```
+
+```{r 24 hours wilkcox ranksum - plots}
+library(tidytext)
+Day2_SegmentPlot_wilcox <- KEGG.Day2_wilcoxOM %>%  
+                                          dplyr::filter(modColor %in% c('brown', 'blue', 'turquoise', 
+                                                                        'red', 'pink', 'black')) %>% 
+                                          dplyr::mutate(modColor = factor(modColor , levels = c('brown', 'blue', 'turquoise', 
+                                                                                                'red', 'pink', 'black'))) %>% 
+                                          dplyr::mutate(pathway.name = reorder_within(pathway.name, log10_pvalue, modColor)) %>% 
+                                          ggplot(aes(x=reorder(pathway.name, log10_pvalue), y= log10_pvalue, group = modColor)) + 
+                                          geom_segment(aes(x=pathway.name, xend=pathway.name, 
+                                                           y=1, yend=log10_pvalue, color=modColor,
+                                                       #aes(x=pathway.name, xend=pathway.name, y=min(log10_pvalue), yend=max(log10_pvalue)),  
+                                                       #linetype=NA, 
+                                                       size=3)) +   # Draw dashed lines
+                                          geom_point(aes(col=modColor, size=as.numeric(Num.genes.exp), fill = "white")) +   # Draw points
+                                          scale_color_manual(values = c('brown', 'blue', 'turquoise', 'red', 'pink', 'black')) +
+                                          #ylim(0,8) +
+                                          labs(title="Day 2", 
+                                               x = "Pathway",
+                                               y = "-Log(pvalue)",
+                                               subtitle="clusterProfiler") +
+                                          theme_classic() + 
+                                          theme(
+                                            panel.grid.minor.y = element_blank(),
+                                            panel.grid.major.y = element_blank(),
+                                            legend.position="bottom"
+                                          ) +
+                                          xlab("") +
+                                          ylab("") +
+                                          ggtitle("24 hours KEGG") +
+                                          theme(panel.border = element_blank(), # Set border
+                                                panel.grid.major = element_blank(), #Set major gridlines
+                                                panel.grid.minor = element_blank(), #Set minor gridlines
+                                                axis.line = element_line(colour = "black"), #Set axes color
+                                                plot.background=element_blank()) + #Set the plot background #set title attributes
+                                          coord_flip() +
+                                          facet_wrap(modColor ~., 
+                                                     scales="free_y", 
+                                                     ncol= 1, 
+                                                     strip.position="right", 
+                                                     shrink = T)
+
+
+
+Day2_RichFactor_wilcox <- KEGG.Day2_wilcoxOM %>%  
+                                        dplyr::filter(modColor %in% c('brown', 'blue', 'turquoise','red', 'pink', 'black')) %>% 
+                                        dplyr::mutate(modColor = factor(modColor , levels = c('brown', 'blue', 'turquoise', 'red', 'pink', 'black')),
+                                                      pathway.name = as.character(reorder_within(pathway.name, Rich_factor, modColor))) %>% 
+                                        dplyr::mutate(pathway.name = sapply(strsplit(pathway.name, "_"), "[",1)) %>% 
+                                        group_by(modColor) %>% arrange(desc(Rich_factor), .by_group = TRUE) %>% 
+                                            ggplot(aes(x=reorder(pathway.name, as.numeric(Rich_factor)), y= Rich_factor)) + 
+                                            geom_point( aes(col=log10_pvalue, size=as.numeric(Num.genes.exp))) +   # Draw points
+                                            scale_colour_gradient(low = "#D55E00", high = "#56B4E9", limits = c(0,30)) +
+                                            geom_segment(aes(x=pathway.name, 
+                                                             xend=pathway.name, 
+                                                             y=min(Rich_factor), 
+                                                             yend=max(Rich_factor)),  
+                                                         linetype=NA, 
+                                                         size=0) +   # Draw dashed lines
+                                            labs(title="24 hours KEGG", 
+                                                 x = "Pathway",
+                                                 y = "Rich Factor",
+                                                 subtitle="wilcox ranksum") +
+                                            coord_flip() +
+                                            theme_bw() +
+                                            facet_wrap(~modColor,scales="free_y",ncol = 2) +
+                                            theme(
+                                              strip.background = element_rect(fill=NA),
+                                              strip.text = element_text(face="bold")
+                                            )
+# D2_RichFactor_Plots
+pdf("Output/WGCNA/day2_larvae/KEGG/wilcox_ranksum/Day2_KEGG_RichFactor_wilkcox.pdf", width = 10, height = 5)
+print(Day2_RichFactor_wilcox)
+dev.off()
+
+```
+
+
+* Day 22
+* Run for loop for KEGG terms
+```{r Day 22 run KEGG}
+
+# prep loop for cumulative output table 
+df_total                   <- data.frame() # start dataframe 
+
+# run echirchKEGG using clusterProfiler
+KEGG.Day22_clustProfiler           <- data.frame(matrix(nrow = 1, ncol = 11)) # create dataframe to save cumunalitively during for loop
+colnames(KEGG.Day22_clustProfiler) <- c('Day', 'modColor', 'KEGGID_pathway', 'pathway.name' , 
+                                 'Num.genes.all', 'Num.genes.exp', 'Gene.IDs', 
+                                 'Rich_factor', 'pvalue', 'log10_pvalue', 'qvalue') # names for comuns in the for loop
+
+#eun qicox ranksun using the pvlues for WGCNA module membership
+KEGG.Day22_wilcox           <- data.frame(matrix(nrow = 1, ncol = 10)) # create dataframe to save cumunalitively during for loop
+colnames(KEGG.Day22_wilcox) <- c('Day', 'modColor', 'KEGGID_pathway', 'pathway.name' , 
+                                 'Num.genes.all', 'Num.genes.exp', 'Gene.IDs', 
+                                 'Rich_factor', 'pvalue', 'log10_pvalue') # names for comuns in the for loop
+# run for loop
+for (i in 1:nrow(Day22_WGCNA_sigmodules)) {
+    modColor   <- Day22_WGCNA_sigmodules[i,1]
+    ModuleLoop <- as.data.frame(d22_WGCNA.data %>% 
+                                  dplyr::filter(moduleColor %in% modColor)  %>% 
+                                  dplyr::select(c('TranscriptID', 'KEGG_ID', 'geneSymbol', 'MM.p', 'MM.cor')) %>% 
+                                  dplyr::filter(.[[4]] < 0.05 & .[[5]] > 0.6) %>% 
+                                  dplyr::select(c('TranscriptID', 'KEGG_ID', 'MM.p')) %>% 
+                                  na.omit() %>% 
+                                  dplyr::mutate(KEGG_ID = gsub(".*:","",KEGG_ID)) %>% 
+                                  unnest(KEGG_ID))
+    
+    # clusterProfiler
+              entrezID_vector <- as.vector(as.numeric(ModuleLoop$KEGG_ID))
+              KEGG_cgigas     <- enrichKEGG(gene = entrezID_vector, 
+                                        organism  = 'crg', # 'hsa' is human 'crg' is pacific oyster 
+                                        pvalueCutoff = 0.05) 
+                  if (  nrow(as.data.frame(head(KEGG_cgigas))) > 0 ) {
+                    # creat dateframe and write the csv file out 
+                    df                      <- as.data.frame(head(KEGG_cgigas))
+                    rownames(df)            <- c()
+                    KEGGoutput              <- as.data.frame(do.call(cbind.data.frame, df)) %>% 
+                                                dplyr::mutate(
+                                                              Rich_factor  = (  (as.numeric(sub("/.*", "", GeneRatio))) / 
+                                                                          (as.numeric(sub("/.*", "", BgRatio)))),
+                                                              Day = 'Day2',
+                                                              modColor = modColor) %>% 
+                                                dplyr::rename(KEGGID_pathway = ID,
+                                                              pathway.name   = Description,
+                                                              Gene.IDs       = geneID,
+                                                              Num.genes.exp  = Count) %>% 
+                                                dplyr::mutate(Num.genes.all  = (as.numeric(sub("/.*", "", BgRatio))), 
+                                                              log10_pvalue   = abs(log10(pvalue)),
+                                                              pathway.name = sapply(strsplit(pathway.name, " - Crassostrea"), "[",1)) %>% # ommit the unneeded pathway string
+                                                dplyr::select('Day', 'modColor', 'KEGGID_pathway', 'pathway.name',
+                                                              'Num.genes.all', 'Num.genes.exp', 'Gene.IDs',
+                                                              'Rich_factor', 'pvalue', 'log10_pvalue', 'qvalue') %>% 
+                                                arrange(desc(as.numeric(Rich_factor))) 
+                    
+                    write.csv(KEGGoutput, file = paste("Output/WGCNA/day18_spat/KEGG/clusterProfiler/parsed_by_module/Day22_",modColor,"_KEGG_clusterProfiler.csv", sep ='')) 
+                    
+                    # Plot
+                    plot<- KEGGoutput %>%  
+                              ggplot(aes(x=reorder(pathway.name, Rich_factor), y= Rich_factor)) + 
+                              geom_point( aes(col=qvalue, size=Num.genes.exp)) +   # Draw points
+                              geom_segment(aes(x=pathway.name, 
+                                               xend=pathway.name, 
+                                               y=min(Rich_factor), 
+                                               yend=max(Rich_factor)),  
+                                           linetype=NA, 
+                                           size=0) +   # Draw dashed lines
+                              labs(title="Day 2", 
+                                   x = "Pathway",
+                                   y = "Rich Factor",
+                                   subtitle=paste("WGCNA Module:", modColor, sep =' ')) +
+                              theme_bw() +
+                              coord_flip()
+                     pdf(paste("Output/WGCNA/day18_spat/KEGG/clusterProfiler/parsed_by_module/Richfactor_plots/Day22_",modColor,"_RichFactorPlot.pdf", sep =''), 
+                         width=8, height=6)
+                     print(plot)
+                     dev.off()
+                     
+                      # stringsplit and unnest for a data set of genes and IDs associated with each pathway 
+
+                      
+                      KEGGoutput$Gene.IDs               <- as.vector(strsplit(as.character(KEGGoutput$Gene.IDs), "/"))
+                      KEGGoutput_unnest                 <- unnest(KEGGoutput, Gene.IDs)
+                      KEGGoutput_unnest$Cgigas_KEGGID   <- paste("crg:", KEGGoutput_unnest$Gene.IDs, sep='')
+
+                      KEGGoutput_allgenes                 <- merge(KEGGoutput_unnest, Ref_Master_condenced, by='Cgigas_KEGGID') %>% 
+                                                                       group_by(pathway.name) %>% 
+                                                                       arrange(Cvirginica_Protein_name, .by_group = TRUE) %>% 
+                                                                       unique()
+                      write.csv(KEGGoutput_allgenes, file = paste("Output/WGCNA/day18_spat/KEGG/clusterProfiler/parsed_by_module/Day22_",modColor,"_KEGG_clusterProfiler_unlisted.csv", sep ='')) 
+                      
+              
+                      # print(KEGG.Day22_clustProfiler) # print to monitor progress
+                      # master cumulative file
+                      KEGG.Day22_clustProfiler <- rbind(KEGG.Day22_clustProfiler,KEGGoutput) #bind to a cumulative list dataframe
+              
+              } else {}
+    
+    
+    
+    # wicox ranksum      
+                     
+              geneList <- ModuleLoop[,3]
+              names(geneList) <- ModuleLoop$KEGG_ID
+              # Wilcoxon test for each pathway
+              pVals.by.pathway <- t(sapply(names(genes.by.pathway),
+                                           function(pathway) {
+                                             
+                                             pathway.genes             <- genes.by.pathway[[pathway]]
+                                             list.genes.in.pathway     <- intersect(names(geneList), pathway.genes)
+                                             list.genes.not.in.pathway <- setdiff(names(geneList), list.genes.in.pathway)
+                                             scores.in.pathway         <- geneList[list.genes.in.pathway]
+                                             scores.not.in.pathway     <- geneList[list.genes.not.in.pathway]
+                                             
+                                             if (length(scores.in.pathway) > 0){
+                                               # Apply Wilcoxon rank-sum test to each pathway, testing if “in” p-values are smaller than “out” p-values:
+                                               p.value <- wilcox.test(scores.in.pathway, scores.not.in.pathway, alternative = "less")$p.value
+                                               
+                                             } else{
+                                               p.value <- NA
+                                             }
+                                             return(c(pvalue = p.value, 
+                                                      Num_total_in_pathway = length(pathway.genes), 
+                                                      Annotated = length(list.genes.in.pathway), 
+                                                      GeneIDs = list(list.genes.in.pathway),
+                                                      Rich_factor = length(list.genes.in.pathway) / length(pathway.genes) ))
+                                           }
+              ))
+              
+              # wicox Assemble output table
+              outdat <- data.frame(pathway.code = rownames(pVals.by.pathway)) %>% 
+                          dplyr::mutate(Day = 'Day2',
+                                        modColor = modColor) %>% 
+                          dplyr::rename(KEGGID_pathway = pathway.code) %>% 
+                          dplyr::mutate(pathway.name   =  (pathtable %>% dplyr::filter(crg_code == KEGGID_pathway))$pathname,
+                                        Num.genes.all  = as.data.frame(pVals.by.pathway)$Num_total_in_pathway, 
+                                        Num.genes.exp  = as.data.frame(pVals.by.pathway)$Annotated,
+                                        Gene.IDs       = as.data.frame(pVals.by.pathway)$GeneIDs,
+                                        Rich_factor    = as.numeric(pVals.by.pathway[,"Rich_factor"]),
+                                        pvalue         =  as.numeric(pVals.by.pathway[,"pvalue"])) %>% 
+                          dplyr::filter(pvalue < 0.05) %>% 
+                          dplyr::mutate(log10_pvalue = -log10(as.numeric(pvalue))) 
+              
+              KEGG.Day22_wilcox <- rbind(KEGG.Day22_wilcox,outdat) #bind to a cumulative list dataframe
+              # print(KEGG.Day2) # print to monitor progress
+}
+
+
+# first row NA for some reason, omit
+KEGG.Day22_clustProfilerOM <- na.omit(KEGG.Day22_clustProfiler)
+KEGG.Day22_wilcoxOM        <- na.omit(KEGG.Day22_wilcox) 
+
+# Benjamini-Hochberg Procedure for adjusted p value (q value)
+KEGG.Day22_wilcoxOM$qvalue       <- p.adjust(as.numeric(KEGG.Day22_wilcoxOM$pvalue), method="BH")
+KEGG.Day22_wilcoxOM$log10_qvalue <- abs(log10(KEGG.Day22_wilcoxOM$qvalue))
+```
+
+* Day 22 write output table (master)
+```{r output master}
+
+options(scipen = 999)
+
+# clusterprofiler output table 
+KEGG.Day22_clustProfiler_output <- KEGG.Day22_clustProfilerOM %>%  dplyr::mutate(
+                                                  time_point    = 'Day 22 spat',
+                                                  Num.genes.exp = as.numeric(Num.genes.exp),
+                                                  modColor      = factor(as.factor(modColor), levels= c('blue', 'red', 'salmon', 'tan', 'green', 'turquoise')),
+                                                  Rich_factor   = as.numeric(signif(Rich_factor, digits = 2)),
+                                                  log10_qvalue  = as.numeric(signif( abs(log10(qvalue)), digits = 3))
+                                                        ) %>% 
+                                            
+                                            dplyr::rename(
+                                                  Description     = pathway.name,
+                                                  module          = modColor,
+                                                  Log_pvalue_adj  = log10_qvalue,
+                                                  count           = Num.genes.exp
+                                                        ) %>% 
+  
+                                            dplyr::select(
+                                              c('time_point','module','Log_pvalue_adj','count','Rich_factor','Description')
+                                                        ) %>% 
+                                            
+                                            group_by(module) %>% 
+                                            arrange(desc(Rich_factor), .by_group = TRUE)
+
+write.csv(KEGG.Day22_clustProfiler_output, file = paste("Output/WGCNA/day18_spat/KEGG/clusterProfiler/Day22_KEGG_clusterProfiler.csv", sep ='')) 
+
+
+
+# wilcox output table 
+KEGG.Day22_KEGG.Day22_wilcox_output <- KEGG.Day22_wilcoxOM %>%  dplyr::mutate(
+                                                  time_point    = 'Day 22 spat',
+                                                  Num.genes.exp = as.numeric(Num.genes.exp),
+                                                  modColor      = factor(as.factor(modColor), levels= c('blue', 'red', 'salmon', 'tan', 'green', 'turquoise')),
+                                                  Rich_factor   = as.numeric(signif(Rich_factor, digits = 2)),
+                                                  log10_qvalue       = as.numeric(signif(log10_qvalue, digits = 3))
+                                                        ) %>% 
+                                            
+                                            dplyr::rename(
+                                                  Description = pathway.name,
+                                                  module      = modColor,
+                                                  Log_pvalue_adj  = log10_qvalue,
+                                                  count       = Num.genes.exp
+                                                        ) %>% 
+  
+                                            dplyr::select(
+                                              c('time_point','module','Log_pvalue_adj','count','Rich_factor','Description')
+                                                        ) %>% 
+                                            
+                                            group_by(module) %>% 
+                                            arrange(desc(Rich_factor), .by_group = TRUE)
+
+write.csv(KEGG.Day22_KEGG.Day22_wilcox_output, file = paste("Output/WGCNA/day18_spat/KEGG/wilcox_ranksum/Day22_KEGG_wilkcoxranksum.csv", sep ='')) 
+```
+
+* Day 22  - unnest gene IDs
+- number of genes within each pathway are solely listed, we do not have the list of actual genes 
+  - unnest
+  - merge with reference
+```{r Day 22 clusterProfiler - all genes masterfile}
+
+head(KEGG.Day22_clustProfilerOM$Gene.IDs) # this is the column we are talking about 
+
+# unnest and correct the name (thse are C gigas ceg: gene names)
+KEGG.Day22_clustProfilerOM_unnest <- unnest(KEGG.Day22_clustProfilerOM, Gene.IDs) # unlisted all Gene IDs
+KEGG.Day22_clustProfilerOM_unnest$Cgigas_KEGGID <- paste("crg:", KEGG.Day22_clustProfilerOM_unnest$Gene.IDs, sep='')
+KEGG.Day22_clustProfilerOM_unnest <- KEGG.Day22_clustProfilerOM_unnest %>% 
+  
+                                              dplyr::mutate(
+                                                  time_point    = 'Day 22 spat',
+                                                  modColor      = factor(as.factor(modColor), levels= c('blue', 'red', 'salmon', 'tan', 'green', 'turquoise')),
+                                                  Rich_factor   = as.numeric(signif(Rich_factor, digits = 2)),
+                                                  log10_qvalue  = as.numeric(signif(abs(log10(qvalue)), digits = 3))
+                                                        ) %>% 
+  
+                                              dplyr::rename(
+                                                  Description = pathway.name,
+                                                  module      = modColor,
+                                                  Log_pvalue_adj  = log10_qvalue,
+                                                  count       = Num.genes.exp
+                                                        ) %>% 
+
+                                              dplyr::select(
+                                              c('time_point','module', 'KEGGID_pathway', 'Log_pvalue_adj','Rich_factor','Description', 'Cgigas_KEGGID')
+                                                        ) %>% 
+  
+                                              group_by(module) %>% 
+  
+                                              arrange(desc(Rich_factor), .by_group = TRUE)
+
+# merge with a condenced reference of Cvirginica blast hits to the Crg identifier 
+Ref_Master_condenced <- Ref_Master %>% dplyr::select(Cvirginica_GeneID,Cgigas_KEGGID,Cvirginica_Protein_name)
+
+# merge reference condenced with the KEGG Day 22 as master file with protein names listed 
+KEGG.Day22_clustProfiler_all_genes   <- merge(KEGG.Day22_clustProfilerOM_unnest, Ref_Master_condenced, by='Cgigas_KEGGID') %>% 
+                                              group_by(module) %>% 
+                                              arrange(desc(Rich_factor), .by_group = TRUE) %>% unique()
+# write .csv file 
+write.csv(KEGG.Day22_clustProfiler_all_genes, file = paste("Output/WGCNA/day18_spat/KEGG/clusterProfiler/Day22_KEGG_clusterProfiler_all_genes.csv", sep ='')) 
+
+```
+
+```{r Day 22 wilkcox ranksum - all genes masterfile}
+
+head(KEGG.Day22_wilcoxOM$Gene.IDs) # this is the column we are talking about 
+
+# unnest and correct the name (thse are C gigas ceg: gene names)
+KEGG.Day22_wilcoxOM_unnest <- unnest(KEGG.Day22_wilcoxOM, Gene.IDs) # unlisted all Gene IDs
+KEGG.Day22_wilcoxOM_unnest$Cgigas_KEGGID <- paste("crg:", KEGG.Day22_wilcoxOM_unnest$Gene.IDs, sep='')
+KEGG.Day22_wilcoxOM_unnest <- KEGG.Day22_wilcoxOM_unnest %>% 
+  
+                                              dplyr::mutate(
+                                                  time_point    = 'Day 22 spat',
+                                                  modColor      = factor(as.factor(modColor), levels= c('blue', 'red', 'salmon', 'tan', 'green', 'turquoise')),
+                                                  Rich_factor   = as.numeric(signif(Rich_factor, digits = 2)),
+                                                  log10_qvalue  = as.numeric(signif(log10_qvalue, digits = 3))
+                                                        ) %>% 
+  
+                                              dplyr::rename(
+                                                  Description = pathway.name,
+                                                  module      = modColor,
+                                                  Log_pvalue_adj  = log10_qvalue,
+                                                  count       = Num.genes.exp
+                                                        ) %>% 
+
+                                              dplyr::select(
+                                              c('time_point','module', 'KEGGID_pathway', 'Log_pvalue_adj','Rich_factor','Description', 'Cgigas_KEGGID')
+                                                        ) %>% 
+  
+                                              group_by(module) %>% 
+  
+                                              arrange(desc(Rich_factor), .by_group = TRUE)
+
+# merge with a condenced reference of Cvirginica blast hits to the Crg identifier 
+Ref_Master_condenced <- Ref_Master %>% dplyr::select(Cvirginica_GeneID,Cgigas_KEGGID,Cvirginica_Protein_name)
+
+# merge reference condenced with the KEGG Day 22 as master file with protein names listed 
+KEGG.Day22_wilcoxOM_all_genes   <- merge(KEGG.Day22_wilcoxOM_unnest, Ref_Master_condenced, by='Cgigas_KEGGID') %>% 
+                                              group_by(module) %>% 
+                                              arrange(desc(Rich_factor), .by_group = TRUE) %>% unique()
+# write .csv file 
+write.csv(KEGG.Day22_wilcoxOM_all_genes, file = paste("Output/WGCNA/day18_spat/KEGG/wilcox_ranksum/Day22_KEGG_wilkcoxranksum_all_genes.csv", sep ='')) 
+
+```
+
+* plot
+- view the output master chunk - use the 'output' files formatted for the supplementary table 
+- (i) KEGG.Day22_clustProfilerOM and (ii) KEGG.Day22_wilcoxOM
+```{r Day 22 clusterProfiler - plots}
+library(tidytext)
+Day22_SegmentPlot_clusterProfiler <- KEGG.Day22_clustProfilerOM %>%  
+                                          dplyr::filter(modColor %in% c('blue', 'red', 'salmon', 'tan', 'green', 'turquoise')) %>% 
+                                          dplyr::mutate(modColor = factor(modColor , levels = c('blue', 'red', 'salmon', 'tan', 'green', 'turquoise'))) %>% 
+                                          dplyr::mutate(pathway.name = reorder_within(pathway.name, log10_pvalue, modColor)) %>% 
+                                          ggplot(aes(x=reorder(pathway.name, log10_pvalue), y= log10_pvalue, group = modColor)) + 
+                                          geom_segment(aes(x=pathway.name, xend=pathway.name, 
+                                                           y=1, yend=log10_pvalue, color=modColor,
+                                                       #aes(x=pathway.name, xend=pathway.name, y=min(log10_pvalue), yend=max(log10_pvalue)),  
+                                                       #linetype=NA, 
+                                                       size=3)) +   # Draw dashed lines
+                                          geom_point(aes(col=modColor, size=as.numeric(Num.genes.exp), fill = "white")) +   # Draw points
+                                          scale_color_manual(values = c('blue', 'red', 'salmon', 'tan', 'green', 'turquoise')) +
+                                          #ylim(0,8) +
+                                          labs(title="Day 22", 
+                                               x = "Pathway",
+                                               y = "-Log(pvalue)",
+                                               subtitle="clusterProfiler") +
+                                          theme_classic() + 
+                                          theme(
+                                            panel.grid.minor.y = element_blank(),
+                                            panel.grid.major.y = element_blank(),
+                                            legend.position="bottom"
+                                          ) +
+                                          xlab("") +
+                                          ylab("") +
+                                          ggtitle("Day 22 KEGG") +
+                                          theme(panel.border = element_blank(), # Set border
+                                                panel.grid.major = element_blank(), #Set major gridlines
+                                                panel.grid.minor = element_blank(), #Set minor gridlines
+                                                axis.line = element_line(colour = "black"), #Set axes color
+                                                plot.background=element_blank()) + #Set the plot background #set title attributes
+                                          coord_flip() +
+                                          facet_wrap(modColor ~., 
+                                                     scales="free_y", 
+                                                     ncol= 1, 
+                                                     strip.position="right", 
+                                                     shrink = T)
+
+
+
+Day22_RichFactor_clusterProfiler <- KEGG.Day22_clustProfilerOM %>%  
+                                        dplyr::filter(modColor %in% c('blue', 'red', 'salmon', 'tan', 'green', 'turquoise')) %>% 
+                                        dplyr::mutate(modColor = factor(modColor , levels = c('blue', 'red', 'salmon', 'tan', 'green', 'turquoise')),
+                                                      pathway.name = as.character(reorder_within(pathway.name, Rich_factor, modColor))) %>% 
+                                        dplyr::mutate(pathway.name = sapply(strsplit(pathway.name, "_"), "[",1)) %>% 
+                                        group_by(modColor) %>% arrange(desc(Rich_factor), .by_group = TRUE) %>% 
+                                            ggplot(aes(x=reorder(pathway.name, as.numeric(Rich_factor)), y= Rich_factor)) + 
+                                            geom_point( aes(col=log10_pvalue, size=as.numeric(Num.genes.exp))) +   # Draw points
+                                            scale_colour_gradient(low = "#D55E00", high = "#56B4E9", limits = c(0,30)) +
+                                            geom_segment(aes(x=pathway.name, 
+                                                             xend=pathway.name, 
+                                                             y=min(Rich_factor), 
+                                                             yend=max(Rich_factor)),  
+                                                         linetype=NA, 
+                                                         size=0) +   # Draw dashed lines
+                                            labs(title="Day 22 KEGG", 
+                                                 x = "Pathway",
+                                                 y = "Rich Factor",
+                                                 subtitle="clusterProfiler") +
+                                            coord_flip() +
+                                            theme_bw() +
+                                            facet_wrap(~modColor,scales="free_y",ncol = 2) +
+                                            theme(
+                                              strip.background = element_rect(fill=NA),
+                                              strip.text = element_text(face="bold")
+                                            )
+# D2_RichFactor_Plots
+pdf("Output/WGCNA/day18_spat/KEGG/clusterProfiler/Day22_KEGG_RichFactor_clusterProfiler.pdf", width = 10, height = 5)
+print(Day22_RichFactor_clusterProfiler)
+dev.off()
+
+```
+
+```{r Day 22 wilkcox ranksum - plots}
+library(tidytext)
+Day22_SegmentPlot_wilcox <- KEGG.Day22_wilcoxOM %>%  
+                                          dplyr::filter(modColor %in% c('blue', 'red', 'salmon', 'tan', 'green', 'turquoise')) %>% 
+                                          dplyr::mutate(modColor = factor(modColor , levels = c('blue', 'red', 'salmon', 'tan', 'green', 'turquoise'))) %>% 
+                                          dplyr::mutate(pathway.name = reorder_within(pathway.name, log10_pvalue, modColor)) %>% 
+                                          ggplot(aes(x=reorder(pathway.name, log10_pvalue), y= log10_pvalue, group = modColor)) + 
+                                          geom_segment(aes(x=pathway.name, xend=pathway.name, 
+                                                           y=1, yend=log10_pvalue, color=modColor,
+                                                       #aes(x=pathway.name, xend=pathway.name, y=min(log10_pvalue), yend=max(log10_pvalue)),  
+                                                       #linetype=NA, 
+                                                       size=3)) +   # Draw dashed lines
+                                          geom_point(aes(col=modColor, size=as.numeric(Num.genes.exp), fill = "white")) +   # Draw points
+                                          scale_color_manual(values = c('blue', 'red', 'salmon', 'tan', 'green', 'turquoise')) +
+                                          #ylim(0,8) +
+                                          labs(title="Day 22", 
+                                               x = "Pathway",
+                                               y = "-Log(pvalue)",
+                                               subtitle="clusterProfiler") +
+                                          theme_classic() + 
+                                          theme(
+                                            panel.grid.minor.y = element_blank(),
+                                            panel.grid.major.y = element_blank(),
+                                            legend.position="bottom"
+                                          ) +
+                                          xlab("") +
+                                          ylab("") +
+                                          ggtitle("Day 22 KEGG") +
+                                          theme(panel.border = element_blank(), # Set border
+                                                panel.grid.major = element_blank(), #Set major gridlines
+                                                panel.grid.minor = element_blank(), #Set minor gridlines
+                                                axis.line = element_line(colour = "black"), #Set axes color
+                                                plot.background=element_blank()) + #Set the plot background #set title attributes
+                                          coord_flip() +
+                                          facet_wrap(modColor ~., 
+                                                     scales="free_y", 
+                                                     ncol= 1, 
+                                                     strip.position="right", 
+                                                     shrink = T)
+
+
+
+Day22_RichFactor_wilcox <- KEGG.Day22_wilcoxOM %>%  
+                                        dplyr::filter(modColor %in% c('blue', 'red', 'salmon', 'tan', 'green', 'turquoise')) %>% 
+                                        dplyr::mutate(modColor = factor(modColor , levels = c('blue', 'red', 'salmon', 'tan', 'green', 'turquoise')),
+                                                      pathway.name = as.character(reorder_within(pathway.name, Rich_factor, modColor))) %>% 
+                                        dplyr::mutate(pathway.name = sapply(strsplit(pathway.name, "_"), "[",1)) %>% 
+                                        group_by(modColor) %>% arrange(desc(Rich_factor), .by_group = TRUE) %>% 
+                                            ggplot(aes(x=reorder(pathway.name, as.numeric(Rich_factor)), y= Rich_factor)) + 
+                                            geom_point( aes(col=log10_pvalue, size=as.numeric(Num.genes.exp))) +   # Draw points
+                                            scale_colour_gradient(low = "#D55E00", high = "#56B4E9", limits = c(0,30)) +
+                                            geom_segment(aes(x=pathway.name, 
+                                                             xend=pathway.name, 
+                                                             y=min(Rich_factor), 
+                                                             yend=max(Rich_factor)),  
+                                                         linetype=NA, 
+                                                         size=0) +   # Draw dashed lines
+                                            labs(title="Day 22 KEGG", 
+                                                 x = "Pathway",
+                                                 y = "Rich Factor",
+                                                 subtitle="wilcox ranksum") +
+                                            coord_flip() +
+                                            theme_bw() +
+                                            facet_wrap(~modColor,scales="free_y",ncol = 2) +
+                                            theme(
+                                              strip.background = element_rect(fill=NA),
+                                              strip.text = element_text(face="bold")
+                                            )
+# D2_RichFactor_Plots
+pdf("Output/WGCNA/day18_spat/KEGG/wilcox_ranksum/Day22_KEGG_RichFactor_wilkcox.pdf", width = 10, height = 5)
+print(Day22_RichFactor_wilcox)
+dev.off()
+
+```

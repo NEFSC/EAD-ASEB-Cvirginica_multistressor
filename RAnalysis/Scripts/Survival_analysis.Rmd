@@ -111,7 +111,7 @@ dev.off()
 
 # plot - Survival  after day 1
 
-Survival_means <- Survival_dat %>% 
+Survival_means <- Survival_data %>% 
                           dplyr::filter(Day >1) %>% 
                           #na.omit() %>% 
                           dplyr::group_by(Day, OA, Salinity, Temp) %>% 
