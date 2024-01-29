@@ -433,7 +433,7 @@ sd(cor_d18_HighSal$MM.blue)   # 0.1143647
 
 
 # ===========================================
-# Use the Pearsons's and Student asumptotic pvalue Modile membership cutoffs
+# Use the Pearsons's and Student asymptotic pvalue Modile membership cutoffs
 # ===========================================
 # Day 2 WGCNA modules - use cutoffs of cor > 0.6 and p < 0.05
 # ===========================================
