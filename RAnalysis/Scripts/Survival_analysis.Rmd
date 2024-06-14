@@ -27,6 +27,22 @@ library(pander)
 library(survival)
 library(vegan)
 library(tidyverse)
+library(ggplot2)
+library(tidyr)
+library(dplyr)
+library(rcompanion)
+library(FSA)
+library(car)
+library(forcats)
+library(kableExtra) # nice Rmd tables
+library(emmeans)
+library(ggpubr)
+library(survival)
+library(Rmisc)
+library(coxme)
+library(survminer)
+library(ggsurvfit) # survfit2
+library(gtsummary) # tbl_survfit
 # SET WORKING DIRECTORY 
 knitr::opts_knit$set(root.dir = "C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/")
 ```
@@ -239,7 +255,322 @@ dev.off()
 ```
 
 
-# Survival STATS 
+# Survival STATS Kaplan Meier and Cox regression models (hazard analysis)
+
+
+* covert counts to binary format, use 'Survival' column which is a % as a fraction integer to get 'Count_dead'
+
+* note that we did a survival assesment to D-hinge over just a single day, animals were 
+stocked near equally to rerun from 4 - 15, here we should do a survival analysis 
+
+```{r format darafile in prep for binary loop}
+# create new columns for live and dead based on the count and proportion (of alive) tobackcalculate dead - these are integers! 
+df_survival <- Survival_data %>% 
+          dplyr::mutate(Counts = 
+                          as.numeric(gsub(",","",Counts))) %>%# remove the commas from these numbers- id as character if not removed!
+          dplyr::rename(Count_alive = Counts,
+                        Tank = Id.) %>% # rename to avoid confusion
+          dplyr::mutate(Count_total = case_when(Survival == 0 ~ 0,
+                                               Survival >0 ~
+                                                 (1/as.numeric(Survival))*
+                                                 as.numeric(Count_alive)),# proportion is that of alive
+                        Count_dead = Count_total - Count_alive)
+
+df_survival_4_15 <- df_survival %>% dplyr::filter(!Day %in% c(1, 18))
+```
+
+```{r convert to binary days 4- 15}
+
+# (1) Including tank - to use as surv object in coxme statistics (random factor included!) not suitable for plotting
+
+# Call the cumulative dataframe that we will write to in the for loop below
+survival_4_15     <- data.frame() # start dataframe  - all
+# run it 
+for (i in 1:nrow(df_survival_4_15)) {
+   #count_alive <- round(df_survival_4_15[1,]$Count_alive/100) # divide all counts by 1000, round to nearest
+   #count_dead  <- round(df_survival_4_15[1,]$Count_dead/100)  # divide all counts by 1000, round to nearest
+   
+   count_alive <- round(df_survival_4_15[i,]$Count_alive) # raw counts
+   count_dead  <- round(df_survival_4_15[i,]$Count_dead)  # raw counts
+   
+   loopDF           <- data.frame(matrix(0,ncol = 6, nrow = (count_alive + count_dead))) 
+   colnames(loopDF) <- (c('Temp','OA', 'Salinity','Tank','Day','Count_dead'))
+   loopDF           <- loopDF %>% 
+                            dplyr::mutate(
+                            Temp      = df_survival_4_15[i,]$Temp,
+                            OA        = df_survival_4_15[i,]$OA,
+                            Salinity  = df_survival_4_15[i,]$Salinity,
+                            Tank      = df_survival_4_15[i,]$Tank,  
+                            Day       = df_survival_4_15[i,]$Day,
+                          ) 
+  loopDF[c(1:count_dead),6] = 1 # 1 for dead 
+  loopDF[c((count_dead + 1):nrow(loopDF)),6] = 0 # 0 for alive
+
+  loopDF           <- data.frame(loopDF) # name dataframe for this single row
+  survival_4_15 <- rbind(survival_4_15,loopDF) #bind to a cumulative list dataframe
+}
+
+
+# To address tank as a random factor it MUST be numeric, change this here
+unique(survival_4_15$Tank) #1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 NA
+survival_4_15 <- survival_4_15 %>% 
+                    filter(!Tank %in% NA) %>% # omit the NA, same name not great practice but whateva
+                    dplyr::mutate(All = paste0(Salinity,OA,Temp),
+                                  OA = factor(OA, levels = c("Low", "High"))) #merge treatments
+survival_4_15$Tank <- as.numeric(survival_4_15$Tank)
+unique(survival_4_15$All)
+
+survival_4_15$All   <- factor(survival_4_15$All, levels = c("HighLowHigh", "HighLowLow", 
+                                                            "HighHighHigh", "HighHighLow",
+                                                            "LowLowHigh", "LowLowLow", 
+                                                            "LowHighHigh", "LowHighLow"))
+
+
+
+# (2) Mean counts alive and dead by tank - better representated for plots!
+# difference here is we take a mean for counts alive and dead within treatment, no tank included and a singluar line for plotting 
+df_survival_4_15_MEANS <- df_survival_4_15 %>% 
+              dplyr::select(c(Salinity, OA,Temp, Day, Count_dead, Count_alive)) %>% 
+              dplyr::group_by(Salinity, OA,Temp, Day) %>% 
+              dplyr::summarise(mean_Count_alive = mean(Count_alive), 
+                               mean_Count_dead = mean(Count_dead))
+
+# call datafarme binary for plotting
+survival_4_15_MEANS       <- data.frame() # start dataframe 
+
+# run it 
+for (i in 1:nrow(df_survival_4_15_MEANS)) {
+   count_alive <- round(df_survival_4_15_MEANS[i,]$mean_Count_alive) # divide all counts by 1000, round to nearest
+   count_dead  <- round(df_survival_4_15_MEANS[i,]$mean_Count_dead)  # divide all counts by 1000, round to nearest
+   
+   loopDF           <- data.frame(matrix(0,ncol = 5, nrow = (count_alive + count_dead))) 
+   colnames(loopDF) <- (c('Temp','OA', 'Salinity','Day','Count_dead'))
+   loopDF           <- loopDF %>% 
+                            dplyr::mutate(
+                            Temp      = df_survival_4_15_MEANS[i,]$Temp,
+                            OA        = df_survival_4_15_MEANS[i,]$OA,
+                            Salinity  = df_survival_4_15_MEANS[i,]$Salinity,
+                            Day       = df_survival_4_15_MEANS[i,]$Day,
+                          ) 
+  loopDF[c(1:count_dead),5] = 1 # 1 for dead 
+  loopDF[c((count_dead + 1):nrow(loopDF)),5] = 0 # 0 for alive
+
+  loopDF           <- data.frame(loopDF) # name dataframe for this single row
+  survival_4_15_MEANS <- rbind(survival_4_15_MEANS,loopDF) #bind to a cumulative list dataframe
+  
+}
+
+survival_4_15_MEANS      <- survival_4_15_MEANS %>% 
+                            dplyr::mutate(All = paste0(Salinity,OA,Temp),
+                                  OA = factor(OA, levels = c("Low", "High"))) #merge treatments
+survival_4_15_MEANS$All  <- factor(survival_4_15_MEANS$All, levels = c("HighLowHigh", "HighLowLow", 
+                                                            "HighHighHigh", "HighHighLow",
+                                                            "LowLowHigh", "LowLowLow", 
+                                                            "LowHighHigh", "LowHighLow"))
+
+```
+
+```{r surv object}
+
+# surv_all      <- survfit2(Surv(Day, Count_dead) ~ All, data = survival_4_15)
+surv_all            <- survfit2(Surv(Day, Count_dead) ~ Salinity+OA+Temp, data = survival_4_15)
+
+surv_all.means      <- survfit2(Surv(Day, Count_dead) ~ Salinity+OA+Temp, data = survival_4_15_MEANS)
+
+```
+
+```{r plot Kaplan Meier}
+
+Surv_larvaeKaplanMeier <- surv_all %>% 
+                        ggsurvfit(linetype_aes = F, linewidth = 1) +
+                        scale_color_manual(values = c("darkgreen","forestgreen","lightgreen", "yellowgreen",
+                                                      "darkslateblue", "darkorchid4","darkorchid2", "plum")) +
+                        scale_fill_manual(values = c("darkgreen","forestgreen","lightgreen", "yellowgreen",
+                                                      "darkslateblue", "darkorchid4","darkorchid2", "plum")) +
+                        labs(
+                          x = "Days",
+                          y = "Overall survival probability"
+                        ) + 
+                        add_confidence_interval() +
+                        # add_risktable() +
+                        # add_risktable_strata_symbol() + # (symbol = "\U25CF", size = 10
+                        scale_ggsurvfit(x_scales = list(breaks = 0:15)) #+
+                       # add_pvalue(location  = "annotation", x = 8.5)
+
+# plot the surv data
+pdf("Output/Survival/Survival_KaplanMeier.pdf", width=5, height = 4)
+Surv_larvaeKaplanMeier
+dev.off()
+
+```
+
+# Comparing survival times between groups (log-rank test)
+* We can conduct between-group significance tests using a log-rank test. The log-rank test equally weights observations over the entire follow-up time and is the most common way to compare survival times between groups. There are versions that more heavily weight the early or late follow-up that could be more appropriate depending on the research question (see ?survdiff for different test options).
+* We get the log-rank p-value using the survdiff function
+```{r log-rank test survdiff}
+
+Surv_logrank_test <- survdiff(formula = Surv(Day, Count_dead) ~ Salinity+Temp+OA, data = survival_4_15)
+#                                        N Observed Expected (O-E)^2/E (O-E)^2/V
+# Salinity=High, Temp=High, OA=Low  185912   123579   145823      3393      7376
+# Salinity=High, Temp=High, OA=High 189017   130026   150566      2802      6149
+# Salinity=High, Temp=Low , OA=Low  193131   113998   149655      8496     18438
+# Salinity=High, Temp=Low , OA=High 191955   134055   149946      1684      3671
+# Salinity=Low, Temp=High, OA=Low   191592   162054   150922       821      1796
+# Salinity=Low, Temp=High, OA=High  176791   155790   124494      7867     15932
+# Salinity=Low, Temp=Low , OA=Low   193881   157731   151555       252       550
+# Salinity=Low, Temp=Low , OA=High  158739   133214    87487     23901     42720
+# 
+#  Chisq= 86002  on 7 degrees of freedom, p= <2e-16
+Surv_logrank_test <- survdiff(formula = Surv(Day, Count_dead) ~ All, data = survival_4_15) # same results
+#                       N Observed Expected (O-E)^2/E (O-E)^2/V
+# All=HighHighHigh 189017   130026   150566      2802      6149
+# All=HighHighLow  191955   134055   149946      1684      3671
+# All=HighLowHigh  185912   123579   145823      3393      7376
+# All=HighLowLow   193131   113998   149655      8496     18438
+# All=LowHighHigh  176791   155790   124494      7867     15932
+# All=LowHighLow   158739   133214    87487     23901     42720
+# All=LowLowHigh   191592   162054   150922       821      1796
+# All=LowLowLow    193881   157731   151555       252       550
+# 
+#  Chisq= 86002  on 7 degrees of freedom, p= <2e-16
+```
+
+# The Cox regression model
+* We may want to quantify an effect size for a single variable, or include **more than one variable** into a regression model to account for the effects of multiple variables.
+* The Cox regression model is a semi-parametric model that can be used to fit univariable and multivariable regression models that have survival outcomes.
+# Run several mdoels 
+
+- mixed models - theseinclude all data with the Tank replicate (not the mean binary data!)
+  
+  * all - use 'pCO2_all' to run 
+  
+  * additive model - Parent_pCO2 and Larvae_pCO2 to explore main effects
+
+### Mixed model - all
+```{r cox & hazard ratio -  all mixed model}
+library(survminer) # ggforect hazard ratio plot
+library(finalfit)
+
+# assing dependent and explanatory includign tnak as frailty (review finatfit), run thsi 
+# alonside models using cexpH and such
+dependent_os  <- "Surv(Day, Count_dead)"
+explanatory   <- c("All", "frailty(Tank)")
+explanatory   <- "All"
+
+
+coxph_test         <- coxph(formula = Surv(Day, Count_dead) ~ # using coxpH and Tank as random factor using 'frailty'
+                                   Salinity + OA + Temp, # exclude +frailty(Tank) to be able to generate hazard plot
+                                 data = survival_4_15)
+#                 coef exp(coef) se(coef)     z      p
+# SalinityLow 0.487250  1.627833 0.001932 252.2 <2e-16
+# OAHigh      0.250322  1.284439 0.001918 130.5 <2e-16
+# TempLow     0.061206  1.063118 0.001907  32.1 <2e-16
+
+
+coxph_test_all         <- coxph(formula = Surv(Day, Count_dead) ~ # using coxpH and Tank as random factor using 'frailty'
+                                   All, # exclude +frailty(Tank) to be able to generate hazard plot
+                                 data = survival_4_15)
+#                      coef exp(coef)  se(coef)      z      p
+# AllHighLowLow   -0.080214  0.922919  0.004108 -19.52 <2e-16
+# AllHighHighHigh  0.054349  1.055853  0.003974  13.68 <2e-16
+# AllHighHighLow   0.150187  1.162051  0.003953  37.99 <2e-16
+# AllLowLowHigh    0.350595  1.419912  0.003784  92.66 <2e-16
+# AllLowLowLow     0.345145  1.412195  0.003811  90.56 <2e-16
+# AllLowHighHigh   0.579956  1.785959  0.003828 151.50 <2e-16
+# AllLowHighLow    0.817281  2.264334  0.003983 205.22 <2e-16
+
+?finalfit
+survival_4_15 %>%  # same as above, using finalfit to output, includes frailty
+    finalfit(dependent_os, explanatory, add_dependent_label = FALSE)
+
+# survival_4_15 %>%  # same as above, using finalfit to output, includes frailty
+#     finalfit(dependent_os, explanatory, add_dependent_label = FALSE)
+
+
+# mixed Cox analysis 
+survival_4_15$Tank     <- factor(survival_4_15$Tank)
+survival_4_15$cluster  <- factor(survival_4_15$Tank)
+survival_4_15          <- droplevels(survival_4_15)
+
+coxph_test.mixed.int   <- coxph(Surv(Day, Count_dead) ~ # using coxph our random factor MUST be name cluster
+                                   All + frailty(cluster), # we can try to make a hazard ratio plot with these data
+                                 data = survival_4_15, x=TRUE)
+
+?frailty
+coxme_test.mixed.int   <- coxme(Surv(Day, Count_dead) ~ # using coxme, notice ther results are the same as coxpH
+                                   All + (1 | Tank), # note we cannot make a hazrd ratio plot using coxme
+                                 data = survival_4_15)
+
+coxme_test.mixed.int.table   <- coxme(Surv(Day, Count_dead) ~ # using coxme, notice ther results are the same as coxpH
+                                   All + (1 | Tank), # note we cannot make a hazrd ratio plot using coxme
+                                 data = survival_4_15) %>%  
+                             tbl_regression(exp = TRUE) 
+# Model:  Surv(Day, Count_dead) ~ All + (1 | Tank) 
+# Fixed coefficients
+#                        coef exp(coef)  se(coef)     z      p
+# AllHighLowLow   -0.13606137 0.8727891 0.3095205 -0.44 0.6600
+# AllHighHighHigh  0.06398801 1.0660796 0.3095165  0.21 0.8400
+# AllHighHighLow   0.15633580 1.1692188 0.3095165  0.51 0.6100
+# AllLowLowHigh    0.36482815 1.4402665 0.3095141  1.18 0.2400
+# AllLowLowLow     0.35578059 1.4272944 0.3095146  1.15 0.2500
+# AllLowHighHigh   0.70397707 2.0217775 0.3095149  2.27 0.0230
+# AllLowHighLow    1.11955953 3.0635045 0.3095176  3.62 0.0003
+# 
+# Random effects
+#  Group Variable  Std Dev   Variance 
+#  Tank  Intercept 0.3790472 0.1436767
+
+
+coxme_test.mixed.add        <- coxme(Surv(Day, Count_dead) ~ # using coxme, notice ther results are the same as coxpH
+                                   Salinity+OA+Temp + (1 | Tank), # note we cannot make a hazrd ratio plot using coxme
+                                 data = survival_4_15)
+
+coxme_test.mixed.add.table  <- coxme(Surv(Day, Count_dead) ~ # using coxme, notice ther results are the same as coxpH
+                                   Salinity+OA+Temp + (1 | Tank), # note we cannot make a hazrd ratio plot using coxme
+                                 data = survival_4_15) %>%  
+                             tbl_regression(exp = TRUE) 
+
+
+Exp6_hazardratio_plotMIXED <- survival_4_15 %>% # using finalfit NO random factor here
+                                hr_plot(dependent_os, explanatory)
+# label       levels           all          HR (univariable) 
+#            All  HighLowHigh 185912 (12.6)                        
+#                  HighLowLow 193131 (13.0) 0.92 (0.92-0.93, p<0.001)
+#                HighHighHigh 189017 (12.8) 1.06 (1.05-1.06, p<0.001)
+#                 HighHighLow 191955 (13.0) 1.16 (1.15-1.17, p<0.001)
+#                  LowLowHigh 191592 (12.9) 1.42 (1.41-1.43, p<0.001)  
+#                   LowLowLow 193881 (13.1) 1.41 (1.40-1.42, p<0.001)  
+#                 LowHighHigh 176791 (11.9) 1.79 (1.77-1.80, p<0.001)   
+#                  LowHighLow 158739 (10.7) 2.26 (2.25-2.28, p<0.001)   
+#  frailty(Tank) 
+ 
+
+ # hazard plots
+hazardratio_plot_all <- ggforest(coxph_test_all, data = survival_4_15)
+
+hazardratio_plot     <- ggforest(coxph_test, data = survival_4_15)
+
+library(ggpubr)
+ggarrange(hazardratio_plot_all,hazardratio_plot, ncol = 2)
+
+
+# output yo stuff homie!
+capture.output(coxph_test.mixed,file="Output/Survival/Survival_CoxReg_mixedmodel.doc")
+
+pdf("Output/Survival/HazardRatio_plotsl.pdf", width = 12, height = 6) # three figures
+ggarrange(hazardratio_plot_all,hazardratio_plot, ncol = 2)
+dev.off()
+
+
+
+```
+
+
+
+
+
+
+# Survival STATS PERMANOVA (by time point)
 
 ```{r PERMANOVA prep n' plot all data}
 

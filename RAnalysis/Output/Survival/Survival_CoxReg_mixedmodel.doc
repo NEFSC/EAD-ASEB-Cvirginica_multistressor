@@ -1,0 +1,25 @@
+Cox mixed-effects model fit by maximum likelihood
+  Data: survival_4_15
+  events, n = 1110447, 1481018
+  Iterations= 4 25 
+                    NULL Integrated    Fitted
+Log-likelihood -14658979  -14563186 -14563075
+
+                     Chisq df p      AIC      BIC
+Integrated loglik 191585.1  8 0 191569.1 191473.8
+ Penalized loglik 191806.5 23 0 191760.5 191486.3
+
+Model:  Surv(Day, Count_dead) ~ All + (1 | Tank) 
+Fixed coefficients
+                       coef exp(coef)  se(coef)     z      p
+AllHighLowLow   -0.13606137 0.8727891 0.3095205 -0.44 0.6600
+AllHighHighHigh  0.06398801 1.0660796 0.3095165  0.21 0.8400
+AllHighHighLow   0.15633580 1.1692188 0.3095165  0.51 0.6100
+AllLowLowHigh    0.36482815 1.4402665 0.3095141  1.18 0.2400
+AllLowLowLow     0.35578059 1.4272944 0.3095146  1.15 0.2500
+AllLowHighHigh   0.70397707 2.0217775 0.3095149  2.27 0.0230
+AllLowHighLow    1.11955953 3.0635045 0.3095176  3.62 0.0003
+
+Random effects
+ Group Variable  Std Dev   Variance 
+ Tank  Intercept 0.3790472 0.1436767
