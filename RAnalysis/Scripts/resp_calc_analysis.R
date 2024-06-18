@@ -149,6 +149,8 @@ write.csv(Resp.Master,
 
 library(emmeans)
 library(car)
+library(ggpubr)
+library(rcompanion)
 # APRIL 24 hours post ferilization ------------------------------------------------ #
 
 setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/") # personal computer
@@ -175,7 +177,6 @@ summary(LMmod.APRIL_T)
 # pCO2:Salinity       1  2.690   2.690   3.357 0.08560 . 
 # Temp:pCO2:Salinity  1  0.251   0.251   0.314 0.58321   
 # Residuals          16 12.821   0.801 
-
 # post hoc tests 
 library(emmeans)
 posthoc<-emmeans(LMmod.APRIL_T, pairwise~Temp:pCO2, adjust="tukey")
@@ -185,7 +186,6 @@ multcomp::cld(posthoc$emmeans,alpha = 0.5, Letters = letters)
 # L    H    -0.716 0.365 16   -1.491   0.0586   b   
 # H    H    -0.374 0.365 16   -1.149   0.4009   bc  
 # L    L     0.279 0.365 16   -0.496   1.0538    c  
-# L    L     0.279 0.374 16   -0.514   1.0718    c  
 
 
 # Figures
@@ -206,15 +206,34 @@ APRIL_all <- Resp_APRIL_select %>%
   scale_fill_manual(values=c("white", "grey40")) +
   labs(title = "C virginica, 24 hr larvae", 
        y = expression(Respiration~rate~"("~ng~L^{-1}~O[2]%.%indiv^{-1}%.% hr^{-1}~")"), 
-       x = "Sal_pCO2") + 
-  annotate("text", x=2, y=5.8, label = "Low Salinity") +
+       x = "Temp_pCO2") + 
+  # annotate("text", x=2, y=5.8, label = "Low Salinity") +
   #annotate("rect", xmin = 0, xmax = 4.5, ymin = 0, ymax = 6.5,alpha = .2) +
   theme_classic() 
 APRIL_all
 
+
+APRIL_TemppCO2 <- Resp_APRIL_select %>%
+  dplyr::mutate(Temp_pCO2 = paste(Temp,pCO2, sep = '_')) %>% 
+  ggplot(aes(Temp_pCO2, resp_ng_L_indiv_hr , fill = factor(Temp_pCO2))) +
+  geom_boxplot(size=0.2, alpha=0.1) +
+  geom_point(shape = 21, size = 2, position = position_jitterdodge(jitter.width = 0.5))+
+  # scale_fill_manual(values=c("white", "grey40")) +
+  labs(title = "C virginica, 24 hr larvae", 
+       y = expression(Respiration~rate~"("~ng~L^{-1}~O[2]%.%indiv^{-1}%.% hr^{-1}~")"), 
+       x = "Temp_pCO2") + 
+  annotate("text", x=2.2, y=0.8, label = "a", size  =5) +
+  annotate("text", x=1.2, y=1.2, label = "ab", size =5) +
+  annotate("text", x=3.2, y=1.2, label = "b", size  =5) +
+  annotate("text", x=4.2, y=3.2, label = "c", size  =5) +
+  #annotate("rect", xmin = 0, xmax = 4.5, ymin = 0, ymax = 6.5,alpha = .2) +
+  theme_classic() 
+APRIL_TemppCO2
+
+
 setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/Output/")
-pdf("Respiration/Day1_RR.pdf", width=8, height=6)
-print(APRIL_all)
+pdf("Respiration/Day1_RR.pdf", width=8, height=12)
+ggarrange(APRIL_all,APRIL_TemppCO2, nrow=2)
 dev.off()
 
 

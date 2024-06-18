@@ -120,6 +120,47 @@ WGCNA_MasterModData   <-  merge( (as.data.frame(rbind(day2_mod_RR,
 #WGCNA_ColorList       <-  rbind(d2ModCols, d18ModCols) # master WGCNA color list - use this to loop all the analysis 
 
 
+# ============================================================================= #
+# Co-expression Pattern: High pCO2 == Low expression - interpreted as those overlapped with day 22 red and day 22 green
+# ============================================================================= #
+View(d22red)
+
+d22red <- WGCNA_MasterModData %>% 
+  dplyr::filter(case_when(Day == 'Day22' ~ moduleColor %in% 'red')) %>% 
+  dplyr::mutate(mod_color = 'red')
+
+d22blue <- WGCNA_MasterModData %>% 
+  dplyr::filter(case_when(Day == 'Day22' ~ moduleColor %in% 'blue')) %>% 
+  dplyr::mutate(mod_color = 'blue')
+
+d22green  <- WGCNA_MasterModData %>% 
+  dplyr::filter(case_when(Day == 'Day22' ~ moduleColor %in% 'green')) %>% 
+  dplyr::mutate(mod_color = 'green')
+
+# create a vector to filter with 
+d22red_filter          <- d22red %>% dplyr::filter(!Protein_name %in% ' uncharacterized') # removed "uncharacterized from protein names
+d22red_proteinNames    <- paste(substr(d22red_filter$Protein_name,1,25), collapse="|") # separate all protein names by | to use grep to subset anoter dataframe 
+d22red_proteinNames    <- paste(d22red_filter$Protein_name, collapse="|") # separate all protein names by | to use grep to subset anoter dataframe 
+
+d22blue_filter          <- d22blue %>% dplyr::filter(!Protein_name %in% ' uncharacterized') # removed "uncharacterized from protein names
+d22blue_proteinNames    <- paste(substr(d22blue_filter$Protein_name,1,25), collapse="|") # separate all protein names by | to use grep to subset anoter dataframe 
+d22blue_proteinNames    <- paste(d22blue_filter$Protein_name, collapse="|") # separate all protein names by | to use grep to subset anoter dataframe 
+
+d22green_filter          <- d22green %>% dplyr::filter(!Protein_name %in% ' uncharacterized') # removed "uncharacterized from protein names
+d22green_proteinNames    <- paste(substr(d22green_filter$Protein_name,1,25), collapse="|") # separate all protein names by | to use grep to subset anoter dataframe 
+d22green_proteinNames    <- paste(d22green_filter$Protein_name, collapse="|") # separate all protein names by | to use grep to subset anoter dataframe 
+
+
+#do genes overlap? what genes are shared between red and green?
+d22red_SUBSET_green  <- subset(d22red_filter, grepl(d22green_proteinNames, Protein_name)) 
+
+d22red_SUBSET_blue  <- subset(d22blue_filter, grepl(d22red_proteinNames, Protein_name)) 
+
+
+View(d22red_SUBSET_green)
+
+View(d22red_SUBSET_blue)
+
 
 # ============================================================================= #
 # Co-expression Pattern HIGH from low salnity and LOW from elevated pCO2 
@@ -143,7 +184,7 @@ d22tan_proteinNames    <- paste(substr(d22tan_filter$Protein_name,1,15), collaps
 
 d22red_filter          <- d22red %>% dplyr::filter(!Protein_name %in% ' uncharacterized') # removed "uncharacterized from protein names
 d22red_proteinNames    <- paste(substr(d22red_filter$Protein_name,1,15), collapse="|") # separate all protein names by | to use grep to subset anoter dataframe 
-
+View(d22red_filter)
 # subsets
 d22red_SUBSET  <- subset(d22red_filter, !grepl(d22tan_proteinNames, Protein_name)) 
 d22red_SUBSET$Protein_name
@@ -286,6 +327,8 @@ d22tan_SUBSET$Protein_name
 # ============================================================================= #
 d2blue <- WGCNA_MasterModData %>% 
   dplyr::filter(case_when(Day == 'Day2' ~ moduleColor %in% 'blue'))
+
+View(d22blue)
 
 d22blue  <- WGCNA_MasterModData %>% 
   dplyr::filter(case_when(Day == 'Day22' ~ moduleColor %in% 'blue')) 

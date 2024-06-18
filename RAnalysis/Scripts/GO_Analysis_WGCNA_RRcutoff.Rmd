@@ -620,7 +620,8 @@ dev.off()
 
 #  BIOLOGICAL PROCESS
 BP_Day2      <- as.data.frame(unique(df_Day2 %>%  
-                                     dplyr::select(c('Day', 'GO_term', 'moduleColor', 'ontology', 'pvalue', 'Gene_count',  'Gene_ratio')))) %>% 
+                                     dplyr::select(c('Day', 'GO_term', 'moduleColor', 
+                                                     'ontology', 'pvalue', 'Gene_count',  'Gene_ratio')))) %>% 
                                      dplyr::filter(!ontology %in% 'CC' & ontology %in% 'BP') %>%  # omit the cellular component enriched GO terms - CALL THE MOLECUALR FUNCTION TERMS
                                      dplyr::filter(!(moduleColor == 'black' & GO_term == c('translation','ribosome biogenesis'))) %>% #'translation','ribosome biogenesis' contains an abnormally high logpvlue - oomitted here
                                      dplyr::mutate(log10_pvalue = -log10(pvalue)) %>% 
@@ -628,7 +629,8 @@ BP_Day2      <- as.data.frame(unique(df_Day2 %>%
                                      dplyr::mutate(GO_term = reorder_within(GO_term, log10_pvalue, moduleColor)) %>% # this orders the pvalue correctly for plotting
                                     # dplyr::mutate(GO_term = sub('___.*$','', GO_term)) %>% # but the line above also adds module color followed by three underscores (strange?!) - omit these easily with gsub
                                             ggplot(aes(x=GO_term, y= log10_pvalue, size = Gene_ratio)) +
-                                            geom_segment( aes(x=GO_term, xend=GO_term, y=1, yend=log10_pvalue, color=moduleColor, size = 3)) + 
+                                            geom_segment( aes(x=GO_term, xend=GO_term, y=1, yend=log10_pvalue, 
+                                                              color=moduleColor, size = 3)) + 
                                             scale_color_manual(values=c("black", "blue","brown", "pink", "red", 'turquoise')) +
                                             #scale_color_gradient(low = "orange", high = "blue") +
                                             geom_point(aes(size = Gene_count), shape =21,  fill = "white") + # shap = 15 (squares)

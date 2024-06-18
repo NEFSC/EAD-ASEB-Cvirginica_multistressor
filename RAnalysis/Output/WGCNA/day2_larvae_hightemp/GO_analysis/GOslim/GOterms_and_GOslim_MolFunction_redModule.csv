@@ -1,6 +1,0 @@
-"","GO_terms","X","over_represented_pvalue","under_represented_pvalue","numDEInCat","numInCat","term","ontology","moduleColor","Day","slim_term","Gene_IDs"
-"1","GO:0003924",25,0.026592385502156,0.990345115668352,8,437,"GTPase activity","MF","red","Day2_hightemp","hydrolase activity","XM_022433242.1;XM_022457914.1;XM_022462822.1;XM_022476517.1;XM_022477012.1;XM_022479343.1;XM_022479396.1;XM_022479882.1"
-"2","GO:0008135",24,0.0125222525986938,0.998599396831443,3,66,"translation factor activity, RNA binding","MF","red","Day2_hightemp","RNA binding","XM_022439719.1;XM_022457310.1;XM_022488325.1"
-"3","GO:0008135",24,0.0125222525986938,0.998599396831443,3,66,"translation factor activity, RNA binding","MF","red","Day2_hightemp","translation regulator activity","XM_022439719.1;XM_022457310.1;XM_022488325.1"
-"4","GO:0016765",23,0.0114614748100569,0.998764836316373,3,57,"transferase activity, transferring alkyl or aryl (other than methyl) groups","MF","red","Day2_hightemp","transferase activity","XM_022439587.1;XM_022440914.1;XM_022487069.1"
-"5","GO:0030234",22,0.00815453945661374,0.997198920973819,10,669,"enzyme regulator activity","MF","red","Day2_hightemp","molecular function regulator","XM_022438178.1;XM_022438323.1;XM_022454290.1;XM_022454300.1;XM_022456073.1;XM_022456074.1;XM_022456075.1;XM_022467692.1;XM_022467807.1;XM_022481323.1"

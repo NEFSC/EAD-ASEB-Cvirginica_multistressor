@@ -77,6 +77,21 @@ Cvirginica_annot_reference  <- read.csv(file="../Data/TagSeq/Seq_details/seq_id_
                                 dplyr::select(!X) %>% 
                                 dplyr::mutate(TranscriptID = gsub(" ", "", TranscriptID))
 
+# what percent of the count matrix has GO and gene annotation?
+Cvirginica_annot_reference %>% 
+  dplyr::filter(TranscriptID %in% rownames(d2.counts_matrix)) %>% 
+  dplyr::filter(grepl("uncharacterize", Function)) # here is an example of ALL the uncharacterized genes in count matrix d2
+
+
+d2_num_annotated <- nrow(Cvirginica_annot_reference %>% 
+                      dplyr::filter(TranscriptID %in% rownames(d2.counts_matrix)) %>% 
+                      dplyr::filter(!grepl("uncharacterize", Function)))
+d2_perc_annotated <- (d2_num_annotated/nrow(d2.counts_matrix))*100 # 79.85477
+
+d18_num_annotated <- nrow(Cvirginica_annot_reference %>% 
+                      dplyr::filter(TranscriptID %in% rownames(d18.counts_matrix)) %>% 
+                      dplyr::filter(!grepl("uncharacterize", Function)))
+d18_perc_annotated <- (d18_num_annotated/nrow(d18.counts_matrix))*100 # 76.31686
 ```
 
 

@@ -7,42 +7,40 @@ output:
   html_document: default
 ---
 
-
-
-
 # load libraries
 
-```{r,setup}
+```{r setup, include=FALSE}
 library(ggplot2)
 library(dplyr)
 library(tidyverse)
 library(multcompView)
-# library(agricolae)
 library(dplyr)
 library(lme4)
 library(ggplot2)
 library(nlme)
 library(car)
 library(performance)
-# library(stargazer)
 library(emmeans)
 library(pander)
-# library(survminer)
 library(survival)
-# library(adjustedCurves)
-# library(riskRegression)
-# library(pammtools)
-# library(bestNormalize)
 library(MASS)
-```
+library(vegan)
+library(tidyverse)
+# sets the working directory for the entire R markdown file - no need to reload the wd
+knitr::opts_knit$set(root.dir = "C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis") 
 
+```
 
 # Set Path & load data
 
+<<<<<<< HEAD
 ```{r, load}
 
 #setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis")
 setwd("C:/Users/samuel.gurr/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis")
+=======
+```{r, load data}
+>>>>>>> 154022d674e530bcbe85cea275276674db405988
 
 # EXPERIMENT METADATA 
 Exp_data <-  read.csv("Data/Survival/Survival_master.csv", header = T) %>% 
@@ -51,7 +49,7 @@ Exp_data <-  read.csv("Data/Survival/Survival_master.csv", header = T) %>%
                 dplyr::rename(Sample.ID = Id., Aragonite_saturation = AR)
 
 
-#  LENGTH DATA 
+#  LENGTH DATA - call it and add columns to merge 
 # day 1 - length data
 raw_length_dat_Age1    <- read.csv("Data/Length/workbook/timepoint_1_Day1.csv", header = T,nrows=50) %>% 
                                     dplyr::mutate(Age = 1) %>% 
@@ -95,8 +93,6 @@ raw_length_dat_Age22_spat   <- read.csv("Data/Length/workbook/timepoint_7_Day22_
 
 ```
 
-
-:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 # prep data 
 
 ```{r, prep the raw data for stats} 
@@ -116,13 +112,17 @@ Masterlengthdata    <- as.data.frame(rbind(sapply(raw_length_dat_Age1, as.numeri
                         
 
 # Age 1
-raw_length_Age1MELT <-  reshape2::melt((as.data.frame(Masterlengthdata) %>% dplyr::filter(Age == 1))) %>% 
+raw_length_Age1MELT <-  reshape2::melt((as.data.frame(Masterlengthdata) %>% 
+                                          dplyr::filter(Age == 1))) %>% 
                         na.omit %>% 
                         dplyr::rename(length_um = value , Sample.ID =variable) %>% 
                         dplyr::mutate(Sample.ID = gsub('.*Sample.','', Sample.ID))
 
 Age1_raw_length      <- merge(raw_length_Age1MELT, Exp_data, by = 'Sample.ID')  %>% 
-                        dplyr::mutate(random_fact = paste( substr(Temp,1,1), substr(OA,1,1), substr(Salinity,1,1), '_', Replicate, sep = '')) %>%
+                        dplyr::mutate(random_fact = 
+                                        paste( substr(Temp,1,1), 
+                                               substr(OA,1,1), 
+                                               substr(Salinity,1,1), '_', Replicate, sep = '')) %>%
                         dplyr::mutate(Age = 1)
 
 
@@ -133,7 +133,10 @@ raw_length_Age4MELT <-  reshape2::melt((as.data.frame(Masterlengthdata) %>% dply
                         dplyr::mutate(Sample.ID = gsub('.*Sample.','', Sample.ID))
 
 Age4_raw_length      <- merge(raw_length_Age4MELT, Exp_data, by = 'Sample.ID')  %>% 
-                        dplyr::mutate(random_fact = paste( substr(Temp,1,1), substr(OA,1,1), substr(Salinity,1,1), '_', Replicate, sep = '')) %>%
+                        dplyr::mutate(random_fact = 
+                                        paste( substr(Temp,1,1), 
+                                               substr(OA,1,1), 
+                                               substr(Salinity,1,1), '_', Replicate, sep = '')) %>%
                         dplyr::mutate(Age = 4)
 
 
@@ -144,7 +147,10 @@ raw_length_Age8MELT <-  reshape2::melt((as.data.frame(Masterlengthdata) %>% dply
                         dplyr::mutate(Sample.ID = gsub('.*Sample.','', Sample.ID))
 
 Age8_raw_length      <- merge(raw_length_Age8MELT, Exp_data, by = 'Sample.ID')  %>% 
-                        dplyr::mutate(random_fact = paste( substr(Temp,1,1), substr(OA,1,1), substr(Salinity,1,1), '_', Replicate, sep = '')) %>%
+                        dplyr::mutate(random_fact = 
+                                        paste( substr(Temp,1,1), 
+                                               substr(OA,1,1), 
+                                               substr(Salinity,1,1), '_', Replicate, sep = '')) %>%
                         dplyr::mutate(Age = 8)
 
 # Age 11
@@ -154,49 +160,67 @@ raw_length_Age11MELT <-  reshape2::melt((as.data.frame(Masterlengthdata) %>% dpl
                         dplyr::mutate(Sample.ID = gsub('.*Sample.','', Sample.ID))
 
 Age11_raw_length      <- merge(raw_length_Age11MELT, Exp_data, by = 'Sample.ID')  %>% 
-                        dplyr::mutate(random_fact = paste( substr(Temp,1,1), substr(OA,1,1), substr(Salinity,1,1), '_', Replicate, sep = '')) %>%
+                        dplyr::mutate(random_fact = 
+                                        paste( substr(Temp,1,1), 
+                                               substr(OA,1,1), 
+                                               substr(Salinity,1,1), '_', Replicate, sep = '')) %>%
                         dplyr::mutate(Age = 11)
 
 # Age 15
-raw_length_Age15MELT <- reshape2::melt((as.data.frame(Masterlengthdata) %>% dplyr::filter(Age == 15))) %>% 
+raw_length_Age15MELT <- reshape2::melt((as.data.frame(Masterlengthdata) %>% 
+                                          dplyr::filter(Age == 15))) %>% 
                         na.omit %>% 
                         dplyr::rename(length_um = value , Sample.ID =variable) %>% 
                         dplyr::mutate(Sample.ID = gsub('.*Sample.','', Sample.ID))
 
 Age15_raw_length      <- merge(raw_length_Age15MELT, Exp_data, by = 'Sample.ID')  %>% 
-                        dplyr::mutate(random_fact = paste( substr(Temp,1,1), substr(OA,1,1), substr(Salinity,1,1), '_', Replicate, sep = '')) %>%
+                        dplyr::mutate(random_fact = 
+                                        paste( substr(Temp,1,1), 
+                                               substr(OA,1,1), 
+                                               substr(Salinity,1,1), '_', Replicate, sep = '')) %>%
                         dplyr::mutate(Age = 15)
 
 
 # Age 19
-raw_length_Age19MELT <- reshape2::melt((as.data.frame(Masterlengthdata) %>% dplyr::filter(Age == 19))) %>% 
+raw_length_Age19MELT <- reshape2::melt((as.data.frame(Masterlengthdata) %>% 
+                                          dplyr::filter(Age == 19))) %>% 
                         na.omit %>% 
                         dplyr::rename(length_um = value , Sample.ID =variable) %>% 
                         dplyr::mutate(Sample.ID = gsub('.*Sample.','', Sample.ID))
 
 Age19_raw_length      <- merge(raw_length_Age19MELT, Exp_data, by = 'Sample.ID')  %>% 
-                        dplyr::mutate(random_fact = paste( substr(Temp,1,1), substr(OA,1,1), substr(Salinity,1,1), '_', Replicate, sep = '')) %>%
+                        dplyr::mutate(random_fact = paste( substr(Temp,1,1), 
+                                                           substr(OA,1,1), 
+                                                           substr(Salinity,1,1), '_', Replicate, sep = '')) %>%
                         dplyr::mutate(Age = 19)
 
 
 # Age 22
-raw_length_Age22MELT_larvae  <- reshape2::melt((as.data.frame(Masterlengthdata) %>% dplyr::filter(Age == 22 & stage == 'larvae'))) %>% 
+raw_length_Age22MELT_larvae  <- reshape2::melt((as.data.frame(Masterlengthdata) %>% 
+                                                  dplyr::filter(Age == 22 & stage == 'larvae'))) %>% 
                                   na.omit %>% 
                                   dplyr::rename(length_um = value , Sample.ID =variable) %>% 
                                   dplyr::mutate(Sample.ID = gsub('.*Sample.','', Sample.ID))
 
-Age22_raw_length_larvae      <- merge(raw_length_Age22MELT_larvae, Exp_data, by = 'Sample.ID')  %>% 
-                                  dplyr::mutate(random_fact = paste( substr(Temp,1,1), substr(OA,1,1), substr(Salinity,1,1), '_', Replicate, sep = '')) %>%
+Age22_raw_length_larvae   <- merge(raw_length_Age22MELT_larvae, Exp_data, by = 'Sample.ID')  %>% 
+                              dplyr::mutate(random_fact = paste( substr(Temp,1,1), 
+                                                                 substr(OA,1,1), 
+                                                                 substr(Salinity,1,1), '_', Replicate, sep = '')) %>%
                                   dplyr::mutate(Age = 22)
 
 
-raw_length_Age22MELT_spat  <- reshape2::melt((as.data.frame(Masterlengthdata) %>% dplyr::filter(Age == 22 & stage == 'spat'))) %>% 
+raw_length_Age22MELT_spat  <- reshape2::melt((as.data.frame(Masterlengthdata) %>% 
+                                                dplyr::filter(Age == 22 & stage == 'spat'))) %>% 
                                   na.omit %>% 
                                   dplyr::rename(length_um = value , Sample.ID =variable) %>% 
                                   dplyr::mutate(Sample.ID = gsub('.*Sample.','', Sample.ID))
 
 Age22_raw_length_spat      <- merge(raw_length_Age22MELT_spat, Exp_data, by = 'Sample.ID')  %>% 
-                                  dplyr::mutate(random_fact = paste( substr(Temp,1,1), substr(OA,1,1), substr(Salinity,1,1), '_', Replicate, sep = '')) %>%
+                                  dplyr::mutate(random_fact = 
+                                                  paste( substr(Temp,1,1), 
+                                                         substr(OA,1,1), 
+                                                         substr(Salinity,1,1), '_', 
+                                                         Replicate, sep = '')) %>%
                                   dplyr::mutate(Age = 22)
 
 Master_Lengths <- rbind(Age1_raw_length,
@@ -208,9 +232,379 @@ Master_Lengths <- rbind(Age1_raw_length,
                         Age22_raw_length_larvae,
                         Age22_raw_length_spat)
 #View(Master_Lengths)
-setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis")
-write.csv(Master_Lengths, 
-          "Data/Length/cumulative_raw/Length_cumulative_raw.csv")# write
+
+write.csv(Master_Lengths, "Data/Length/cumulative_raw/Length_cumulative_raw.csv")# write
+
+
+
+```
+
+# PLOTS
+
+## boxplots
+```{r, bxplots all data facetted by age}
+# ?scale_linetype
+# plot all 
+All_length_boxplot <- ggplot(data=(Master_Lengths %>% dplyr::filter(!Age %in% c(19, 22))), 
+                             aes(x=fct_relevel(Salinity, c("Low", "High")), 
+                                 y=length_um, 
+                                 colour=fct_relevel(OA, c("High", "Low")), 
+                                 linetype= fct_relevel(Temp, c("Low", "High")))) +
+                             # scale_linetype(c("dotted","solid")) +
+                             scale_linetype_manual(breaks=c("Low", "High"), values=c("dashed","solid")) +
+                             scale_colour_manual(breaks=c("Low", "High"), values=c("#56B4E9","#E69F00")) +
+                             geom_boxplot() + 
+                             stat_summary(fun.y="mean",position = position_dodge2(width = 0.75)) +
+                             labs(title="Length data", x ="Salinity", y = "Larvae size (μm)") +
+                             theme_classic() +
+                             theme(panel.grid.major = element_blank(), 
+                                   panel.grid.minor = element_blank(), 
+                                   axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
+                                   axis.text=element_text(size=12),
+                                  legend.position="none") +
+                             facet_wrap(~Age, scales = "free_y")
+
+pdf("Output/Length/plots/Length_all_boxplots.pdf", width=11, height=8)
+print(All_length_boxplot)
+dev.off()
+
+```
+
+
+## regresions (exploratory for aragonite correlation)
+```{r, regression with aragonite sat}
+# ?scale_linetype
+# plot all 
+
+Master_Lengths_Rep_means   <- Master_Lengths %>% 
+                                  dplyr::select(c(Age, Temp, OA, Salinity, Replicate, Aragonite_saturation, length_um)) %>% 
+                                  dplyr::group_by(Age, Temp, OA, Salinity, Aragonite_saturation, Replicate) %>% 
+                                  dplyr::summarise_each(funs(mean,sd,se=sd(.)/sqrt(n()))) 
+
+Master_Lengths_Treat_means <- Master_Lengths_Rep_means %>% 
+                                  dplyr::select(-c(Replicate)) %>% 
+                                  dplyr::group_by(Age, Temp, OA, Salinity, Aragonite_saturation) %>% 
+                                  dplyr::summarise_each(funs(mean,sd,se=sd(.)/sqrt(n()))) 
+
+
+
+All_length_regressions_arag <- ggplot(data=(Master_Lengths_Rep_means %>% 
+                                              dplyr::filter(!Age %in% c(19, 22)) %>% 
+                                              dplyr::mutate(AllTreat = paste0(OA,' x ',Salinity,' x ',Temp)) %>% 
+                                              dplyr::mutate(mean = as.numeric(mean))), 
+                                   aes(x=as.numeric(Aragonite_saturation), 
+                                       y=mean, 
+                                       linetype= fct_relevel(Temp, c("Low", "High")))) +
+                                   scale_linetype_manual(breaks=c("Low", "High"), values=c("dashed","solid")) +
+                                   geom_point() + 
+                                   geom_smooth(method = "loess", fill = NA, color = 'grey') +
+                                   stat_summary(fun.y="mean", size = 0.5) +
+                                   stat_summary(fun.min = function(x) mean(x) - sd(x)/sqrt(length(x)), 
+                                                fun.max = function(x) mean(x) + sd(x)/sqrt(length(x)),
+                                                geom = 'errorbar')+ # position = position_dodge2(width = 1)
+                                   labs(title="Length data", x ="Aragonite Saturation State", y = "Larvae size (μm)") +
+                                   theme_classic() +
+                                   theme(panel.grid.major = element_blank(), 
+                                         panel.grid.minor = element_blank(), 
+                                         axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
+                                         axis.text=element_text(size=12),
+                                        legend.position="none") +
+                                   facet_wrap(~Age, scales = "free_y")
+
+pdf("Output/Length/plots/Length_all_boxplots.pdf", width=11, height=8)
+print(All_length_boxplot)
+dev.off()
+
+```
+
+# PERMANOVA using vegan
+
+* load data
+```{r, load the data and assign permutations}
+
+permutations = 999
+
+```
+
+* day for each day
+* reduce data to mean length for tank replicates (can not address random factors in permanova)
+```{r, mean length by day}
+# REQUIRED TO HAVE LHS DEP VAR AS ITS OWN MATRIX
+Mean_D1_Length <- as.data.frame( # all 24 tanks
+  Age1_raw_length %>% 
+  dplyr::select(length_um,OA,Temp,Salinity,random_fact) %>% 
+  dplyr::group_by(OA,Temp,Salinity,random_fact) %>% 
+  dplyr::rename(sample.id = random_fact) %>% 
+  dplyr::summarise(length_um=mean(length_um))
+  )
+Mean_D4_Length <- as.data.frame( # all 24 tanks
+  Age4_raw_length %>% 
+  dplyr::select(length_um,OA,Temp,Salinity,random_fact) %>% 
+  dplyr::group_by(OA,Temp,Salinity,random_fact) %>% 
+  dplyr::rename(sample.id = random_fact) %>% 
+  dplyr::summarise(length_um=mean(length_um))
+  )
+Mean_D8_Length <- as.data.frame( # all 24 tanks
+  Age8_raw_length %>% 
+  dplyr::select(length_um,OA,Temp,Salinity,random_fact) %>% 
+  dplyr::group_by(OA,Temp,Salinity,random_fact) %>% 
+  dplyr::rename(sample.id = random_fact) %>% 
+  dplyr::summarise(length_um=mean(length_um))
+  )
+Mean_D11_Length <- as.data.frame(# N = 21 tanks remaining
+  Age11_raw_length %>% 
+  dplyr::select(length_um,OA,Temp,Salinity,random_fact) %>% 
+  dplyr::group_by(OA,Temp,Salinity,random_fact) %>% 
+  dplyr::rename(sample.id = random_fact) %>% 
+  dplyr::summarise(length_um=mean(length_um))
+  )
+Mean_D15_Length <- as.data.frame( # N = 17 tanks remaining
+  Age15_raw_length %>% 
+  dplyr::select(length_um,OA,Temp,Salinity,random_fact) %>% 
+  dplyr::group_by(OA,Temp,Salinity,random_fact) %>% 
+  dplyr::rename(sample.id = random_fact) %>% 
+  dplyr::summarise(length_um=mean(length_um))
+  )
+Mean_D19_Length <- as.data.frame( # only 5 tanks - Do not run PERMANOVA
+  Age19_raw_length %>% 
+  dplyr::select(length_um,OA,Temp,Salinity,random_fact) %>% 
+  dplyr::group_by(OA,Temp,Salinity,random_fact) %>% 
+  dplyr::rename(sample.id = random_fact) %>% 
+  dplyr::summarise(length_um=mean(length_um))
+  )
+```
+
+* metadata dataframes - ommit the DV
+```{r, metadata}
+
+# METADATA
+D1_metadata  <- Mean_D1_Length %>% dplyr::select(-length_um)
+D4_metadata  <- Mean_D4_Length %>% dplyr::select(-length_um)
+D8_metadata  <- Mean_D8_Length %>% dplyr::select(-length_um)
+D11_metadata <- Mean_D11_Length %>% dplyr::select(-length_um)
+D15_metadata <- Mean_D15_Length %>% dplyr::select(-length_um)
+D19_metadata <- Mean_D19_Length %>% dplyr::select(-length_um)
+```
+
+* call only the DV, compute euclidean distance matrix (ideal for continuous data)
+```{r, eclidean distance matrix}
+# CALL JUST THE LENGTH DATA TO COMPUTE DISTANCE MATRIX
+D1_length         <- Mean_D1_Length[, 'length_um', drop = FALSE]
+D1_distance_euc   <- vegdist(D1_length, "euclidean")
+
+D4_length         <- Mean_D4_Length[, 'length_um', drop = FALSE]
+D4_distance_euc   <- vegdist(D4_length, "euclidean")
+
+D8_length         <- Mean_D8_Length[, 'length_um', drop = FALSE]
+D8_distance_euc   <- vegdist(D8_length, "euclidean")
+
+D11_length         <- Mean_D11_Length[, 'length_um', drop = FALSE]
+D11_distance_euc   <- vegdist(D11_length, "euclidean")
+
+D15_length         <- Mean_D15_Length[, 'length_um', drop = FALSE]
+D15_distance_euc   <- vegdist(D15_length, "euclidean")
+
+D19_length         <- Mean_D19_Length[, 'length_um', drop = FALSE]
+D19_distance_euc   <- vegdist(D19_length, "euclidean")
+
+```
+
+* convert to square matrix (column and row names as sample ID)
+```{r, square the eclidean distance matrix}
+# CREATE SQUARE MATRIX ASSIGN ROW NAMES AND COLUMN NAMES AS THE GROUP VAR
+D1_distance_mtx           <- as.matrix(D1_distance_euc)
+rownames(D1_distance_mtx) <- Mean_D1_Length$sample.id
+colnames(D1_distance_mtx) <- Mean_D1_Length$sample.id
+
+D4_distance_mtx           <- as.matrix(D4_distance_euc)
+rownames(D4_distance_mtx) <- Mean_D4_Length$sample.id
+colnames(D4_distance_mtx) <- Mean_D4_Length$sample.id
+
+D8_distance_mtx           <- as.matrix(D8_distance_euc)
+rownames(D8_distance_mtx) <- Mean_D8_Length$sample.id
+colnames(D8_distance_mtx) <- Mean_D8_Length$sample.id
+
+D11_distance_mtx           <- as.matrix(D11_distance_euc)
+rownames(D11_distance_mtx) <- Mean_D11_Length$sample.id
+colnames(D11_distance_mtx) <- Mean_D11_Length$sample.id
+
+D15_distance_mtx           <- as.matrix(D15_distance_euc)
+rownames(D15_distance_mtx) <- Mean_D15_Length$sample.id
+colnames(D15_distance_mtx) <- Mean_D15_Length$sample.id
+
+# Then...
+# CONVERT THE ROWNAME TO FIRST COLUMN, CONVERT TO DATAFRAME TO DO SO
+D1_distance  <- tibble::rownames_to_column(as.data.frame(D1_distance_mtx), "sample.id")
+D4_distance  <- tibble::rownames_to_column(as.data.frame(D4_distance_mtx), "sample.id")
+D8_distance  <- tibble::rownames_to_column(as.data.frame(D8_distance_mtx), "sample.id")
+D11_distance <- tibble::rownames_to_column(as.data.frame(D11_distance_mtx), "sample.id")
+D15_distance <- tibble::rownames_to_column(as.data.frame(D15_distance_mtx), "sample.id")
+
+
+```
+
+* join the metadata tothe distance matrices - for the RHS (IVs) of adonis!
+```{r, inner join - used for independent variable calls}
+
+# NOW USE INNER_JOIN TO MERGE THE METADATA 
+D1_meta_distance  <- inner_join(D1_distance,  D1_metadata, by = "sample.id")
+D4_meta_distance  <- inner_join(D4_distance,  D4_metadata, by = "sample.id")
+D8_meta_distance  <- inner_join(D8_distance,  D8_metadata, by = "sample.id")
+D11_meta_distance <- inner_join(D11_distance, D11_metadata, by = "sample.id")
+D15_meta_distance <- inner_join(D15_distance, D15_metadata, by = "sample.id")
+
+```
+
+* isolate the distance data - for the LHS (DV) of adonis!
+```{r, isolate the dependent variable dist data}
+# get the dist matrix
+D1_dist  <- D1_meta_distance  %>% dplyr::select(all_of(D1_meta_distance$sample.id)) %>% as.dist() 
+D4_dist  <- D4_meta_distance  %>% dplyr::select(all_of(D4_meta_distance$sample.id)) %>% as.dist() 
+D8_dist  <- D8_meta_distance  %>% dplyr::select(all_of(D8_meta_distance$sample.id)) %>% as.dist() 
+D11_dist <- D11_meta_distance %>% dplyr::select(all_of(D11_meta_distance$sample.id)) %>% as.dist() 
+D15_dist <- D15_meta_distance %>% dplyr::select(all_of(D15_meta_distance$sample.id)) %>% as.dist() 
+```
+
+* Finally the time is here... Lets run it!
+* run adonis for eudlidean dist length by OA * Temp * Salinty
+* Notes: run within each day from the mean length per tank replicate (A, B, C) with 1000 permutations,
+we day 19 data has only 5 tanks remaining with length measurements, just completed for days between 1-15
+```{r, run adonis2 }
+# RUN ADONIS
+# formula as () LHS (disc required!) ~ RHS (your metadata), data = metadata, perms)
+D1_adonis_run   <- adonis2(D1_dist  ~ OA*Temp*Salinity, data=D1_meta_distance, perms = permutations) 
+D4_adonis_run   <- adonis2(D4_dist  ~ OA*Temp*Salinity, data=D4_meta_distance, perms = permutations) 
+D8_adonis_run   <- adonis2(D8_dist  ~ OA*Temp*Salinity, data=D8_meta_distance, perms = permutations) 
+D11_adonis_run  <- adonis2(D11_dist ~ OA*Temp*Salinity, data=D11_meta_distance, perms = permutations) 
+D15_adonis_run  <- adonis2(D15_dist ~ OA*Temp*Salinity, data=D15_meta_distance, perms = permutations) 
+
+write.csv(as.data.frame(D1_adonis_run), "Output/Length/stat_tables/D1_PERMANOVA.csv")# write
+write.csv(as.data.frame(D4_adonis_run), "Output/Length/stat_tables/D4_PERMANOVA.csv")# write
+write.csv(as.data.frame(D8_adonis_run), "Output/Length/stat_tables/D8_PERMANOVA.csv")# write
+write.csv(as.data.frame(D11_adonis_run), "Output/Length/stat_tables/D11_PERMANOVA.csv")# write
+write.csv(as.data.frame(D15_adonis_run), "Output/Length/stat_tables/D15_PERMANOVA.csv")# write
+
+```
+
+
+* Pairwise cases - explore the significant interaction term(s), if any
+* Note: this is some tedious grueling code, parse apart all possible pairs and rerun adonis 
+
+* day 1 
+```{r, cases day 1 adonis2}
+# CASES TO FOLLOW INTERACTION TERMS
+D1_adonis_run # we see main effects of OA, Temp and Salinity and interaction OA:Salinity
+# CREATE AN OA_SALINITY COLUMN
+D1_meta_distance  <- D1_meta_distance %>% dplyr::mutate(OA_Salinity = paste0(OA,' x ',Salinity))
+# TRUNCATE THE DATA FOR EACH PAIR BASED ON OA AND SALINITY, WITH UNIQUE TITLE
+# Note: two two-factor variables == 6 possible pairs 
+# METADATA (IV)
+D1_HH_LL_metadata <- D1_meta_distance %>% dplyr::filter(OA_Salinity %in% c('High x High', 'Low x Low'))
+D1_HH_LH_metadata <- D1_meta_distance %>% dplyr::filter(OA_Salinity %in% c('High x High', 'Low x High'))
+D1_HH_HL_metadata <- D1_meta_distance %>% dplyr::filter(OA_Salinity %in% c('High x High', 'High x Low'))
+D1_HL_LH_metadata <- D1_meta_distance %>% dplyr::filter(OA_Salinity %in% c('High x Low', 'Low x High'))
+D1_HL_LL_metadata <- D1_meta_distance %>% dplyr::filter(OA_Salinity %in% c('High x Low', 'Low x Low'))
+D1_LH_LL_metadata <- D1_meta_distance %>% dplyr::filter(OA_Salinity %in% c('Low x High', 'Low x Low'))
+# DISTANCE (DV)
+D1_HH_LL_dist     <- D1_meta_distance %>% 
+  dplyr::filter(sample.id %in% D1_HH_LL_metadata$sample.id) %>% 
+  dplyr::select(D1_HH_LL_metadata$sample.id) %>% 
+  as.dist() 
+D1_HH_LH_dist     <- D1_meta_distance %>% 
+  dplyr::filter(sample.id %in% D1_HH_LH_metadata$sample.id) %>% 
+  dplyr::select(D1_HH_LH_metadata$sample.id) %>% 
+  as.dist() 
+D1_HH_HL_dist     <- D1_meta_distance %>% 
+  dplyr::filter(sample.id %in% D1_HH_HL_metadata$sample.id) %>% 
+  dplyr::select(D1_HH_HL_metadata$sample.id) %>% 
+  as.dist() 
+D1_HL_LH_dist     <- D1_meta_distance %>% 
+  dplyr::filter(sample.id %in% D1_HL_LH_metadata$sample.id) %>% 
+  dplyr::select(D1_HL_LH_metadata$sample.id) %>% 
+  as.dist() 
+D1_HL_LL_dist     <- D1_meta_distance %>% 
+  dplyr::filter(sample.id %in% D1_HL_LL_metadata$sample.id) %>% 
+  dplyr::select(D1_HL_LL_metadata$sample.id) %>% 
+  as.dist() 
+D1_LH_LL_dist     <- D1_meta_distance %>% 
+  dplyr::filter(sample.id %in% D1_LH_LL_metadata$sample.id) %>% 
+  dplyr::select(D1_LH_LL_metadata$sample.id) %>% 
+  as.dist()
+
+# RUN ADONIS FOR EACH PAIR
+D1_adonis_HH_LL   <- adonis2(D1_HH_LL_dist  ~ OA_Salinity, data=D1_HH_LL_metadata, perms = permutations) 
+D1_adonis_HH_LH   <- adonis2(D1_HH_LH_dist  ~ OA_Salinity, data=D1_HH_LH_metadata, perms = permutations) 
+D1_adonis_HH_HL   <- adonis2(D1_HH_HL_dist  ~ OA_Salinity, data=D1_HH_HL_metadata, perms = permutations) 
+D1_adonis_HL_LH   <- adonis2(D1_HL_LH_dist  ~ OA_Salinity, data=D1_HL_LH_metadata, perms = permutations) 
+D1_adonis_HL_LL   <- adonis2(D1_HL_LL_dist  ~ OA_Salinity, data=D1_HL_LL_metadata, perms = permutations) 
+D1_adonis_LH_LL   <- adonis2(D1_LH_LL_dist  ~ OA_Salinity, data=D1_LH_LL_metadata, perms = permutations)
+
+# plot with letters - dotted line = low temperature, red = low salinity
+Age1_ShellLength_Boxplot <- ggplot(data=Age1_raw_length, 
+                                   aes(x=fct_relevel(OA, c("Low", "High")), 
+                                         y=length_um, 
+                                         colour=fct_relevel(Salinity, c("Low", "High")), 
+                                         linetype= Temp)) +
+                              geom_boxplot() + 
+                              stat_summary(fun.y="mean",position = position_dodge2(width = 0.75)) +
+                              labs(title="Age = 24 hours", x ="pCO2 level", y = "Larvae size (μm)") +
+                              theme_classic() +
+                              theme(panel.grid.major = element_blank(), 
+                                    panel.grid.minor = element_blank(), 
+                                    axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
+                                    axis.text=element_text(size=12),
+                                    legend.position="none")
+
+# explore the mean SE and percent change with model results 
+# main effects of pCO2 temperature and salinity 
+
+Age1_raw_length %>% dplyr::select(OA, Temp, Salinity,length_um) %>% 
+                      dplyr::group_by(OA, Temp, Salinity) %>% 
+                      dplyr::summarise_each(funs(mean,sd,se=sd(.)/sqrt(n()), n = n()))
+# N = 150 per treatment
+
+#pCO2
+age1_pCO2_meanSE <- Age1_raw_length %>% 
+                      dplyr::select(OA,length_um) %>% 
+                      dplyr::group_by(OA) %>% 
+                      dplyr::summarise_each(funs(mean,sd,se=sd(.)/sqrt(n())))
+age1_pCO2_meanSE
+# High	70.19591	4.239491	0.1730765	
+# Low	74.05942	3.682447	0.1503353
+((74.05942-70.19591)/74.05942)*100 # 5.2 % larger under low pCO2
+
+# Temperature
+age1_Temp_meanSE <- Age1_raw_length %>% 
+                      dplyr::select(Temp,length_um) %>% 
+                      dplyr::group_by(Temp) %>% 
+                      dplyr::summarise_each(funs(mean,sd,se=sd(.)/sqrt(n())))
+age1_Temp_meanSE
+# High	72.92781	4.429291	0.1808250	
+# Low	71.32752	4.255381	0.1737252
+((72.92781-71.32752)/72.92781)*100 # 2.2  % larger under high termperature
+
+# Salinity
+age1_Salinity_meanSE <- Age1_raw_length %>% 
+                      dplyr::select(Salinity,length_um) %>% 
+                      dplyr::group_by(Salinity) %>% 
+                      dplyr::summarise_each(funs(mean,sd,se=sd(.)/sqrt(n()), n = n()))
+age1_Salinity_meanSE
+# High	74.16354	3.874498	0.1581757	
+# Low	70.09179	3.961609	0.1617320	
+((74.16354-70.09179)/74.16354)*100 # 5.5 % larger under high Salinity 
+
+# pCO2 x Salinity interaction
+age1_OASalinity_meanSE <- Age1_raw_length %>% 
+                      dplyr::mutate(OA_Salinity = paste0(OA,"_x_",Salinity)) %>%                       
+                      dplyr::select(OA_Salinity,length_um) %>% 
+                      dplyr::group_by(OA_Salinity) %>% 
+                      dplyr::summarise_each(funs(mean,sd,se=sd(.)/sqrt(n()), n = n()))
+age1_OASalinity_meanSE
+# High_x_High	72.68150	3.535329	0.2041123	300
+# High_x_Low	67.71032	3.333242	0.1924448	300
+# Low_x_High	75.64558	3.628713	0.2095038	300
+# Low_x_Low	72.47325	2.991651	0.1727231	300
+((75.64558-67.71032)/75.64558)*100 # 10.49005 % larger under Low_x_High than High_x_Low
 
 
 Master_Lengths_summ <- summarySE(Master_Lengths, 
@@ -242,11 +636,445 @@ write.csv(Master_Lengths_summ,
 
 ```
  
+* day 4 
+```{r, cases day 4 adonis2}
+# CASES TO FOLLOW INTERACTION TERMS
+D4_adonis_run # we see main effects of OA, Temp and interaction OA:Temp
+# CREATE AN OA_SALINITY COLUMN
+D4_meta_distance  <- D4_meta_distance %>% dplyr::mutate(OA_Temp = paste0(OA,' x ',Temp))
+# TRUNCATE THE DATA FOR EACH PAIR BASED ON OA AND SALINITY, WITH UNIQUE TITLE
+# Note: two two-factor variables == 6 possible pairs 
+# METADATA (IV)
+D4_HH_LL_metadata <- D4_meta_distance %>% dplyr::filter(OA_Temp %in% c('High x High', 'Low x Low'))
+D4_HH_LH_metadata <- D4_meta_distance %>% dplyr::filter(OA_Temp %in% c('High x High', 'Low x High'))
+D4_HH_HL_metadata <- D4_meta_distance %>% dplyr::filter(OA_Temp %in% c('High x High', 'High x Low'))
+D4_HL_LH_metadata <- D4_meta_distance %>% dplyr::filter(OA_Temp %in% c('High x Low', 'Low x High'))
+D4_HL_LL_metadata <- D4_meta_distance %>% dplyr::filter(OA_Temp %in% c('High x Low', 'Low x Low'))
+D4_LH_LL_metadata <- D4_meta_distance %>% dplyr::filter(OA_Temp %in% c('Low x High', 'Low x Low'))
+# DISTANCE (DV)
+D4_HH_LL_dist     <- D4_meta_distance %>% 
+  dplyr::filter(sample.id %in% D4_HH_LL_metadata$sample.id) %>% 
+  dplyr::select(D4_HH_LL_metadata$sample.id) %>% 
+  as.dist() 
+D4_HH_LH_dist     <- D4_meta_distance %>% 
+  dplyr::filter(sample.id %in% D4_HH_LH_metadata$sample.id) %>% 
+  dplyr::select(D4_HH_LH_metadata$sample.id) %>% 
+  as.dist() 
+D4_HH_HL_dist     <- D4_meta_distance %>% 
+  dplyr::filter(sample.id %in% D4_HH_HL_metadata$sample.id) %>% 
+  dplyr::select(D4_HH_HL_metadata$sample.id) %>% 
+  as.dist() 
+D4_HL_LH_dist     <- D4_meta_distance %>% 
+  dplyr::filter(sample.id %in% D4_HL_LH_metadata$sample.id) %>% 
+  dplyr::select(D4_HL_LH_metadata$sample.id) %>% 
+  as.dist() 
+D4_HL_LL_dist     <- D4_meta_distance %>% 
+  dplyr::filter(sample.id %in% D4_HL_LL_metadata$sample.id) %>% 
+  dplyr::select(D4_HL_LL_metadata$sample.id) %>% 
+  as.dist() 
+D4_LH_LL_dist     <- D4_meta_distance %>% 
+  dplyr::filter(sample.id %in% D4_LH_LL_metadata$sample.id) %>% 
+  dplyr::select(D4_LH_LL_metadata$sample.id) %>% 
+  as.dist()
+
+# RUN ADONIS FOR EACH PAIR
+D4_adonis_HH_LL   <- adonis2(D4_HH_LL_dist  ~ OA_Temp, data=D4_HH_LL_metadata, perms = permutations) # yup
+D4_adonis_HH_LH   <- adonis2(D4_HH_LH_dist  ~ OA_Temp, data=D4_HH_LH_metadata, perms = permutations) # yup
+D4_adonis_HH_HL   <- adonis2(D4_HH_HL_dist  ~ OA_Temp, data=D4_HH_HL_metadata, perms = permutations) # nope
+D4_adonis_HL_LH   <- adonis2(D4_HL_LH_dist  ~ OA_Temp, data=D4_HL_LH_metadata, perms = permutations) # yup
+D4_adonis_HL_LL   <- adonis2(D4_HL_LL_dist  ~ OA_Temp, data=D4_HL_LL_metadata, perms = permutations) # nope
+D4_adonis_LH_LL   <- adonis2(D4_LH_LL_dist  ~ OA_Temp, data=D4_LH_LL_metadata, perms = permutations) # yup
+
+# plot with letters - dotted line = low temperature, red = low salinity
+Age4_ShellLength_Boxplot <- ggplot(data=Age4_raw_length, 
+                                   aes(x=fct_relevel(OA, c("Low", "High")), 
+                                         y=length_um, 
+                                         colour=fct_relevel(Salinity, c("Low", "High")), 
+                                         linetype= Temp)) +
+                              geom_boxplot() + 
+                              stat_summary(fun.y="mean",position = position_dodge2(width = 0.75)) +
+                              labs(title="Age = 4 days", x ="pCO2 level", y = "Larvae size (μm)") +
+                              theme_classic() +
+                              theme(panel.grid.major = element_blank(), 
+                                    panel.grid.minor = element_blank(), 
+                                    axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
+                                    axis.text=element_text(size=12),
+                                    legend.position="none")
+
+# Summary stats for N per treatment
+Age4_summary <- Age4_raw_length %>% dplyr::select(OA, Temp, Salinity,length_um) %>% 
+                      dplyr::group_by(OA, Temp, Salinity) %>% 
+                      dplyr::summarise_each(funs(mean,sd,se=sd(.)/sqrt(n()), n = n()))
+mean(Age4_summary$n) # mean = 50.25
+sd(Age4_summary$n)# SD = 11.49845
+
+# explore the PERMANOVA responses - main effects of pCO2 and salinity followed by pCO2xtemperature interaction
+
+# pCO2 main effect 
+age4_pCO2_meanSE <- Age4_raw_length %>% 
+                      dplyr::select(OA,length_um) %>% 
+                      dplyr::group_by(OA) %>% 
+                      dplyr::summarise_each(funs(mean,sd,se=sd(.)/sqrt(n())))
+age4_pCO2_meanSE
+# High	76.70462	9.541234	0.7254066	
+# Low	84.77301	9.675344	0.6393647	
+((84.77301-76.70462)/84.77301)*100 # 9.51764 % larger under low pCO2
+
+# salinity main effect 
+age4_Salinity_meanSE <- Age4_raw_length %>% 
+                      dplyr::select(Salinity,length_um) %>% 
+                      dplyr::group_by(Salinity) %>% 
+                      dplyr::summarise_each(funs(mean,sd,se=sd(.)/sqrt(n())))
+age4_Salinity_meanSE
+# High	83.46450	10.16818	0.7154307	
+# Low	79.11545	10.20752	0.7217809	
+((83.46450-79.11545)/83.46450)*100 # 5.210658 % larger under high salinity
+
+# pCO2 and temp interaction term
+age4_OATemp_meanSE <- Age4_raw_length %>% 
+                      dplyr::mutate(OA_Temp = paste0(OA, "_x_", Temp)) %>% 
+                      dplyr::select(OA_Temp,length_um) %>% 
+                      dplyr::group_by(OA_Temp) %>% 
+                      dplyr::summarise_each(funs(mean,sd,se=sd(.)/sqrt(n())))
+age4_OATemp_meanSE
+# High_x_High	74.93013	9.712118	1.0996808	
+# High_x_Low	78.16158	9.195128	0.9434002	
+# Low_x_High	88.33520	10.721876	1.0721876	
+# Low_x_Low	82.01163	7.761141	0.6833304	
+((88.33520-74.93013)/88.33520)*100 # 15.17523 % smaller under High_x_High relative to Low_x_High
+((88.33520-78.16158)/88.33520)*100 # 11.51706 % smaller under High_x_Low relative to Low_x_High
+```
+
+* day 8 
+```{r, cases day 8 adonis2}
+# CASES TO FOLLOW INTERACTION TERMS
+D8_adonis_run # we see main effects of OA, Temp and interaction OA:Temp
+# CREATE AN OA_SALINITY COLUMN
+D8_meta_distance  <- D8_meta_distance %>% dplyr::mutate(OA_Temp = paste0(OA,' x ',Temp))
+# TRUNCATE THE DATA FOR EACH PAIR BASED ON OA AND SALINITY, WITH UNIQUE TITLE
+# Note: two two-factor variables == 6 possible pairs 
+# METADATA (IV)
+D8_HH_LL_metadata <- D8_meta_distance %>% dplyr::filter(OA_Temp %in% c('High x High', 'Low x Low'))
+D8_HH_LH_metadata <- D8_meta_distance %>% dplyr::filter(OA_Temp %in% c('High x High', 'Low x High'))
+D8_HH_HL_metadata <- D8_meta_distance %>% dplyr::filter(OA_Temp %in% c('High x High', 'High x Low'))
+D8_HL_LH_metadata <- D8_meta_distance %>% dplyr::filter(OA_Temp %in% c('High x Low', 'Low x High'))
+D8_HL_LL_metadata <- D8_meta_distance %>% dplyr::filter(OA_Temp %in% c('High x Low', 'Low x Low'))
+D8_LH_LL_metadata <- D8_meta_distance %>% dplyr::filter(OA_Temp %in% c('Low x High', 'Low x Low'))
+# DISTANCE (DV)
+D8_HH_LL_dist     <- D8_meta_distance %>% 
+  dplyr::filter(sample.id %in% D8_HH_LL_metadata$sample.id) %>% 
+  dplyr::select(D8_HH_LL_metadata$sample.id) %>% 
+  as.dist() 
+D8_HH_LH_dist     <- D8_meta_distance %>% 
+  dplyr::filter(sample.id %in% D8_HH_LH_metadata$sample.id) %>% 
+  dplyr::select(D8_HH_LH_metadata$sample.id) %>% 
+  as.dist() 
+D8_HH_HL_dist     <- D8_meta_distance %>% 
+  dplyr::filter(sample.id %in% D8_HH_HL_metadata$sample.id) %>% 
+  dplyr::select(D8_HH_HL_metadata$sample.id) %>% 
+  as.dist() 
+D8_HL_LH_dist     <- D8_meta_distance %>% 
+  dplyr::filter(sample.id %in% D8_HL_LH_metadata$sample.id) %>% 
+  dplyr::select(D8_HL_LH_metadata$sample.id) %>% 
+  as.dist() 
+D8_HL_LL_dist     <- D8_meta_distance %>% 
+  dplyr::filter(sample.id %in% D8_HL_LL_metadata$sample.id) %>% 
+  dplyr::select(D8_HL_LL_metadata$sample.id) %>% 
+  as.dist() 
+D8_LH_LL_dist     <- D8_meta_distance %>% 
+  dplyr::filter(sample.id %in% D8_LH_LL_metadata$sample.id) %>% 
+  dplyr::select(D8_LH_LL_metadata$sample.id) %>% 
+  as.dist()
+
+# RUN ADONIS FOR EACH PAIR
+D8_adonis_HH_LL   <- adonis2(D8_HH_LL_dist  ~ OA_Temp, data=D8_HH_LL_metadata, perms = permutations) # nope
+D8_adonis_HH_LH   <- adonis2(D8_HH_LH_dist  ~ OA_Temp, data=D8_HH_LH_metadata, perms = permutations) # yup
+D8_adonis_HH_HL   <- adonis2(D8_HH_HL_dist  ~ OA_Temp, data=D8_HH_HL_metadata, perms = permutations) # nope
+D8_adonis_HL_LH   <- adonis2(D8_HL_LH_dist  ~ OA_Temp, data=D8_HL_LH_metadata, perms = permutations) # yup
+D8_adonis_HL_LL   <- adonis2(D8_HL_LL_dist  ~ OA_Temp, data=D8_HL_LL_metadata, perms = permutations) # nope
+D8_adonis_LH_LL   <- adonis2(D8_LH_LL_dist  ~ OA_Temp, data=D8_LH_LL_metadata, perms = permutations) # nope
+
+# plot with letters - dotted line = low temperature, red = low salinity
+Age8_ShellLength_Boxplot <- ggplot(data=Age8_raw_length, 
+                                   aes(x=fct_relevel(OA, c("Low", "High")), 
+                                         y=length_um, 
+                                         colour=fct_relevel(Salinity, c("Low", "High")), 
+                                         linetype= Temp)) +
+                              geom_boxplot() + 
+                              stat_summary(fun.y="mean",position = position_dodge2(width = 0.75)) +
+                              labs(title="Age = 8 days", x ="pCO2 level", y = "Larvae size (μm)") +
+                              theme_classic() +
+                              theme(panel.grid.major = element_blank(), 
+                                    panel.grid.minor = element_blank(), 
+                                    axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
+                                    axis.text=element_text(size=12),
+                                    legend.position="none")
+
+# explore the PERMANOVA responses - main effects of pCO2 and salinity followed by pCO2xtemperature interaction
+
+Age8_summary <- Age8_raw_length %>% dplyr::select(OA, Temp, Salinity,length_um) %>% 
+                      dplyr::group_by(OA, Temp, Salinity) %>% 
+                      dplyr::summarise_each(funs(mean,sd,se=sd(.)/sqrt(n()), n = n()))
+mean(Age8_summary$n) # mean = 210.375
+sd(Age8_summary$n)# SD = 40.13882
+
+# explore the PERMANOVA responses - main effects of pCO2 and salinity followed by pCO2xtemperature interaction
+
+# pCO2 main effect 
+age8_pCO2_meanSE <- Age8_raw_length %>% 
+                      dplyr::select(OA,length_um) %>% 
+                      dplyr::group_by(OA) %>% 
+                      dplyr::summarise_each(funs(mean,sd,se=sd(.)/sqrt(n())))
+age8_pCO2_meanSE
+# High	97.11573	16.23607	0.5794904	
+# Low	115.94102	27.09128	0.9040478	
+((115.94102-97.11573)/115.94102)*100 # 16.23695 % larger under low pCO2
+
+# Salinity main effect 
+age8_Salinity_meanSE <- Age8_raw_length %>% 
+                      dplyr::select(Salinity,length_um) %>% 
+                      dplyr::group_by(Salinity) %>% 
+                      dplyr::summarise_each(funs(mean,sd,se=sd(.)/sqrt(n())))
+age8_Salinity_meanSE
+# High	114.35630	26.52823	0.8548602	
+# Low	97.53579	17.48773	0.6517291
+((114.35630-97.53579)/114.35630)*100 # 14.70886 % larger under high salinity
+
+# pCO2 and temp interaction term
+age8_OATemp_meanSE <- Age8_raw_length %>% 
+                      dplyr::mutate(OA_Temp = paste0(OA, "_x_", Temp)) %>% 
+                      dplyr::select(OA_Temp,length_um) %>% 
+                      dplyr::group_by(OA_Temp) %>% 
+                      dplyr::summarise_each(funs(mean,sd,se=sd(.)/sqrt(n())))
+age8_OATemp_meanSE
+# High_x_High	96.64262	18.08435	0.9338719	
+# High_x_Low	97.54845	14.34770	0.7085822	
+# Low_x_High	124.69074	31.04733	1.4245492	
+# Low_x_Low	106.11569	17.15803	0.8342519	
+((124.69074-96.64262)/124.69074)*100 # 22.49415 % smaller under High_x_High relative to Low_x_High
+((124.69074-97.54845)/124.69074)*100 # 21.76769 % smaller under High_x_Low relative to Low_x_High
+```
+  
+* day 11 
+```{r, cases day 11 adonis2}
+# CASES TO FOLLOW INTERACTION TERMS
+D11_adonis_run # we see main effects of OA, Temp and interaction OA:Temp
+# CREATE AN OA_SALINITY COLUMN
+D11_meta_distance  <- D11_meta_distance %>% dplyr::mutate(Temp_Salinity = paste0(Temp,' x ',Salinity))
+# TRUNCATE THE DATA FOR EACH PAIR BASED ON OA AND SALINITY, WITH UNIQUE TITLE
+# Note: two two-factor variables == 6 possible pairs 
+# METADATA (IV)
+D11_HH_LL_metadata <- D11_meta_distance %>% dplyr::filter(Temp_Salinity %in% c('High x High', 'Low x Low'))
+D11_HH_LH_metadata <- D11_meta_distance %>% dplyr::filter(Temp_Salinity %in% c('High x High', 'Low x High'))
+D11_HH_HL_metadata <- D11_meta_distance %>% dplyr::filter(Temp_Salinity %in% c('High x High', 'High x Low'))
+D11_HL_LH_metadata <- D11_meta_distance %>% dplyr::filter(Temp_Salinity %in% c('High x Low', 'Low x High'))
+D11_HL_LL_metadata <- D11_meta_distance %>% dplyr::filter(Temp_Salinity %in% c('High x Low', 'Low x Low'))
+D11_LH_LL_metadata <- D11_meta_distance %>% dplyr::filter(Temp_Salinity %in% c('Low x High', 'Low x Low'))
+# DISTANCE (DV)
+D11_HH_LL_dist     <- D11_meta_distance %>% 
+  dplyr::filter(sample.id %in% D11_HH_LL_metadata$sample.id) %>% 
+  dplyr::select(D11_HH_LL_metadata$sample.id) %>% 
+  as.dist() 
+D11_HH_LH_dist     <- D11_meta_distance %>% 
+  dplyr::filter(sample.id %in% D11_HH_LH_metadata$sample.id) %>% 
+  dplyr::select(D11_HH_LH_metadata$sample.id) %>% 
+  as.dist() 
+D11_HH_HL_dist     <- D11_meta_distance %>% 
+  dplyr::filter(sample.id %in% D11_HH_HL_metadata$sample.id) %>% 
+  dplyr::select(D11_HH_HL_metadata$sample.id) %>% 
+  as.dist() 
+D11_HL_LH_dist     <- D11_meta_distance %>% 
+  dplyr::filter(sample.id %in% D11_HL_LH_metadata$sample.id) %>% 
+  dplyr::select(D11_HL_LH_metadata$sample.id) %>% 
+  as.dist() 
+D11_HL_LL_dist     <- D11_meta_distance %>% 
+  dplyr::filter(sample.id %in% D11_HL_LL_metadata$sample.id) %>% 
+  dplyr::select(D11_HL_LL_metadata$sample.id) %>% 
+  as.dist() 
+D11_LH_LL_dist     <- D11_meta_distance %>% 
+  dplyr::filter(sample.id %in% D11_LH_LL_metadata$sample.id) %>% 
+  dplyr::select(D11_LH_LL_metadata$sample.id) %>% 
+  as.dist()
+
+# RUN ADONIS FOR EACH PAIR
+D11_adonis_HH_LL   <- adonis2(D11_HH_LL_dist  ~ Temp_Salinity, data=D11_HH_LL_metadata, perms = permutations) # yup
+D11_adonis_HH_LH   <- adonis2(D11_HH_LH_dist  ~ Temp_Salinity, data=D11_HH_LH_metadata, perms = permutations) # yup
+D11_adonis_HH_HL   <- adonis2(D11_HH_HL_dist  ~ Temp_Salinity, data=D11_HH_HL_metadata, perms = permutations) # yup
+D11_adonis_HL_LH   <- adonis2(D11_HL_LH_dist  ~ Temp_Salinity, data=D11_HL_LH_metadata, perms = permutations) # nope
+D11_adonis_HL_LL   <- adonis2(D11_HL_LL_dist  ~ Temp_Salinity, data=D11_HL_LL_metadata, perms = permutations) # nope
+D11_adonis_LH_LL   <- adonis2(D11_LH_LL_dist  ~ Temp_Salinity, data=D11_LH_LL_metadata, perms = permutations) # nope
+
+# plot with letters - dotted line = low temperature, red = low salinity
+Age11_ShellLength_Boxplot <- ggplot(data=Age11_raw_length, 
+                                   aes(x=fct_relevel(OA, c("Low", "High")), 
+                                         y=length_um, 
+                                         colour=fct_relevel(Salinity, c("Low", "High")), 
+                                         linetype= Temp)) +
+                              geom_boxplot() + 
+                              stat_summary(fun.y="mean",position = position_dodge2(width = 0.75)) +
+                              labs(title="Age = 11 days", x ="pCO2 level", y = "Larvae size (μm)") +
+                              theme_classic() +
+                              theme(panel.grid.major = element_blank(), 
+                                    panel.grid.minor = element_blank(), 
+                                    axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
+                                    axis.text=element_text(size=12),
+                                    legend.position="none")
+
+# explore the PERMANOVA responses - main effects of pCO2 and salinity followed by pCO2xtemperature interaction
+
+Age11_summary <- Age11_raw_length %>% dplyr::select(OA, Temp, Salinity,length_um) %>% 
+                      dplyr::group_by(OA, Temp, Salinity) %>% 
+                      dplyr::summarise_each(funs(mean,sd,se=sd(.)/sqrt(n()), n = n()))
+mean(Age11_summary$n) # mean = 55.875
+sd(Age11_summary$n)# SD = 29.1422
+
+
+# salinity main effect 
+age11_Salinity_meanSE <- Age11_raw_length %>% 
+                      dplyr::select(Salinity,length_um) %>% 
+                      dplyr::group_by(Salinity) %>% 
+                      dplyr::summarise_each(funs(mean,sd,se=sd(.)/sqrt(n())))
+age11_Salinity_meanSE
+# High	144.4325	50.91659	2.910708	
+# Low	118.0298	30.66179	2.582189
+((144.4325-118.0298)/144.4325)*100 # 18.2803 % larger under high salinity
+
+# temperature main effect 
+age11_Temp_meanSE <- Age11_raw_length %>% 
+                      dplyr::select(Temp,length_um) %>% 
+                      dplyr::group_by(Temp) %>% 
+                      dplyr::summarise_each(funs(mean,sd,se=sd(.)/sqrt(n())))
+age11_Temp_meanSE
+# High	160.0100	49.96401	3.192084	
+# Low	107.1093	18.74936	1.319201
+((160.0100-107.1093)/160.0100)*100 # 33.06087 % larger under high temperature
+
+# temp x salinity interaction term
+age11_TempSalinity_meanSE <- Age11_raw_length %>% 
+                      dplyr::mutate(Temp_Salinity = paste0(Temp, "_x_", Salinity)) %>% 
+                      dplyr::select(Temp_Salinity,length_um) %>% 
+                      dplyr::group_by(Temp_Salinity) %>% 
+                      dplyr::summarise_each(funs(mean,sd,se=sd(.)/sqrt(n())))
+age11_TempSalinity_meanSE
+# High_x_High	170.8969	48.90280	3.624917	
+# High_x_Low	128.5592	38.59962	4.863095	
+# Low_x_High	105.5895	18.76234	1.684908	
+# Low_x_Low	109.5253	18.59285	2.105226	
+((170.8969-105.5895)/170.8969)*100 # 38.2145 % smaller under Low_x_High relative to High_x_High
+((170.8969-128.5592)/170.8969)*100 # 24.77383 % smaller under High_x_Low relative to High_x_High
+```
+  
+* day 15 
+```{r, cases day 15 adonis2}
+# CASES TO FOLLOW INTERACTION TERMS
+D15_adonis_run # we see main effects of OA, Temp and interaction OA:Temp
+# CREATE AN OA_SALINITY COLUMN
+D15_meta_distance  <- D15_meta_distance %>% dplyr::mutate(Temp_Salinity = paste0(Temp,' x ',Salinity))
+# TRUNCATE THE DATA FOR EACH PAIR BASED ON OA AND SALINITY, WITH UNIQUE TITLE
+# Note: two two-factor variables == 6 possible pairs 
+# METADATA (IV)
+D15_HH_LL_metadata <- D15_meta_distance %>% dplyr::filter(Temp_Salinity %in% c('High x High', 'Low x Low'))
+D15_HH_LH_metadata <- D15_meta_distance %>% dplyr::filter(Temp_Salinity %in% c('High x High', 'Low x High'))
+D15_HH_HL_metadata <- D15_meta_distance %>% dplyr::filter(Temp_Salinity %in% c('High x High', 'High x Low'))
+D15_HL_LH_metadata <- D15_meta_distance %>% dplyr::filter(Temp_Salinity %in% c('High x Low', 'Low x High'))
+D15_HL_LL_metadata <- D15_meta_distance %>% dplyr::filter(Temp_Salinity %in% c('High x Low', 'Low x Low'))
+D15_LH_LL_metadata <- D15_meta_distance %>% dplyr::filter(Temp_Salinity %in% c('Low x High', 'Low x Low'))
+# DISTANCE (DV)
+D15_HH_LL_dist     <- D15_meta_distance %>% 
+  dplyr::filter(sample.id %in% D15_HH_LL_metadata$sample.id) %>% 
+  dplyr::select(D15_HH_LL_metadata$sample.id) %>% 
+  as.dist() 
+D15_HH_LH_dist     <- D15_meta_distance %>% 
+  dplyr::filter(sample.id %in% D15_HH_LH_metadata$sample.id) %>% 
+  dplyr::select(D15_HH_LH_metadata$sample.id) %>% 
+  as.dist() 
+D15_HH_HL_dist     <- D15_meta_distance %>% 
+  dplyr::filter(sample.id %in% D15_HH_HL_metadata$sample.id) %>% 
+  dplyr::select(D15_HH_HL_metadata$sample.id) %>% 
+  as.dist() 
+D15_HL_LH_dist     <- D15_meta_distance %>% 
+  dplyr::filter(sample.id %in% D15_HL_LH_metadata$sample.id) %>% 
+  dplyr::select(D15_HL_LH_metadata$sample.id) %>% 
+  as.dist() 
+D15_HL_LL_dist     <- D15_meta_distance %>% 
+  dplyr::filter(sample.id %in% D15_HL_LL_metadata$sample.id) %>% 
+  dplyr::select(D15_HL_LL_metadata$sample.id) %>% 
+  as.dist() 
+D15_LH_LL_dist     <- D15_meta_distance %>% 
+  dplyr::filter(sample.id %in% D15_LH_LL_metadata$sample.id) %>% 
+  dplyr::select(D15_LH_LL_metadata$sample.id) %>% 
+  as.dist()
+
+# RUN ADONIS FOR EACH PAIR
+D15_adonis_HH_LL   <- adonis2(D15_HH_LL_dist  ~ Temp_Salinity, data=D15_HH_LL_metadata, perms = permutations) # yup
+D15_adonis_HH_LH   <- adonis2(D15_HH_LH_dist  ~ Temp_Salinity, data=D15_HH_LH_metadata, perms = permutations) # yup
+D15_adonis_HH_HL   <- adonis2(D15_HH_HL_dist  ~ Temp_Salinity, data=D15_HH_HL_metadata, perms = permutations) # yup
+D15_adonis_HL_LH   <- adonis2(D15_HL_LH_dist  ~ Temp_Salinity, data=D15_HL_LH_metadata, perms = permutations) # yup
+D15_adonis_HL_LL   <- adonis2(D15_HL_LL_dist  ~ Temp_Salinity, data=D15_HL_LL_metadata, perms = permutations) # nope
+D15_adonis_LH_LL   <- adonis2(D15_LH_LL_dist  ~ Temp_Salinity, data=D15_LH_LL_metadata, perms = permutations) # nope
+
+# plot with letters - dotted line = low temperature, red = low salinity
+Age15_ShellLength_Boxplot <- ggplot(data=Age15_raw_length, 
+                                   aes(x=fct_relevel(OA, c("Low", "High")), 
+                                         y=length_um, 
+                                         colour=fct_relevel(Salinity, c("Low", "High")), 
+                                         linetype= Temp)) +
+                              geom_boxplot() + 
+                              stat_summary(fun.y="mean",position = position_dodge2(width = 0.75)) +
+                              labs(title="Age = 8 days", x ="pCO2 level", y = "Larvae size (μm)") +
+                              theme_classic() +
+                              theme(panel.grid.major = element_blank(), 
+                                    panel.grid.minor = element_blank(), 
+                                    axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
+                                    axis.text=element_text(size=12),
+                                    legend.position="none")
+
+
+# explore the PERMANOVA responses - main effects of pCO2 and salinity followed by pCO2xtemperature interaction
+
+Age15_summary <- Age15_raw_length %>% dplyr::select(OA, Temp, Salinity,length_um) %>% 
+                      dplyr::group_by(OA, Temp, Salinity) %>% 
+                      dplyr::summarise_each(funs(mean,sd,se=sd(.)/sqrt(n()), n = n()))
+mean(Age15_summary$n) # mean = 47.14286
+sd(Age15_summary$n)# SD = 25.91929
+
+# salinity main effect 
+age15_Salinity_meanSE <- Age15_raw_length %>% 
+                      dplyr::select(Salinity,length_um) %>% 
+                      dplyr::group_by(Salinity) %>% 
+                      dplyr::summarise_each(funs(mean,sd,se=sd(.)/sqrt(n())))
+age15_Salinity_meanSE
+# High	221.8048	85.03881	5.69462	
+# Low	189.7829	70.65317	6.83030	
+((221.8048-189.7829)/221.8048)*100 # 14.43697 % larger under high salinity
+
+# temperature main effect 
+age15_Temp_meanSE <- Age15_raw_length %>% 
+                      dplyr::select(Temp,length_um) %>% 
+                      dplyr::group_by(Temp) %>% 
+                      dplyr::summarise_each(funs(mean,sd,se=sd(.)/sqrt(n())))
+age15_Temp_meanSE
+# High	255.0615	65.11517	4.400075	
+# Low	125.3223	20.10262	1.908056	
+((255.0615-125.3223)/255.0615)*100 # 50.86585 % larger under high temperature
+
+# temp x salinity interaction term
+age15_TempSalinity_meanSE <- Age15_raw_length %>% 
+                      dplyr::mutate(Temp_Salinity = paste0(Temp, "_x_", Salinity)) %>% 
+                      dplyr::select(Temp_Salinity,length_um) %>% 
+                      dplyr::group_by(Temp_Salinity) %>% 
+                      dplyr::summarise_each(funs(mean,sd,se=sd(.)/sqrt(n())))
+age15_TempSalinity_meanSE
+# High_x_High	270.1614	58.32591	4.762290	
+# High_x_Low	222.2357	67.39709	8.113656	
+# Low_x_High	122.4419	19.38224	2.268520	
+# Low_x_Low	130.8555	20.55663	3.334725	
+((270.1614-122.4419)/270.1614)*100 # 54.67824 % smaller under Low_x_High relative to High_x_High
+((270.1614-222.2357)/270.1614)*100 # 17.73965 % smaller under High_x_Low relative to High_x_High
+
+```
+  
  
- 
- 
- 
-:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 # Plot all data
  
 * note that all treatments are represented in this figure
@@ -263,26 +1091,31 @@ Length_means <- Master_Lengths %>%
 
 
 GR_means <- as.data.frame(Length_means %>% 
-  filter(Age %in% c(1,15)) %>% 
+  filter(Age %in% c(1,4,15)) %>% 
   dplyr::select(c(Age, OA, Salinity, Temp, mean_length)) %>% 
   dplyr::group_by(OA, Salinity, Temp)  %>% 
   tidyr::spread(Age, mean_length) %>%  # new columns titled 1 and 15 for he Age and with values for the 
   # length data grouped by treatment 
   dplyr::mutate(Growth_rate_umday = (`15` - `1`) / 14) %>% 
-  dplyr::select(!c(`1`,`15`))) # note 1 missing value for OA High Temp Low Salinity Low
+  dplyr::mutate(Growth_rate_umday_d4_d15 = (`15`- `4`) / 9) %>% 
+  dplyr::select(!c(`1`,`4`,`15`))) # note 1 missing value for OA High Temp Low Salinity Low
 
+# once value has no length values on day 15 - calculate for day 11 endpoint
 getNA <- as.data.frame(Length_means %>% 
-  filter(Age %in% c(1,11)) %>% 
+  filter(Age %in% c(1,4,11)) %>% 
   dplyr::select(c(Age, OA, Salinity, Temp, mean_length)) %>% 
   dplyr::group_by(OA, Salinity, Temp)  %>% 
   tidyr::spread(Age, mean_length) %>%  # new columns titled 1 and 15 for he Age and with values for the 
   # length data grouped by treatment 
   dplyr::mutate(Growth_rate_umday = (`11` - `1`) / 13) %>% 
-  dplyr::select(!c(`1`,`11`))) # 2.612424 for OA High Temp Low Salinity Low, insert into the other table
+  dplyr::mutate(Growth_rate_umday_d4_d15 = (`11` - `4`) / 7) %>% 
+  dplyr::select(!c(`1`,`4`,`11`))) # 2.612424 for OA High Temp Low Salinity Low, insert into the other table
 
 GR_means[4,4] = 2.612424
+GR_means[4,5] = 4.030921
 
-GR_means$Growth_rate_umday <- as.numeric(GR_means$Growth_rate_umday)
+GR_means$Growth_rate_umday        <- as.numeric(GR_means$Growth_rate_umday)
+GR_means$Growth_rate_umday_d4_d15 <- as.numeric(GR_means$Growth_rate_umday_d4_d15) # with the exception of one value with d 11 enpoint!
 
 Length_means_MASTER <- merge(Length_means, GR_means, by=c('OA', 'Salinity', 'Temp'))
 
@@ -336,6 +1169,52 @@ pdf("Output/Length/plots/Length_day1_day15.pdf", width=11, height=5)
 print(Heatplot_larvae)
 dev.off()
 
+
+
+
+Heatplot_larvae_4_to_15 <- Length_means_MASTER_larvae %>% 
+                      dplyr::filter(!Age %in% 1) %>% 
+                      dplyr::mutate(OA_Sal = 
+                                      paste(substr(OA,1,1),
+                                      substr(Salinity,1,1),
+                                      sep = '')) %>% 
+                       ggplot(aes(x = Age,
+                                  y = mean_length)) + 
+                       geom_rect(aes(fill = Growth_rate_umday_d4_d15), 
+                                   xmin = -Inf, 
+                                   xmax = Inf, 
+                                   ymin = -Inf, 
+                                   ymax = Inf, 
+                                   alpha = 0.3) +
+                      geom_point(color = 'black') +
+                      geom_line(aes(x = Age,
+                                    y = mean_length)) +
+                       geom_errorbar(aes(ymin = mean_length - se_length, 
+                                         ymax = mean_length + se_length), 
+                                        width = 0.5, 
+                                        position= "dodge2") +
+                      geom_smooth(method = "lm", 
+                                  se = FALSE, 
+                                  size = 1, 
+                                  color = 'white') +
+                      theme_bw() +  
+                      theme(panel.grid.major = element_blank(),
+                            panel.grid.minor = element_blank()) +
+                      facet_grid(vars(Temp), 
+                                 vars(fct_relevel(OA_Sal, c("HL", "LL", "HH", "LH")))) +
+                      geom_text(size = 2, 
+                                   aes(x = 12, 
+                                       y = 0.8, 
+                                       label = paste0(round(Growth_rate_umday_d4_d15,2),"um day-1"))) +
+                      scale_fill_gradient(low = "orange", 
+                                           high = "forestgreen", 
+                                           aesthetics = "fill")
+
+       
+setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis")
+pdf("Output/Length/plots/Length_day4_day15.pdf", width=11, height=5)
+print(Heatplot_larvae_4_to_15)
+dev.off()
 
 ```
 
@@ -653,7 +1532,6 @@ ShellLength_Boxplot_Days11.15
 
 
 
-:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 # STATISTICAL ANALYSIS
 
 ### Age 24 hours ALL DATA ------------
@@ -679,6 +1557,8 @@ leveneTest(residuals(Age1Length_lme_mod) ~ Age1_raw_length$Temp*Age1_raw_length$
 boxplot(residuals(Age1Length_lme_mod) ~ Age1_raw_length$Temp*Age1_raw_length$OA*Age1_raw_length$Salinity) # visual of residuals grouped
 qqnorm(resid(Age1Length_lme_mod)) # check for normality of residuals       
 
+
+AIC(Age1Length_lme_mod,Age1Length_lm_mod) # the LME model is the better fit
 
 # post hoc tests --------------------------------------------------------------------------------------------------- #
 posthoc<-emmeans(Age1Length_lme_mod, pairwise~OA:Salinity, adjust="tukey")
@@ -757,19 +1637,20 @@ multcomp::cld(posthoc$emmeans,alpha = 0.5, Letters = letters)
 # plot the data  ----------------------------------------------------------------------------------------------------- #
 
 
-Age1_ShellLength_Boxplot <- ggplot(data=Age1_raw_length, aes(x=fct_relevel(OA, c("Low", "High")), 
-                                                             y=length_um, 
-                                                             colour=fct_relevel(Salinity, c("Low", "High")), 
-                                                             linetype= Temp)) +
+Age1_ShellLength_Boxplot <- ggplot(data=Age1_raw_length, 
+                                   aes(x=fct_relevel(OA, c("Low", "High")), 
+                                         y=length_um, 
+                                         colour=fct_relevel(Salinity, c("Low", "High")), 
+                                         linetype= Temp)) +
                               geom_boxplot() + 
-                              theme_classic() +  
                               stat_summary(fun.y="mean",position = position_dodge2(width = 0.75)) +
-                              theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+ 
-                              theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
-                              labs(title="Age = 24 hours", x ="pCO2 level", y = "Larvae size (μm)")+ 
-                              theme(axis.title.y = element_text(size = rel(1.3), angle =90), axis.title.x = element_text(size = rel(1.3), angle = 0))+
-                              theme(axis.text=element_text(size=12)) 
-
+                              labs(title="Age = 24 hours", x ="pCO2 level", y = "Larvae size (μm)") +
+                              theme_classic() +
+                              theme(panel.grid.major = element_blank(), 
+                                    panel.grid.minor = element_blank(), 
+                                    axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
+                                    axis.text=element_text(size=12),
+                                    legend.position="none")
 # save the plot 
 setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis")
 pdf("Output/Length/Length_age_24hrs_Boxplots.pdf", width=8, height=6)
@@ -828,6 +1709,8 @@ multcomp::cld(posthoc$emmeans,alpha = 0.5, Letters = letters)
  # High Low    77.7 1.58 16     74.4     81.1  a    
  # Low  Low    81.8 1.50 16     78.6     84.9   b   
  # Low  High   88.7 1.57 16     85.3     92.0    c 
+
+AIC(Age4Length_lme_mod,Age4Length_lm_mod)# lme is the better fit
 
 
 # OUTPUT
@@ -901,7 +1784,8 @@ Age4_ShellLength_Boxplot <- ggplot(data=Age4_raw_length, aes(x=fct_relevel(OA, c
                               theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+ 
                               theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
                               labs(title="Age = 4 days", x ="pCO2 level", y = "Shell Length (μm)")+ 
-                              theme(axis.title.y = element_text(size = rel(1.3), angle =90), axis.title.x = element_text(size = rel(1.3), angle = 0))+
+                              theme(axis.title.y = element_text(size = rel(1.3), angle =90), 
+                                    axis.title.x = element_text(size = rel(1.3), angle = 0))+
                               theme(axis.text=element_text(size=12)) 
 
 setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis")
@@ -936,6 +1820,14 @@ leveneTest(residuals(Age8Length_lme_mod) ~ Age8_raw_length$Temp*Age8_raw_length$
 boxplot(residuals(Age8Length_lme_mod) ~ Age8_raw_length$Temp*Age8_raw_length$OA*Age8_raw_length$Salinity) # visual of residuals grouped
 qqnorm(resid(Age8Length_lme_mod)) # check for normality of residuals - looks okay
 hist(resid(Age8Length_lme_mod))
+
+
+
+
+Age8Length_lme_mod_T <- lme(log(length_um)~
+                              OA*Salinity*Temp,
+                            random=~1|random_fact,data=Age8_raw_length)
+leveneTest(residuals(Age8Length_lme_mod_T) ~ Age8_raw_length$Temp*Age8_raw_length$OA*Age8_raw_length$Salinity) # < 2.2e-16 *** - did not pass
 
 # post hoc tests --------------------------------------------------------------------------------------------------- #
 posthoc<-emmeans(Age8Length_lme_mod, pairwise~OA:Temp, adjust="tukey")
