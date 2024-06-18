@@ -41,7 +41,8 @@ library(MASS)
 
 ```{r, load}
 
-setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis")
+#setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis")
+setwd("C:/Users/samuel.gurr/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis")
 
 # EXPERIMENT METADATA 
 Exp_data <-  read.csv("Data/Survival/Survival_master.csv", header = T) %>% 
@@ -210,6 +211,34 @@ Master_Lengths <- rbind(Age1_raw_length,
 setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis")
 write.csv(Master_Lengths, 
           "Data/Length/cumulative_raw/Length_cumulative_raw.csv")# write
+
+
+Master_Lengths_summ <- summarySE(Master_Lengths, 
+                              measurevar="length_um", 
+                              groupvars=c("Age", "Temp", "OA", "Salinity", "Aragonite_saturation")) %>%
+                        dplyr::arrange(Aragonite_saturation) %>% 
+                        dplyr::arrange(Age) %>% 
+                        dplyr::mutate(mean_SE = paste0(
+                          signif(length_um, digits=3),
+                          " ± ",
+                          signif(se, digits=3)))
+
+
+# output csv of mean csv
+setwd("C:/Users/samuel.gurr/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis")
+write.csv(Master_Lengths_summ, 
+          "Data/Length/cumulative_raw/Length_MeanSE.csv")# write
+
+# Temp OA Salinity Aragonite_saturation N length_um sd se ci
+# High	Low	High	 1.6	763	319.12327	437.40866	15.8352566	31.085908
+# Low	Low	High	   1.5	542	98.05435	23.21156	0.9970219	1.958508
+# High	High	High 0.7	875	299.98840	393.88775	13.3158363	26.134752
+# High	Low	Low	   0.6	619	181.07192	236.28354	9.4970372	18.650377
+# Low	High	High	 0.6	547	92.71646	18.64946	0.7973934	1.566334
+# Low	Low	Low	     0.5	483	94.08717	23.32495	1.0613220	2.085389
+# High	High	Low	 0.3	337	79.91682	21.42763	1.1672374	2.296014
+# Low	High	Low	   0.2	398	80.21241	14.42678	0.7231490	1.421680
+
 
 ```
  
