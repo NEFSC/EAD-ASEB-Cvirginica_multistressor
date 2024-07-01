@@ -8,13 +8,12 @@ output:
 ---
 
 
-
-
 # load libraries
 
 ```{r setup, include=FALSE}
 library(ggplot2)
 library(dplyr)
+library(Rmisc)
 library(tidyverse)
 library(dplyr)
 library(lme4)
@@ -45,6 +44,8 @@ library(ggsurvfit) # survfit2
 library(gtsummary) # tbl_survfit
 # SET WORKING DIRECTORY 
 knitr::opts_knit$set(root.dir = "C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/")
+knitr::opts_knit$set(root.dir = "C:/Users/samuel.gurr/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/")
+
 ```
 
 
@@ -59,6 +60,19 @@ Survival_data <- read.csv("Data/Survival/Survival_master.csv", header = T) %>%
                                                                substr(Salinity,1,1), '_', Replicate, sep = ''))
 # View(Survival_dat)
 # head(Survival_dat) # view first few lines
+
+
+Survival_summ <- summarySE(Survival_data, 
+                              measurevar="Survival", 
+                              groupvars=c("Day", "Temp", "OA", "Salinity", "AR")) %>%
+                        dplyr::arrange(AR) %>% 
+                        dplyr::arrange(Day) %>% 
+                        dplyr::mutate(mean_SE = paste0(
+                          signif(Survival, digits=3),
+                          " ± ",
+                          signif(se, digits=3)))
+
+write.csv(Survival_summ, "Output/Survival/Survival_Perc_MeanSE.csv")
 ```
 
 

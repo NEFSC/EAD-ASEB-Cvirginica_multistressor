@@ -23,8 +23,8 @@ library(dplyr)
 library(vegan)
 library(tidyverse)
 # SET WORKING DIRECTORY 
-knitr::opts_knit$set(root.dir = "C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/")
-
+#knitr::opts_knit$set(root.dir = "C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/")
+knitr::opts_knit$set(root.dir = "C:/Users/samuel.gurr/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis/")
 ```
 
 
@@ -44,6 +44,17 @@ Resp_APRIL <- Resp.Master %>%
   dplyr::filter(Date %in% '4/30/2021') # %>% 
 Resp_APRIL # view the data
 # View(Resp_APRIL)
+library(Rmisc)
+Resp_APRIL_summ <- Rmisc::summarySE(Resp_APRIL, 
+                              measurevar="resp_ng_L_indiv_hr", 
+                              groupvars=c("Date", "Temp", "pCO2", "Salinity")) %>%
+                        dplyr::mutate(mean_SE = paste0(
+                          signif(resp_ng_L_indiv_hr, digits=3),
+                          " ± ",
+                          signif(se, digits=3)))
+
+write.csv(Resp_APRIL_summ, "Output/Respiration/Day1_MeanSE.csv")
+
 ```
 
 * Runs stats (ultimately report PERMANOVA as ANOVA assumptions are not possible here)

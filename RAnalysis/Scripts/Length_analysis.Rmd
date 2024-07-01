@@ -33,14 +33,12 @@ knitr::opts_knit$set(root.dir = "C:/Users/samjg/Documents/Github_repositories/Cv
 
 # Set Path & load data
 
-<<<<<<< HEAD
+
 ```{r, load}
 
 #setwd("C:/Users/samjg/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis")
 setwd("C:/Users/samuel.gurr/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis")
-=======
-```{r, load data}
->>>>>>> 154022d674e530bcbe85cea275276674db405988
+
 
 # EXPERIMENT METADATA 
 Exp_data <-  read.csv("Data/Survival/Survival_master.csv", header = T) %>% 
@@ -236,6 +234,23 @@ Master_Lengths <- rbind(Age1_raw_length,
 write.csv(Master_Lengths, "Data/Length/cumulative_raw/Length_cumulative_raw.csv")# write
 
 
+
+
+Master_Lengths_summ <- summarySE(Master_Lengths, 
+                              measurevar="length_um", 
+                              groupvars=c("Age", "Temp", "OA", "Salinity", "Aragonite_saturation")) %>%
+                        dplyr::arrange(Aragonite_saturation) %>% 
+                        dplyr::arrange(Age) %>% 
+                        dplyr::mutate(mean_SE = paste0(
+                          signif(length_um, digits=3),
+                          " ± ",
+                          signif(se, digits=3)))
+
+
+# output csv of mean csv
+setwd("C:/Users/samuel.gurr/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis")
+write.csv(Master_Lengths_summ, 
+          "Data/Length/cumulative_raw/Length_MeanSE.csv")# write
 
 ```
 
@@ -606,22 +621,6 @@ age1_OASalinity_meanSE
 # Low_x_Low	72.47325	2.991651	0.1727231	300
 ((75.64558-67.71032)/75.64558)*100 # 10.49005 % larger under Low_x_High than High_x_Low
 
-
-Master_Lengths_summ <- summarySE(Master_Lengths, 
-                              measurevar="length_um", 
-                              groupvars=c("Age", "Temp", "OA", "Salinity", "Aragonite_saturation")) %>%
-                        dplyr::arrange(Aragonite_saturation) %>% 
-                        dplyr::arrange(Age) %>% 
-                        dplyr::mutate(mean_SE = paste0(
-                          signif(length_um, digits=3),
-                          " ± ",
-                          signif(se, digits=3)))
-
-
-# output csv of mean csv
-setwd("C:/Users/samuel.gurr/Documents/Github_repositories/Cvirginica_multistressor/RAnalysis")
-write.csv(Master_Lengths_summ, 
-          "Data/Length/cumulative_raw/Length_MeanSE.csv")# write
 
 # Temp OA Salinity Aragonite_saturation N length_um sd se ci
 # High	Low	High	 1.6	763	319.12327	437.40866	15.8352566	31.085908
