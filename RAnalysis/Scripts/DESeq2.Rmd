@@ -26,11 +26,12 @@ library(data.table)
 # Plotting
 library(ggplot2)
 library(cowplot)
-library(pheatmap)
+library(pheatmap) # BiocManager::install
 library(gplots)
 library(RColorBrewer)
-library(pcaExplorer) 
-
+library(pcaExplorer) # BiocManager::install
+# install.packages('')
+# BiocManager::install('pheatmap')
 #BiocManager::install for these packages
 library(DESeq2) # note: this was previously installed with the command `BiocManager::install("DESeq2")`
 library(edgeR)
@@ -161,7 +162,8 @@ dds.d2.main     <- DESeqDataSetFromMatrix(countData = d2.counts_matrix,
 
 # build the metadata matrix ::::::::::::::::::::::::::::
 d18.metadata     <- d18.exp_data %>% 
-                    dplyr::select(c('SapleName_readmatrix', 'Temperature', 'OA', 'Salinity')) %>% # coondense dataset to build target matrix
+                    dplyr::select(c('SapleName_readmatrix', 
+                                    'Temperature', 'OA', 'Salinity', 'Aragonite_saturation')) %>% # coondense dataset to build target matrix
                     dplyr::rename("Sample.Name" = "SapleName_readmatrix") %>% 
                     dplyr::mutate(All_Treatment = paste(Temperature, OA, Salinity, sep = '.'))
 d18.metadata     <- data.frame(d18.metadata[,-1], row.names=d18.metadata[,1]) # move Sample.Name column as row names  
@@ -176,12 +178,14 @@ d18.metadata.mtx <- d18.metadata.mtx[match(colnames(d18.counts_matrix),rownames(
 # FULL MODEL
 dds.d18 <- DESeqDataSetFromMatrix(countData = d18.counts_matrix,
                                         colData = d18.metadata.mtx,
-                                        design = ~ Temperature+
-                                                   OA+
+                                        design = ~ OA+
                                                    Salinity+
-                                                   Temperature:OA+
-                                                   Temperature:Salinity+
                                                    OA:Salinity)
+
+dds.d18.arag.sat <- DESeqDataSetFromMatrix(countData = d18.counts_matrix,
+                                        colData = d18.metadata.mtx,
+                                        design = ~ Aragonite_saturation)
+
 # GROUP MDOEL
 dds.d18.group <- DESeqDataSetFromMatrix(countData = d18.counts_matrix,
                                         colData = d18.metadata.mtx,
@@ -189,7 +193,7 @@ dds.d18.group <- DESeqDataSetFromMatrix(countData = d18.counts_matrix,
 # ADDITIVE MODEL 
 dds.d18.main <- DESeqDataSetFromMatrix(countData = d18.counts_matrix,
                                        colData = d18.metadata.mtx,
-                                      design = ~ Temperature+OA+Salinity) 
+                                      design = ~ OA+Salinity) 
 
 ```
 
@@ -251,6 +255,7 @@ dds.d2.main    <- DESeq(dds.d2.main) # main effect model wait for this to comple
  
 # RUN DESEQ2 model - view all the pariwise comparisons
 dds.d18       <- DESeq(dds.d18) #  full model             wait for this to complete....
+dds.d18.arag.sat <- DESeq(dds.d18.arag.sat) # arag sat model
 dds.d18.group <- DESeq(dds.d18.group) # group model       wait for this to complete.... 
 dds.d18.main  <- DESeq(dds.d18.main) # main effect model wait for this to complete....     
 
@@ -494,12 +499,11 @@ dev.off()
 ```{r Day2 dds rlog plotting}
 
 
-
+library(ggplot2)
 
 # ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 # Transform data (rlog) for additional visuals (PCA and heatmaps :::::::::::::::::::::::::::::::::
 # ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
 
 # Plot dispersions   :::::::::::::::::::::::::::::::::
 png("../Output/DESeq2/Day2_larva/plots/Day2.dispersions.png", 1000, 1000, pointsize=20)
@@ -549,6 +553,41 @@ ggplot(pcaData_d2.arag.sat, aes(x = PC1, y = PC2, color = Aragonite_saturation, 
   ylab(paste0("PC2: ", percentVar.arag.sat[2], "% variance")) +
   coord_fixed()
 dev.off()
+
+
+
+
+## pca ggpubr for reviewer reponse
+
+ggpubr::ggarrange(
+ggplot(pcaData_d2, aes(x = PC1, y = PC2,  alpha = OA, shape = Salinity, color = Temperature, label=name)) +
+  scale_color_manual(values = c("#D55E00", "#56B4E9")) +
+  scale_alpha_manual(values = c(0.5, 1)) +
+  scale_shape_manual(values = c(21, 19, 17)) +
+  geom_text(aes(label=name),hjust=0.2, vjust=1.4, size=5) +
+  geom_point(size =6) +
+  theme_classic() +
+  theme(text = element_text(size=15)) +
+  ggtitle("PCA: Day2 (rlog) all experimental treatments") +
+  xlab(paste0("PC1: ", percentVar[1], "% variance")) +
+  ylab(paste0("PC2: ", percentVar[2], "% variance")) +
+  coord_fixed(),
+
+
+ggplot(pcaData_d2.arag.sat, aes(x = PC1, y = PC2, color = Aragonite_saturation, label=name)) +
+  scale_color_manual(values = c("#D55E00", "#e69F00", "#56B4E9", "#0072B2")) +
+  geom_text(aes(label=name),hjust=0.2, vjust=1.4, size=5) +
+  geom_point(size =6) +
+  theme_classic() +
+  theme(text = element_text(size=15)) +
+  ggtitle("PCA: Day2 (rlog) aragonite saturation") +
+  xlab(paste0("PC1: ", percentVar.arag.sat[1], "% variance")) +
+  ylab(paste0("PC2: ", percentVar.arag.sat[2], "% variance")) +
+  coord_fixed(),
+ ncol = 2
+)
+
+
 
 
 pcaData_d2$OA_Sal   <- paste(pcaData_d2$OA, pcaData_d2$Salinity, sep = '_')
@@ -874,6 +913,7 @@ dev.off()
 # Data transformations for heatmap and PCA visuals :::::::
 # rlog - regularized log transformation of origin count data to log2 scale - fit for each sample and dist. of coefficients in the data
 rlog.d18 <- rlogTransformation(dds.d18.group) # rlog transform (regularized log)
+rlog.d18.arag.sat <- rlogTransformation(dds.d18.arag.sat)
 
 # diagnostiscs    :::::::::::::::::::::::::::::::::
 png("../Output/DESeq2/Day18_spat/plots/Day18.rlog_histogram.png", 1000, 1000, pointsize=20)# diagnostics of transformation # Histogram and sd plot
@@ -887,11 +927,12 @@ dev.off()
 pcaData_d18 <- plotPCA(rlog.d18, intgroup = c("OA", "Salinity"), returnData = TRUE)
 percentVar <- round(100 * attr(pcaData_d18, "percentVar"))
 png("../Output/DESeq2/Day18_spat/plots/Day18.rlog_PCA.png", 1000, 1000, pointsize=20)
-ggplot(pcaData_d18, aes(x = PC1, y = PC2,  alpha = OA, shape = Salinity, label=name)) +
-  # scale_color_manual(values = "orange") +
+ggplot(pcaData_d18, aes(x = PC1, y = PC2,  alpha = OA, colour = group, shape = Salinity, label=name)) +
+  geom_point(size =6) +
+  scale_color_manual(values = c("#D55E00", "#D55E00", "#D55E00","#D55E00")) +
+  scale_alpha_manual(values = c(0.5, 1)) +
   scale_shape_manual(values = c(4, 19, 17)) +
   geom_text(aes(label=name),hjust=0.2, vjust=1.4, size=5) +
-  geom_point(size =6) +
   theme_classic() +
   theme(text = element_text(size=15)) +
   ggtitle("PCA: Day18 (rlog)") +
@@ -899,6 +940,57 @@ ggplot(pcaData_d18, aes(x = PC1, y = PC2,  alpha = OA, shape = Salinity, label=n
   ylab(paste0("PC2: ", percentVar[2], "% variance")) +
   coord_fixed()
 dev.off()
+
+
+# PCA plot rlog.d18.arag.sat ::::::::::::::::::::::::::::::::::::::::::
+pcaData_d18.arag.sat <- plotPCA(rlog.d18.arag.sat, intgroup = ("Aragonite_saturation"), returnData = TRUE)
+percentVar.arag.sat <- round(100 * attr(pcaData_d18.arag.sat, "percentVar"))
+png("../Output/DESeq2/Day18_spat/plots/Day18.rlog_PCA_aragonite_sat.png", 1000, 1000, pointsize=20)
+ggplot(pcaData_d18.arag.sat, aes(x = PC1, y = PC2, color = Aragonite_saturation, label=name)) +
+  geom_point(size =6) +
+  scale_color_manual(values = c("#D55E00", "#e69F00", "#56B4E9", "#0072B2")) +
+  geom_text(aes(label=name),hjust=0.2, vjust=1.4, size=5) +
+  theme_classic() +
+  theme(text = element_text(size=15)) +
+  ggtitle("PCA: Day 22 (rlog) aragonite saturation") +
+  xlab(paste0("PC1: ", percentVar.arag.sat[1], "% variance")) +
+  ylab(paste0("PC2: ", percentVar.arag.sat[2], "% variance")) +
+  coord_fixed()
+dev.off()
+
+
+
+## plot together for peer review response
+ggpubr::ggarrange(
+  
+    ggplot(pcaData_d18, aes(x = PC1, y = PC2,  alpha = OA, colour = group, shape = Salinity, label=name)) +
+      geom_point(size =6) +
+      scale_color_manual(values = c("#D55E00", "#D55E00", "#D55E00","#D55E00")) +
+      scale_alpha_manual(values = c(0.5, 1)) +
+      scale_shape_manual(values = c(4, 19, 17)) +
+      geom_text(aes(label=name),hjust=0.2, vjust=1.4, size=5) +
+      geom_point(size =6) +
+      theme_classic() +
+      guides(colour = "none") +
+      theme(text = element_text(size=10)) +
+      ggtitle("PCA: Day 22 (rlog) experimental treatments") +
+      xlab(paste0("PC1: ", percentVar[1], "% variance")) +
+      ylab(paste0("PC2: ", percentVar[2], "% variance")) +
+      coord_fixed(),
+      
+    ggplot(pcaData_d18.arag.sat, aes(x = PC1, y = PC2, color = Aragonite_saturation, label=name)) +
+      scale_color_manual(values = c("#D55E00", "#e69F00", "#56B4E9", "#0072B2")) +
+      geom_text(aes(label=name),hjust=0.2, vjust=1.4, size=5) +
+      geom_point(size =6) +
+      theme_classic() +
+      theme(text = element_text(size=10)) +
+      ggtitle("PCA: Day 22 (rlog) aragonite saturation") +
+      xlab(paste0("PC1: ", percentVar.arag.sat[1], "% variance")) +
+      ylab(paste0("PC2: ", percentVar.arag.sat[2], "% variance")) +
+      coord_fixed(),
+      ncol = 2, nrow = 1
+
+)
 
 
 # Plot heatmap map rlog ::::::::::::::::::::::::::::::
